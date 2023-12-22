@@ -13,11 +13,11 @@ const firebaseConfig = {
   storageBucket: "card-confluence.appspot.com",
   messagingSenderId: "1085717188985",
   appId: "1:1085717188985:web:6b12e923cf169519c79fa8",
-  measurementId: "G-C4NT3TS8BQ"
+  measurementId: "G-C4NT3TS8BQ",
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
 
-export {app, analytics}
+export { app, analytics };
