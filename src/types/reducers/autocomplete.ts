@@ -75,53 +75,124 @@ export function genFastAutocomplete(slow_map: IAutocompleteMap): IFastAutocomple
     }
     return fast_node;
 }
-function match(wordbank: string[], text: string): string[] {
+function match(wordbank: string[], text: string): Set<string> {
     const start = Math.max(stringBSearch(wordbank, text) - 1, 0);
     const end = stringBSearch(wordbank, text + String.fromCodePoint(0x10ffff));
-    return wordbank.slice(start, end);
+    return new Set<string>(wordbank.slice(start, end));
 }
-export function genEsp(map: IFastAutocompleteMap, text: string): string[] {
-    console.log('call map:', map);
-    const og_text = text;
+export function genEsp(
+    map: IFastAutocompleteMap,
+    text: string,
+    repeatNode?: IFastAutocompleteMap,
+): Set<string | null> {
+    console.log(`"${text}" with map:`, map);
+    repeatNode = map.repeating ? map : repeatNode;
+
+    if (map === undefined) return new Set<string | null>(null);
+
+    map.prefix ??= '';
+    map.suffix ??= '';
 
     //handle prefix
 
     //dead end
     if (map.sorted_options.length == 0) {
-        return [];
+        return new Set<string>();
     }
 
-    const esp_list: string[] = [];
-    if (map.terminating && map.suffix) {
-        esp_list.push(map.suffix);
-    }
+    const suggestions: Set<string | null> = new Set();
+    // if (map.terminating && map.suffix) {
+    //     suggestions.add(map.suffix);
+    // }
 
     if (map.prefix) {
-        if (!text.startsWith(map.prefix)) return [map.prefix];
+        if (text === '') {
+            console.log('prefixating', text, map.prefix);
+            suggestions.add(map.prefix);
+            return suggestions;
+        }
+        if (!text.startsWith(map.prefix)) {
+            return suggestions;
+        }
         text = text.slice(map.prefix.length);
     }
-    if (text !== '' && map.prefix) return [map.prefix];
 
-    const options = match(map.sorted_options, text);
-    console.log(text.length, `"${og_text}" o:`, options);
+    const options = match(map.sorted_options, text.slice(0, 1));
+    console.log(text.length, `"${text}" o:`, options);
 
     if (text === '') {
-        options.push.apply(options, esp_list);
-        console.log('exiting', options);
-        return options;
+        options.forEach((option) => suggestions.add(option));
+        if (map.terminating) suggestions.add(null);
     }
+
+    const endings: Set<string> = new Set();
 
     for (const option of options) {
         if (text.startsWith(option)) {
             const new_map = map.singlemap[option];
-            if (!new_map) return map.suffix ? [map.suffix] : [];
-            esp_list.push.apply(esp_list, genEsp(new_map, text.slice(option.length)));
+
+            console.log('exploring text', text, 'down', option, '@', map);
+            // if (!new_map) return map.suffix ? [map.suffix] : [];
+            if (!new_map) {
+                suggestions.add(null);
+                endings.add(option);
+                continue;
+            }
+            let cropped_text = text.slice(option.length);
+
+            if (
+                repeatNode &&
+                new_map.terminating &&
+                map.suffix &&
+                cropped_text.startsWith(map.suffix)
+            ) {
+                console.log('suffixiating', map.suffix);
+                cropped_text = cropped_text.slice(1);
+                const new_suggestions = genEsp(repeatNode, cropped_text);
+                new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
+                continue;
+            }
+
+            const new_suggestions = genEsp(new_map, cropped_text, repeatNode);
+            console.log('new_suggestions for', option, new_suggestions);
+            new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
+            continue;
         }
         if (option.startsWith(text)) {
-            esp_list.push(option);
+            suggestions.add(option);
         }
     }
-    console.log(text.length, `"${og_text}" e:`, esp_list);
 
-    return esp_list;
+    // if (repeatNode && suggestions.size === 1 && suggestions.has(null)) {
+    if (repeatNode) {
+        console.log('endings:', endings);
+        for (const ending of endings) {
+            let cropped_text = text.slice(ending.length);
+            if (
+                repeatNode.suffix &&
+                (cropped_text === '' || !cropped_text.startsWith(repeatNode.suffix))
+            ) {
+                console.log('returning with suffix', repeatNode.suffix);
+                return new Set<string | null>([repeatNode.suffix]);
+            }
+            repeatNode.suffix ??= '';
+            cropped_text = cropped_text.slice(repeatNode.suffix.length).trim();
+            console.log('repeating with text:', cropped_text, '@', repeatNode);
+            const new_suggestions = genEsp(repeatNode, cropped_text);
+            new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
+        }
+        // return suggestions;
+        // }
+
+        // if (!text.startsWith(map.suffix) && (suggestions.has(null) || map.terminating) && map.suffix) {
+        //     suggestions.add(map.suffix);
+    }
+
+    if (suggestions.size === 0) {
+        suggestions.add(null);
+    }
+
+    console.log(text.length, `"${text}" s:`, suggestions);
+
+    return suggestions;
 }

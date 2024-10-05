@@ -33,3 +33,5 @@ export interface IFastAutocompleteMap {
     prefix?: string;
     suffix?: string;
 }
+// fix scenario with non map words on oracle going infinite
+// make it always return the current type segment so it can be colored as valid, or make empty list behave as if all is correct

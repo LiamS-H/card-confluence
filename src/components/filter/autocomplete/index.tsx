@@ -17,7 +17,7 @@ export default function StringAutocomplete(props: {
             return;
         }
         const queryList: string[] = [];
-        setEsp(genEsp(props.map, input));
+        setEsp(Array.from(genEsp(props.map, input)).filter((n) => n !== null));
         setQueryParts(queryList);
     }, [input, props.map]);
 
