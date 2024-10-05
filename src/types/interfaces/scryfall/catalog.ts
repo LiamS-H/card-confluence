@@ -1,10 +1,3 @@
-interface IScryfallCatalogResult {
-    object: string;
-    uri: string;
-    total_values: number;
-    data: string[];
-}
-
 interface IScryfallCatalog {
     'artist-names': string[];
     'creature-types': string[];
@@ -29,5 +22,4 @@ interface IScryfallCatalog {
     [key: string]: string[];
 }
 
-export type { IScryfallCatalog, IScryfallCatalogResult };
-export {};
+export type { IScryfallCatalog };

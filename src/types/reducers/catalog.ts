@@ -1,7 +1,12 @@
 import { IScryfallCatalog } from '../interfaces/scryfall/catalog';
-import { IAutocompleteMap } from '../interfaces/search/autcomplete';
+import {
+    IAutocompleteMap,
+    IAutocompleteNode,
+    IFastAutocompleteMap,
+} from '../interfaces/search/autcomplete';
+import { genFastAutocomplete } from './autocomplete';
 
-function catalogToFilterMap(catalog: IScryfallCatalog): IAutocompleteMap {
+function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
     const card_types = [
         ...catalog['card-types'],
         ...catalog['spell-types'],
@@ -12,110 +17,83 @@ function catalogToFilterMap(catalog: IScryfallCatalog): IAutocompleteMap {
         ...catalog['planeswalker-types'],
         ...catalog['supertypes'],
     ].map((type) => type.toLowerCase());
-    const criteria = catalog['criteria'];
+    const criteria = [...catalog['criteria']].map((set) => set.toLowerCase());
     const card_sets = [...catalog.sets].map((set) => set.toLowerCase());
     const word_bank = catalog['word-bank'];
     const powers = catalog.powers;
     const toughnesses = catalog.toughnesses;
-    const manaMap = {
-        wordbank: {
-            tree: {
-                '{': {
-                    tree: {
-                        w: {
-                            tree: {
-                                '}': [],
-                                '/': {
-                                    tree: {
-                                        u: ['/p}', '}'],
-                                        b: ['/p', '}'],
-                                        'p}': [],
-                                    },
-                                },
-                            },
-                        },
-                        u: {
-                            tree: {
-                                '}': [],
-                                '/': {
-                                    tree: {
-                                        b: ['/p', '}'],
-                                        r: ['/p', '}'],
-                                        'p}': [],
-                                    },
-                                },
-                            },
-                        },
-                        b: {
-                            tree: {
-                                '}': [],
-                                '/': {
-                                    tree: {
-                                        r: ['/p', '}'],
-                                        g: ['/p', '}'],
-                                        'p}': [],
-                                    },
-                                },
-                            },
-                        },
-                        r: {
-                            tree: {
-                                '}': [],
-                                '/': {
-                                    tree: {
-                                        w: ['/p}', '}'],
-                                        g: ['/p', '}'],
-                                        'p}': [],
-                                    },
-                                },
-                            },
-                        },
-                        g: {
-                            tree: {
-                                '}': [],
-                                '/': {
-                                    tree: {
-                                        w: ['/p}', '}'],
-                                        u: ['/p', '}'],
-                                        'p}': [],
-                                    },
-                                },
-                            },
-                        },
-                        c: ['}'],
-                        '2': {
-                            tree: {
-                                '}': [],
-                                '/': {
-                                    tree: {
-                                        w: ['}'],
-                                        u: ['}'],
-                                        b: ['}'],
-                                        r: ['}'],
-                                        g: ['}'],
-                                    },
-                                },
-                            },
-                        },
-                        '1': ['}'],
-                        '3': ['}'],
-                        '4': ['}'],
-                        '5': ['}'],
-                        '6': ['}'],
-                        '7': ['}'],
-                        '8': ['}'],
-                        '9': ['}'],
-                        '10': ['}'],
-                        '11': ['}'],
-                        '12': ['}'],
-                        '13': ['}'],
-                        '14': ['}'],
-                        '15': ['}'],
-                    },
+    const manaMap: IAutocompleteNode = {
+        repeating: true,
+        prefix: '{',
+        suffix: '}',
+        singlemap: {
+            w: {
+                terminating: true,
+                prefix: '/',
+                singlemap: {
+                    u: ['/p', null],
+                    b: ['/p', null],
+                    p: null,
                 },
             },
+            u: {
+                terminating: true,
+                prefix: '/',
+                singlemap: {
+                    b: ['/p', null],
+                    r: ['/p', null],
+                    p: null,
+                },
+            },
+            b: {
+                terminating: true,
+                prefix: '/',
+                singlemap: {
+                    r: ['/p', null],
+                    g: ['/p', null],
+                    p: null,
+                },
+            },
+            r: {
+                terminating: true,
+                prefix: '/',
+                singlemap: {
+                    w: ['/p', null],
+                    g: ['/p', null],
+                    p: null,
+                },
+            },
+            g: {
+                terminating: true,
+                prefix: '/',
+                singlemap: {
+                    w: ['/p', null],
+                    u: ['/p', null],
+                    p: null,
+                },
+            },
+            c: null,
+            '2': {
+                terminating: true,
+                singlemap: {
+                    '/': ['w', 'u', 'b', 'r', 'g'],
+                },
+            },
+            '1': null,
+            '3': null,
+            '4': null,
+            '5': null,
+            '6': null,
+            '7': null,
+            '8': null,
+            '9': null,
+            '10': null,
+            '11': null,
+            '12': null,
+            '13': null,
+            '14': null,
+            '15': null,
         },
-        freeSolo: true,
     };
     const oracle_word_bank = [
         ...catalog['ability-words'],
@@ -132,65 +110,106 @@ function catalogToFilterMap(catalog: IScryfallCatalog): IAutocompleteMap {
         'oppponents',
         'graveyard',
         'hand',
+        'power',
+        'toughness',
+        '',
     ]
         .map((word) => word.toLowerCase())
         .sort();
     const FilterAutocompleteMap: IAutocompleteMap = {
-        tree: {
-            o: {
-                tree: {
-                    ':': {
-                        freeSolo: true,
-                        wordbank: oracle_word_bank,
+        multimaps: [
+            {
+                keys: ['o', 'oracle'],
+                node: {
+                    singlemap: {
+                        ':': {
+                            repeating: true,
+                            wordbank: oracle_word_bank,
+                        },
                     },
                 },
             },
-            t: {
-                tree: {
-                    ':': card_types,
+            {
+                keys: ['t', 'type'],
+                node: {
+                    prefix: ':',
+                    wordbank: card_types,
                 },
             },
-            set: {
-                tree: {
-                    ':': card_sets,
+            {
+                keys: ['s', 'set'],
+                node: {
+                    prefix: ':',
+                    wordbank: card_sets,
                 },
             },
-            is: {
-                tree: {
-                    ':': criteria,
+            {
+                keys: ['is'],
+                node: {
+                    prefix: ':',
+                    wordbank: criteria,
                 },
             },
-            power: {
-                tree: {
-                    '=': powers,
-                    '<=': powers,
-                    '>=': powers,
-                    '<': powers,
-                    '>': powers,
+            {
+                keys: ['p', 'power'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: ['=', '<=', '>=', '<', '>'],
+                            node: powers,
+                        },
+                    ],
                 },
             },
-            toughness: {
-                tree: {
-                    '=': toughnesses,
-                    '<=': toughnesses,
-                    '>=': toughnesses,
-                    '<': toughnesses,
-                    '>': toughnesses,
+            {
+                keys: ['toughness'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: ['=', '<=', '>=', '<', '>'],
+                            node: toughnesses,
+                        },
+                    ],
                 },
             },
-            m: {
-                tree: {
-                    '=': manaMap,
-                    '<=': manaMap,
-                    '>=': manaMap,
-                    '<': manaMap,
-                    '>': manaMap,
+            {
+                keys: ['m', 'mana'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: ['=', '<=', '>=', '<', '>'],
+                            node: manaMap,
+                        },
+                    ],
                 },
             },
-            name: word_bank,
-        },
+            {
+                keys: ['n', 'name'],
+                node: {
+                    prefix: ':',
+                    wordbank: word_bank,
+                },
+            },
+            {
+                keys: ['c', 'color'],
+                node: {
+                    singlemap: {
+                        ':': {
+                            repeating: true,
+                            forceUniqueRepeats: true,
+                            wordbank: ['w', 'u', 'b', 'r', 'g', 'c'],
+                        },
+                    },
+                },
+            },
+        ],
     };
+
     return FilterAutocompleteMap;
 }
 
-export { catalogToFilterMap };
+function catalogToFastAutocomplete(catalog: IScryfallCatalog): IFastAutocompleteMap {
+    return genFastAutocomplete(catalogToAutocomplete(catalog));
+}
+
+export { catalogToAutocomplete, catalogToFastAutocomplete };

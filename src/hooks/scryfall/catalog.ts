@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { IScryfallCatalog, IScryfallCatalogResult } from '../../types/interfaces/scryfall/catalog';
-import { catalogToFilterMap } from '../../types/reducers/catalog';
+import { IScryfallCatalog } from '../../types/interfaces/scryfall/catalog';
+import { catalogToFastAutocomplete } from '../../types/reducers/catalog';
 import { IScryfallSetResult } from '../../types/interfaces/scryfall/set';
+import { ScryfallCatalog } from '@scryfall/api-types';
 
 async function getScryfallCatalog(): Promise<IScryfallCatalog> {
     const promises = [];
@@ -146,7 +147,7 @@ async function getScryfallCatalog(): Promise<IScryfallCatalog> {
     for (const category in catalog) {
         if (category == 'sets' || catalog[category].length > 0) continue;
         const promise = axios
-            .get<IScryfallCatalogResult>(`https://api.scryfall.com/catalog/${category}`)
+            .get<ScryfallCatalog>(`https://api.scryfall.com/catalog/${category}`)
             .then((response) => {
                 catalog[category] = response.data.data;
             });
@@ -173,7 +174,7 @@ function useScryfallCatalog() {
 function useScryfallFilterMap() {
     const filterMapQuery = useQuery({
         queryKey: ['scryfallCatalog'],
-        queryFn: () => getScryfallCatalog().then((catalog) => catalogToFilterMap(catalog)),
+        queryFn: () => getScryfallCatalog().then((catalog) => catalogToFastAutocomplete(catalog)),
     });
 
     return filterMapQuery;

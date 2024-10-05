@@ -5,7 +5,7 @@ import { useFormControl } from '@mui/material';
 export default function EspList(props: { suggestions: string[]; cursorIndex: number }) {
     const value = useFormControl();
     const focused = value ? value.focused : false;
-    if (!focused) return null;
+    // if (!focused) return null;
     return (
         <Box sx={{ overflow: 'visible', width: '200px', zIndex: '99' }}>
             <div
@@ -24,6 +24,7 @@ export default function EspList(props: { suggestions: string[]; cursorIndex: num
                             sx={{
                                 backgroundColor: index < 2 ? 'transparent' : '#1E1E1E', //FIX make it use the style
                                 // cursor: 'pointer',
+                                zIndex: 999,
                             }}
                         >
                             {suggestion.slice(props.cursorIndex)}

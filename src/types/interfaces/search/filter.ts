@@ -1,4 +1,9 @@
-type Operator = '<' | '<=' | '>' | '>=' | '=' | ':' | string;
+type Operator = '<' | '<=' | '>' | '>=' | '=' | ':';
+const operators = ['<', '<=', '>', '>=', '=', ':'];
+
+function isOperator(o: string): o is Operator {
+    return operators.includes(o);
+}
 
 type Filter = '' | string;
 
@@ -10,3 +15,4 @@ interface IFilter {
 }
 
 export type { IFilter };
+export { operators, isOperator };

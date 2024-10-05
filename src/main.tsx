@@ -7,6 +7,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import Root from './routes/root';
+import 'react-scrycards/dist/index.css';
 
 const queryClient = new QueryClient();
 

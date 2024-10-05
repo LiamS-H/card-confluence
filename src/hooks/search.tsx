@@ -1,24 +1,40 @@
 import { useEffect, useState } from 'react';
 import { ISearch } from '../types/interfaces/search/search';
-import { genQueryString } from '../types/reducers/search';
+import { genQueryString, genSearchObj } from '../types/reducers/search';
 
 function useSearch() {
     const [searchString, setSearchString] = useState<string>('');
     const [search, setSearch] = useState<ISearch>({
         domain: {
-            name: 'domain',
+            id: 'domain',
+            name: 'Domain',
             type: 'composition',
             mode: 'and',
-            components: [],
+            components: [
+                {
+                    type: 'filter',
+                    filter: 'game',
+                    operator: ':',
+                    value: 'paper',
+                },
+                {
+                    type: 'filter',
+                    filter: 'legal',
+                    operator: ':',
+                    value: 'commander',
+                },
+            ],
         },
         filters: {
-            name: 'filters',
+            id: 'filters',
+            name: 'Filters',
             type: 'composition',
             mode: 'and',
             components: [],
         },
         triggers: {
-            name: 'triggers',
+            id: 'triggers',
+            name: 'Triggers',
             type: 'composition',
             mode: 'and',
             components: [],

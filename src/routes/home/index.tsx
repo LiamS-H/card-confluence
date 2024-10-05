@@ -13,7 +13,6 @@ export default function Home() {
 
     // const { isPending, error, data, isFetching } = useScryfallSearch(searchString);
     const { data } = useScryfallSearch(searchString);
-
     return (
         <Container>
             <Box>

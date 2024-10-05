@@ -1,12 +1,11 @@
+import { ScryfallList } from '@scryfall/api-types';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-
-import { IScryfallCardResult } from '../../types/interfaces/scryfall/cards';
 
 async function queryFunction(queryString: string) {
     if (queryString.replace(/[()]/g, '').trim() == '') return [];
     return axios
-        .get<IScryfallCardResult>('https://api.scryfall.com/cards/search', {
+        .get<ScryfallList.Cards>('https://api.scryfall.com/cards/search', {
             params: {
                 q: queryString,
             },
