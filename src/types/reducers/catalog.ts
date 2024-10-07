@@ -202,6 +202,18 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                     },
                 },
             },
+            {
+                keys: ['commander'],
+                node: {
+                    singlemap: {
+                        ':': {
+                            repeating: true,
+                            forceUniqueRepeats: true,
+                            wordbank: ['w', 'u', 'b', 'r', 'g', 'c'],
+                        },
+                    },
+                },
+            },
         ],
     };
 

@@ -58,6 +58,7 @@ function slowToFastAutocompleteNode(slow_node: IAutocompleteNode): IFastAutocomp
         forceUniqueRepeats: slow_node.forceUniqueRepeats,
         repeating: slow_node.repeating,
         prefix: slow_node.prefix,
+        // suffix: slow_node.suffix ? slow_node.suffix : slow_node.repeating ? ' ' : undefined,
         suffix: slow_node.suffix,
         terminating: slow_node.terminating,
     };
@@ -83,79 +84,85 @@ function match(wordbank: string[], text: string): Set<string> {
 export function genEsp(
     map: IFastAutocompleteMap,
     text: string,
+    queryList: string[],
     repeatNode?: IFastAutocompleteMap,
 ): Set<string | null> {
-    console.log(`"${text}" with map:`, map);
     repeatNode = map.repeating ? map : repeatNode;
-
-    if (map === undefined) return new Set<string | null>(null);
-
     map.prefix ??= '';
     map.suffix ??= '';
 
-    //handle prefix
-
-    //dead end
-    if (map.sorted_options.length == 0) {
-        return new Set<string>();
-    }
+    const og_text = text;
 
     const suggestions: Set<string | null> = new Set();
-    // if (map.terminating && map.suffix) {
-    //     suggestions.add(map.suffix);
-    // }
 
+    if (
+        map.terminating &&
+        text.length - map.prefix.length === 0 &&
+        (!map.prefix || !text.startsWith(map.prefix))
+    ) {
+        suggestions.add(null);
+    }
+
+    if (map.prefix && !text.startsWith(map.prefix)) {
+        if (text === '') suggestions.add(map.prefix);
+        return suggestions;
+    }
     if (map.prefix) {
-        if (text === '') {
-            console.log('prefixating', text, map.prefix);
-            suggestions.add(map.prefix);
-            return suggestions;
-        }
-        if (!text.startsWith(map.prefix)) {
-            return suggestions;
-        }
         text = text.slice(map.prefix.length);
     }
 
-    const options = match(map.sorted_options, text.slice(0, 1));
-    console.log(text.length, `"${text}" o:`, options);
-
     if (text === '') {
-        options.forEach((option) => suggestions.add(option));
-        if (map.terminating) suggestions.add(null);
+        if (map.terminating && map.suffix) suggestions.add(map.suffix);
+        map.sorted_options.forEach((option) => suggestions.add(option));
+        return suggestions;
     }
 
-    const endings: Set<string> = new Set();
+    const options = match(map.sorted_options, text.slice(0, 1));
 
     for (const option of options) {
         if (text.startsWith(option)) {
             const new_map = map.singlemap[option];
+            const cropped_text = text.slice(option.length);
 
-            console.log('exploring text', text, 'down', option, '@', map);
-            // if (!new_map) return map.suffix ? [map.suffix] : [];
-            if (!new_map) {
-                suggestions.add(null);
-                endings.add(option);
-                continue;
+            let new_suggestions = new Set<string | null>();
+
+            if (!new_map && (cropped_text == '' || cropped_text.startsWith(map.suffix))) {
+                new_suggestions.add(null);
             }
-            let cropped_text = text.slice(option.length);
-
-            if (
-                repeatNode &&
-                new_map.terminating &&
-                map.suffix &&
-                cropped_text.startsWith(map.suffix)
-            ) {
-                console.log('suffixiating', map.suffix);
-                cropped_text = cropped_text.slice(1);
-                const new_suggestions = genEsp(repeatNode, cropped_text);
-                new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
-                continue;
+            if (new_map) {
+                new_suggestions = genEsp(new_map, cropped_text, queryList, repeatNode);
             }
 
-            const new_suggestions = genEsp(new_map, cropped_text, repeatNode);
-            console.log('new_suggestions for', option, new_suggestions);
             new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
+
+            // this naively crops based only one 1 depth of tree. The function must return the text from the explored tree in order to know where to crop for suffix.
+            if (suggestions.has(null) && map.suffix && !cropped_text.includes(map.suffix)) {
+                suggestions.add(map.suffix);
+            }
+
+            // for now I am going to assume suffixes are unique and crop until the suffix
+            // in future should look at querylist to know where to slice
+
+            // console.log('queryList @', map.repeating, cropped_text, queryList, map.suffix);
+
+            if (repeatNode && map.suffix && cropped_text.includes(map.suffix)) {
+                const slice_index = cropped_text.indexOf(map.suffix) + 1;
+                const post_suf = cropped_text.slice(slice_index);
+                const pre_suf = cropped_text.slice(0, slice_index);
+                const new_suggestions = genEsp(repeatNode, post_suf, queryList);
+                new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
+            }
+            if (repeatNode && !map.suffix && map.repeating) {
+                const new_map = { ...repeatNode };
+                if (map.forceUniqueRepeats) {
+                    new_map.sorted_options = new_map.sorted_options.filter((n) => n !== option);
+                    delete new_map.singlemap[option];
+                }
+
+                const new_suggestions = genEsp(new_map, cropped_text, queryList);
+                new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
+            }
+
             continue;
         }
         if (option.startsWith(text)) {
@@ -163,36 +170,21 @@ export function genEsp(
         }
     }
 
-    // if (repeatNode && suggestions.size === 1 && suggestions.has(null)) {
-    if (repeatNode) {
-        console.log('endings:', endings);
-        for (const ending of endings) {
-            let cropped_text = text.slice(ending.length);
-            if (
-                repeatNode.suffix &&
-                (cropped_text === '' || !cropped_text.startsWith(repeatNode.suffix))
-            ) {
-                console.log('returning with suffix', repeatNode.suffix);
-                return new Set<string | null>([repeatNode.suffix]);
-            }
-            repeatNode.suffix ??= '';
-            cropped_text = cropped_text.slice(repeatNode.suffix.length).trim();
-            console.log('repeating with text:', cropped_text, '@', repeatNode);
-            const new_suggestions = genEsp(repeatNode, cropped_text);
-            new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
-        }
-        // return suggestions;
-        // }
-
-        // if (!text.startsWith(map.suffix) && (suggestions.has(null) || map.terminating) && map.suffix) {
-        //     suggestions.add(map.suffix);
+    if (!((suggestions.size === 1 && suggestions.has(null)) || suggestions.size == 0)) {
+        queryList.unshift(og_text);
     }
-
-    if (suggestions.size === 0) {
-        suggestions.add(null);
-    }
-
-    console.log(text.length, `"${text}" s:`, suggestions);
 
     return suggestions;
+}
+
+export function genCompletion(suggestion: string, query: string): string {
+    if (query === '') return suggestion;
+    if (suggestion === '') return '';
+
+    for (let i = 0; i < query.length; i++) {
+        if (suggestion.startsWith(query.slice(i))) {
+            return suggestion.slice(query.length - i);
+        }
+    }
+    return suggestion;
 }

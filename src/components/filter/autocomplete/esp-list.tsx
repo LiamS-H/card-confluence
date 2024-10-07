@@ -1,8 +1,9 @@
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import { useFormControl } from '@mui/material';
+import { genCompletion } from '../../../types/reducers/autocomplete';
 
-export default function EspList(props: { suggestions: string[]; cursorIndex: number }) {
+export default function EspList(props: { suggestions: (string | null)[]; query: string }) {
     const value = useFormControl();
     const focused = value ? value.focused : false;
     if (!focused) return null;
@@ -26,7 +27,7 @@ export default function EspList(props: { suggestions: string[]; cursorIndex: num
                                 // cursor: 'pointer',
                             }}
                         >
-                            {suggestion.slice(props.cursorIndex)}
+                            {suggestion ? genCompletion(suggestion, props.query) : ' '}
                         </Typography>
                     ))}
             </div>

@@ -2,23 +2,27 @@ import { FormControl, TextField } from '@mui/material';
 import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
 import { IFastAutocompleteMap } from '../../../types/interfaces/search/autcomplete';
 import EspList from './esp-list';
-import { genEsp } from '../../../types/reducers/autocomplete';
+import { genCompletion, genEsp } from '../../../types/reducers/autocomplete';
 
 export default function StringAutocomplete(props: {
     map: IFastAutocompleteMap;
     onSubmit: (result: string) => Promise<void> | void;
 }) {
     const [input, setInput] = useState<string>('');
-    const [esp, setEsp] = useState<string[]>([]);
-    const [queryParts, setQueryParts] = useState<string[]>([]);
+    const [esp, setEsp] = useState<(string | null)[]>([]);
+    const [queryPart, setQueryPart] = useState<string>('');
 
     useEffect(() => {
         if (!props.map) {
             return;
         }
         const queryList: string[] = [];
-        setEsp(Array.from(genEsp(props.map, input)).filter((n) => n !== null));
-        setQueryParts(queryList);
+        const new_esp = Array.from(genEsp(props.map, input, queryList));
+        setEsp(new_esp);
+        console.log('new_esp', new_esp);
+        console.log('queryL', queryList);
+        const new_queryPart = queryList.at(-1);
+        setQueryPart(new_queryPart ? new_queryPart : '');
     }, [input, props.map]);
 
     function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -30,7 +34,13 @@ export default function StringAutocomplete(props: {
 
     function complete(): string {
         if (esp.length == 0) return input;
-        const new_input = input + esp[0].slice(queryParts[queryParts.length - 1].length);
+        let new_input;
+        if (!esp.includes(null) && esp[0] !== null) {
+            let selection = esp[0];
+            new_input = input + genCompletion(selection, queryPart);
+            selection = '';
+        }
+        new_input ??= input;
         setInput(new_input);
         return new_input;
     }
@@ -68,16 +78,7 @@ export default function StringAutocomplete(props: {
                         inputProps: {
                             style: { textAlign: 'right' },
                         },
-                        endAdornment: (
-                            <EspList
-                                suggestions={esp}
-                                cursorIndex={
-                                    queryParts.length > 0
-                                        ? queryParts[queryParts.length - 1].length
-                                        : 0
-                                }
-                            />
-                        ),
+                        endAdornment: <EspList suggestions={esp} query={queryPart} />,
                     }}
                 />
             </FormControl>
