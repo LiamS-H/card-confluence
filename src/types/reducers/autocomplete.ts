@@ -91,6 +91,8 @@ export function genEsp(
     map.prefix ??= '';
     map.suffix ??= '';
 
+    console.log(text, map);
+
     const og_text = text;
 
     const suggestions: Set<string | null> = new Set();
@@ -126,8 +128,20 @@ export function genEsp(
 
             let new_suggestions = new Set<string | null>();
 
-            if (!new_map && (cropped_text == '' || cropped_text.startsWith(map.suffix))) {
+            if (
+                !new_map &&
+                ((cropped_text == '' && !map.suffix) ||
+                    (map.suffix && cropped_text.startsWith(map.suffix)))
+            ) {
                 new_suggestions.add(null);
+            }
+            if (
+                !new_map &&
+                cropped_text == '' &&
+                map.suffix &&
+                !cropped_text.startsWith(map.suffix)
+            ) {
+                new_suggestions.add(map.suffix);
             }
             if (new_map) {
                 new_suggestions = genEsp(new_map, cropped_text, queryList, repeatNode);
@@ -149,6 +163,12 @@ export function genEsp(
                 const slice_index = cropped_text.indexOf(map.suffix) + 1;
                 const post_suf = cropped_text.slice(slice_index);
                 const pre_suf = cropped_text.slice(0, slice_index);
+                console.log('post_suf', post_suf);
+                if (post_suf !== '') {
+                    suggestions.delete(null);
+                    // suggestions.add(null);
+                    // continue;
+                }
                 const new_suggestions = genEsp(repeatNode, post_suf, queryList);
                 new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
             }
@@ -161,6 +181,7 @@ export function genEsp(
 
                 const new_suggestions = genEsp(new_map, cropped_text, queryList);
                 new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
+                suggestions.delete(null);
             }
 
             continue;
@@ -177,7 +198,8 @@ export function genEsp(
     return suggestions;
 }
 
-export function genCompletion(suggestion: string, query: string): string {
+export function genCompletion(suggestion: string | null, query: string): string {
+    if (suggestion === null) return '';
     if (query === '') return suggestion;
     if (suggestion === '') return '';
 
