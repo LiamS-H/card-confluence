@@ -125,6 +125,8 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                         ':': {
                             repeating: true,
                             wordbank: oracle_word_bank,
+
+                            suffix: ' ',
                         },
                     },
                 },
@@ -193,13 +195,16 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
             {
                 keys: ['c', 'color'],
                 node: {
-                    singlemap: {
-                        ':': {
-                            repeating: true,
-                            forceUniqueRepeats: true,
-                            wordbank: ['w', 'u', 'b', 'r', 'g', 'c'],
+                    multimaps: [
+                        {
+                            keys: [':', '=', '<=', '>=', '<', '>'],
+                            node: {
+                                repeating: true,
+                                forceUniqueRepeats: true,
+                                wordbank: ['w', 'u', 'b', 'r', 'g', 'c'],
+                            },
                         },
-                    },
+                    ],
                 },
             },
             {

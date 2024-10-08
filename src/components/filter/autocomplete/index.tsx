@@ -10,6 +10,7 @@ export default function StringAutocomplete(props: {
 }) {
     const [input, setInput] = useState<string>('');
     const [esp, setEsp] = useState<(string | null)[]>([]);
+    const [index, setIndex] = useState(0);
     const [queryPart, setQueryPart] = useState<string>('');
 
     useEffect(() => {
@@ -19,8 +20,6 @@ export default function StringAutocomplete(props: {
         const queryList: string[] = [];
         const new_esp = Array.from(genEsp(props.map, input, queryList));
         setEsp(new_esp);
-        console.log('new_esp', new_esp);
-        console.log('queryL', queryList);
         const new_queryPart = queryList.at(-1);
         setQueryPart(new_queryPart ? new_queryPart : '');
     }, [input, props.map]);
@@ -35,8 +34,8 @@ export default function StringAutocomplete(props: {
     function complete(): string {
         if (esp.length == 0) return input;
         let new_input;
-        if (!esp.includes(null) && esp[0] !== null) {
-            let selection = esp[0];
+        if (!esp.includes(null) && esp[index] !== null) {
+            let selection = esp[index];
             new_input = input + genCompletion(selection, queryPart);
             selection = '';
         }
