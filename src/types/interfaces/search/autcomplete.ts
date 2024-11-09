@@ -18,6 +18,7 @@ export interface IAutocompleteMap {
     repeating?: true;
     forceUniqueRepeats?: true;
     terminating?: true;
+    freesolo?: true;
     prefix?: string;
     suffix?: string;
 }
@@ -30,6 +31,7 @@ export interface IFastAutocompleteMap {
     repeating?: true;
     forceUniqueRepeats?: true;
     terminating?: true;
+    freesolo?: true;
     prefix?: string;
     suffix?: string;
 }

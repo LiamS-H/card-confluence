@@ -57,6 +57,7 @@ function slowToFastAutocompleteNode(slow_node: IAutocompleteNode): IFastAutocomp
         singlemap: singlemap,
         forceUniqueRepeats: slow_node.forceUniqueRepeats,
         repeating: slow_node.repeating,
+        freesolo: slow_node.freesolo,
         prefix: slow_node.prefix,
         // suffix: slow_node.suffix ? slow_node.suffix : slow_node.repeating ? ' ' : undefined,
         suffix: slow_node.suffix,
@@ -91,8 +92,6 @@ export function genEsp(
     map.prefix ??= '';
     map.suffix ??= '';
 
-    console.log(text, map);
-
     const og_text = text;
 
     const suggestions: Set<string | null> = new Set();
@@ -120,6 +119,9 @@ export function genEsp(
     }
 
     const options = match(map.sorted_options, text.slice(0, 1));
+    if (map.freesolo) {
+        options.add(text.slice(0, -1));
+    }
 
     for (const option of options) {
         if (text.startsWith(option)) {
@@ -127,6 +129,9 @@ export function genEsp(
             const cropped_text = text.slice(option.length);
 
             let new_suggestions = new Set<string | null>();
+            if (new_map) {
+                new_suggestions = genEsp(new_map, cropped_text, queryList, repeatNode);
+            }
 
             if (
                 !new_map &&
@@ -143,8 +148,9 @@ export function genEsp(
             ) {
                 new_suggestions.add(map.suffix);
             }
-            if (new_map) {
-                new_suggestions = genEsp(new_map, cropped_text, queryList, repeatNode);
+
+            if (new_map?.terminating && cropped_text == '') {
+                new_suggestions.add(null);
             }
 
             new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
@@ -152,12 +158,11 @@ export function genEsp(
             // this naively crops based only one 1 depth of tree. The function must return the text from the explored tree in order to know where to crop for suffix.
             if (suggestions.has(null) && map.suffix && !cropped_text.includes(map.suffix)) {
                 suggestions.add(map.suffix);
+                suggestions.delete(null);
             }
 
             // for now I am going to assume suffixes are unique and crop until the suffix
             // in future should look at querylist to know where to slice
-
-            // console.log('queryList @', map.repeating, cropped_text, queryList, map.suffix);
 
             if (repeatNode && map.suffix && cropped_text.includes(map.suffix)) {
                 const slice_index = cropped_text.indexOf(map.suffix) + 1;

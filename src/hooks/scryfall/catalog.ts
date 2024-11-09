@@ -49,7 +49,7 @@ async function getScryfallCatalog(): Promise<IScryfallCatalog> {
             'Word',
         ],
         criteria: [
-            'Adveanture',
+            'Adventure',
             'Arena ID',
             'Art Series',
             'Artist',

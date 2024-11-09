@@ -112,6 +112,7 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
         'hand',
         'power',
         'toughness',
+        'token',
         '',
     ]
         .map((word) => word.toLowerCase())
@@ -125,8 +126,8 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                         ':': {
                             repeating: true,
                             wordbank: oracle_word_bank,
-
                             suffix: ' ',
+                            freesolo: true,
                         },
                     },
                 },

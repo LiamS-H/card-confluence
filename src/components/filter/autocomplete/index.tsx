@@ -1,8 +1,9 @@
 import { FormControl, TextField } from '@mui/material';
-import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { IFastAutocompleteMap } from '../../../types/interfaces/search/autcomplete';
 import EspList from './esp-list';
 import { genCompletion, genEsp } from '../../../types/reducers/autocomplete';
+import useWidth from '../../../hooks/width';
 
 export default function StringAutocomplete(props: {
     map: IFastAutocompleteMap;
@@ -12,6 +13,7 @@ export default function StringAutocomplete(props: {
     const [esp, setEsp] = useState<(string | null)[]>([]);
     const [index, setIndex] = useState(0);
     const [queryPart, setQueryPart] = useState<string>('');
+    const { Listener, width } = useWidth(input);
 
     useEffect(() => {
         if (!props.map) {
@@ -59,6 +61,7 @@ export default function StringAutocomplete(props: {
             autoComplete='off'
         >
             <FormControl>
+                <Listener />
                 <TextField
                     value={input}
                     label='add filter'
@@ -69,15 +72,17 @@ export default function StringAutocomplete(props: {
                     sx={{
                         // minWidth: '100px',
                         // width: '100px',
-                        display: 'flex',
+                        // display: 'flex',
                         flexShrink: 1,
                     }}
                     variant='standard'
                     InputProps={{
                         inputProps: {
-                            style: { textAlign: 'right' },
+                            // style: { textAlign: 'right' },
                         },
-                        endAdornment: <EspList suggestions={esp} query={queryPart} />,
+                        endAdornment: (
+                            <EspList suggestions={esp} query={queryPart} offset={width} />
+                        ),
                     }}
                 />
             </FormControl>

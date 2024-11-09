@@ -262,6 +262,9 @@ describe('autocomplete', () => {
             ]),
         );
     });
+    it('can resolve {r', () => {
+        expect(genEsp(fastManaMap, '{r', [])).toEqual(new Set(['/', '}']));
+    });
     it('can resolve {1', () => {
         expect(genEsp(fastManaMap, '{1', [])).toEqual(
             new Set(['10', '11', '12', '13', '14', '15', '}']),
