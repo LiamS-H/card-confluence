@@ -6,13 +6,14 @@ import { useSearch } from '../../hooks/search';
 import { IComposition } from '../../types/interfaces/search/composition';
 import { IFilter } from '../../types/interfaces/search/filter';
 import MTGCardList from '../../components/mtg-card-list';
+import ScryfallInfiniteList from '../../components/scryfall-infinite-list';
 
 export default function Home() {
     const { search, setSearch, searchString } = useSearch();
     useScryfallSymbols();
 
     // const { isPending, error, data, isFetching } = useScryfallSearch(searchString);
-    const { data } = useScryfallSearch(searchString);
+    const searchQuery = useScryfallSearch(searchString);
     return (
         <Container>
             <Box>
@@ -34,7 +35,9 @@ export default function Home() {
                     }}
                 />
             </Box>
-            <MTGCardList cards={data} />
+            {/* <MTGCardList cards={searchQuery.data?.pages.map((page) => page.data).flat()} /> */}
+            {/* <button onClick={() => searchQuery.fetchNextPage()}>Load More</button> */}
+            <ScryfallInfiniteList queryString={searchString} columnCount={4} />
         </Container>
     );
 }
