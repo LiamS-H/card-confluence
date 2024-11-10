@@ -60,7 +60,7 @@ export default function Home() {
                     />
                     {/* <MTGCardList cards={searchQuery.data?.pages.map((page) => page.data).flat()} /> */}
                     {/* <button onClick={() => searchQuery.fetchNextPage()}>Load More</button> */}
-                    <ScryfallInfiniteList queryString={searchString} columnCount={4} />
+                    <ScryfallInfiniteList queryString={searchString} />
                 </Box>
             </Box>
         </Container>

@@ -8,6 +8,7 @@ import { ScryfallCard } from '@scryfall/api-types';
 
 const CARDS_PER_PAGE = 175;
 const CARD_WIDTH = 200;
+const SCROLL_BAR_WIDTH = 15;
 
 export default function ScryfallInfiniteList(props: { queryString: string }) {
     const searchQuery = useScryfallSearch(props.queryString);
@@ -16,8 +17,9 @@ export default function ScryfallInfiniteList(props: { queryString: string }) {
     const [snapEnabled, setSnapEnabled] = useState(true);
     const [width, setWidth] = useState<number>(0);
     const resizeRef = useRef<HTMLDivElement | null>(null);
-    const columnCount: number = width ? Math.floor((width - 10) / CARD_WIDTH) : 4;
-    const columnWidth = CARD_WIDTH + (width - columnCount * CARD_WIDTH - 10) / (columnCount - 1);
+    const columnCount: number = width ? Math.floor((width - SCROLL_BAR_WIDTH) / CARD_WIDTH) : 4;
+    const columnWidth =
+        CARD_WIDTH + (width - columnCount * CARD_WIDTH - SCROLL_BAR_WIDTH) / (columnCount - 1);
     const rowCount = Math.ceil(totalItems / columnCount);
 
     useEffect(() => {
