@@ -14,6 +14,7 @@ export default function StringAutocomplete(props: {
     const [index, setIndex] = useState(0);
     const [queryPart, setQueryPart] = useState<string>('');
     const { Listener, width } = useWidth(input);
+    console.log(queryPart);
 
     useEffect(() => {
         if (!props.map) {
@@ -23,7 +24,7 @@ export default function StringAutocomplete(props: {
         const new_esp = Array.from(genEsp(props.map, input, queryList));
         setEsp(new_esp);
         const new_queryPart = queryList.at(-1);
-        setQueryPart(new_queryPart ? new_queryPart : '');
+        setQueryPart(new_queryPart !== undefined ? new_queryPart : '');
     }, [input, props.map]);
 
     function onSubmit(e: FormEvent<HTMLFormElement>) {
