@@ -3,30 +3,50 @@ import InfiniteLoader from 'react-window-infinite-loader';
 import { useScryfallSearch } from '../../hooks/scryfall/search';
 import MTGCard from '../mtg-card';
 import { Box } from '@mui/material';
-import { useEffect, useRef } from 'react';
+import { useMemo, useState } from 'react';
+import { ScryfallCard } from '@scryfall/api-types';
+
+const CARDS_PER_PAGE = 175;
 
 export default function ScryfallInfiniteList(props: { queryString: string; columnCount: number }) {
     const searchQuery = useScryfallSearch(props.queryString);
 
-    // Inside your component:
-    const gridRef = useRef<HTMLDivElement>(null);
+    const totalItems = searchQuery.totalCards ?? 0;
+    const rowCount = Math.ceil(totalItems / props.columnCount);
+    const [snapEnabled, setSnapEnabled] = useState(true);
 
-    // Flatten pages to get the list of cards
-    const cards = searchQuery.data?.pages.map((page) => page.data).flat() || [];
+    const cards = useMemo(() => {
+        const cards = Array<ScryfallCard.Any | null>(totalItems);
+        cards.fill(null);
+        // return searchQuery.data?.pages.map((page) => page.data).flat() || [];
+        searchQuery.data?.pages.forEach((page) => {
+            // console.log('updating data in page:', page.page);
+            page.data.forEach((card, cardIndex) => {
+                const index = page.page * CARDS_PER_PAGE + cardIndex;
+                cards[index] = card;
+            });
+        });
 
-    // Determine if an item is loaded by checking if it exists in the cards array
-    const isItemLoaded = (index: number) => index < cards.length;
+        return cards;
+    }, [searchQuery.data]);
 
-    // Load more items when reaching the end of the current list
-    async function loadMoreItems(startIndex: number, stopIndex: number) {
-        if (searchQuery.hasNextPage && !searchQuery.isFetchingNextPage) {
-            console.log('fetching next page');
-            await searchQuery.fetchNextPage();
-        }
-        return;
-    }
+    // Use actual total or estimate based on current data
 
-    // Render each card in the grid
+    const isItemLoaded = (index: number) => {
+        return cards[index] != null;
+    };
+
+    // Optimize loading strategy to load fewer pages at once
+    const loadMoreItems = async (startIndex: number, stopIndex: number) => {
+        // Only load the immediate next page needed
+        const targetPage = Math.floor(startIndex / CARDS_PER_PAGE);
+        console.log('requesting page', targetPage);
+
+        // if (!searchQuery.data?.pages.some((p) => p.next_page?.includes(`page=${targetPage}`))) {
+        await searchQuery.getPage(targetPage);
+        // }
+    };
+
     const Cell = ({
         columnIndex,
         rowIndex,
@@ -38,38 +58,43 @@ export default function ScryfallInfiniteList(props: { queryString: string; colum
     }) => {
         const index = rowIndex * props.columnCount + columnIndex;
         const card = cards[index] ?? null;
-        const id = index;
         return (
-            <div style={{ ...style, scrollSnapAlign: 'start' }}>
-                {<MTGCard key={id} card={card} />}
+            <div
+                style={{
+                    ...style,
+                    scrollSnapAlign: 'start',
+                }}
+            >
+                {<MTGCard key={index} card={card} />}
             </div>
         );
     };
 
     return (
-        <Box className='outerbox' sx={{}}>
+        <Box onMouseDown={() => setSnapEnabled(false)} onMouseUp={() => setSnapEnabled(true)}>
             <InfiniteLoader
                 isItemLoaded={isItemLoaded}
-                itemCount={cards.length + (searchQuery.hasNextPage ? props.columnCount : 0)} // Adding extra row if there's more to load
+                itemCount={totalItems}
                 loadMoreItems={loadMoreItems}
+                minimumBatchSize={CARDS_PER_PAGE}
             >
                 {({ onItemsRendered, ref }) => (
                     <Grid
+                        ref={ref}
                         style={{
-                            overflow: 'auto',
-                            // overflow: 'hidden',
-                            height: '100vh',
+                            height: '90vh',
                             width: '100%',
-                            scrollSnapType: 'y mandatory',
-                            scrollBehavior: 'smooth',
+                            overflow: 'auto',
+                            // scrollSnapType: snapEnabled ? 'y mandatory' : 'none',
+                            scrollBehavior: 'auto',
                         }}
                         columnCount={props.columnCount}
-                        columnWidth={200} // Adjust based on MTGCard width
-                        height={window.innerHeight} // Full screen height
-                        rowCount={Math.ceil(cards.length / props.columnCount)}
-                        rowHeight={300} // Adjust based on MTGCard height
-                        width={200 * props.columnCount + 20} // Full screen width
-                        outerElementType='div' // Use div for global scroll
+                        columnWidth={200}
+                        height={window.innerHeight}
+                        rowCount={rowCount}
+                        rowHeight={300}
+                        width={200 * props.columnCount + 20}
+                        overscanRowCount={2}
                         onItemsRendered={({
                             overscanRowStopIndex,
                             overscanRowStartIndex,
@@ -83,7 +108,6 @@ export default function ScryfallInfiniteList(props: { queryString: string; colum
                                 visibleStopIndex: visibleRowStopIndex * props.columnCount,
                             })
                         }
-                        ref={ref}
                     >
                         {Cell}
                     </Grid>
