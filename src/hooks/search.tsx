@@ -39,6 +39,8 @@ function useSearch() {
             mode: 'and',
             components: [],
         },
+        order: 'cmc',
+        direction: 'auto',
     });
     useEffect(() => {
         setSearchString(genQueryString(search));

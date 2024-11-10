@@ -96,7 +96,7 @@ function queryToFilterComp(filters_str: string, id?: string): IComposition<IFilt
     id ??= '1';
     const match = filters_str.match(/(.*?)(\()(.*)(\))(.*)/);
     if (!match || match.length < 6) throw Error('invalid filter str');
-    if (match[5]) throw Error(`invalid text after filter @${match[5]}`);
+    // if (match[5]) throw Error(`invalid text after filter @${match[5]}`);
     if (match[1] !== '-' && match[1] !== '') throw Error(`invalid filter modifier @${match[1]}`);
 
     const inner_str = match[3];
@@ -144,13 +144,13 @@ function genQueryString(searchObj: ISearch): string {
     output.push(filterCompToQuery(searchObj.domain));
     output.push(filterCompToQuery(searchObj.filters));
     output.push(triggerCompToQuery(searchObj.triggers));
-    // output.push('triggers:\n' + triggerCompToQuery(searchObj.triggers));
+    output.push(`order:${searchObj.order}`);
+    output.push(`direction:${searchObj.direction}`);
 
     return output.join(' ');
 }
 
 function genSearchObj(queryString: string): ISearch {
-    queryString;
     const searchObj: ISearch = {
         domain: {
             id: 'domain',
@@ -173,6 +173,8 @@ function genSearchObj(queryString: string): ISearch {
             mode: 'and',
             components: [],
         },
+        order: 'cmc',
+        direction: 'auto',
     };
 
     const matches = queryString.match(match_inside_comp_regex);
@@ -181,7 +183,9 @@ function genSearchObj(queryString: string): ISearch {
     if (matches?.length < 3) {
         throw new Error('query string missing arguments');
     }
-    const [domain_comps, filter_comps, trigger_comps] = matches.map((m) => queryToFilterComp(m));
+    const [domain_comps, filter_comps, trigger_comps, order] = matches.map((m) =>
+        queryToFilterComp(m),
+    );
     searchObj.domain.components = domain_comps.components;
     searchObj.filters.components = filter_comps.components;
 
