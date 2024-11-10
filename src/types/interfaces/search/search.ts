@@ -2,7 +2,7 @@ import { IComposition } from './composition';
 import { IFilter } from './filter';
 import { ITrigger } from './trigger';
 
-export const orders = ['cmc', 'release', 'number', 'price', 'edhrec'];
+export const orders = ['cmc', 'release', 'number', 'price', 'edhrec', 'color', 'review'];
 export function isOrder(str: string): str is ISearch['order'] {
     return orders.includes(str);
 }
@@ -20,7 +20,7 @@ interface ISearch {
     domain: IComposition<IFilter>;
     filters: IComposition<IFilter>;
     triggers: IComposition<ITrigger>;
-    order: 'cmc' | 'release' | 'number' | 'price' | 'edhrec';
+    order: 'cmc' | 'release' | 'number' | 'price' | 'edhrec' | 'color' | 'review';
     direction: 'asc' | 'desc' | 'auto';
     printing: 'unique' | 'newest' | 'oldest' | 'auto';
 }
