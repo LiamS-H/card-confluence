@@ -6,7 +6,7 @@ import { IComposition } from '../../types/interfaces/search/composition';
 import { IFilter } from '../../types/interfaces/search/filter';
 import ScryfallInfiniteList from '../../components/scryfall-infinite-list';
 import SortSelectors from '../../components/sort-selector';
-import { isDirection, ISearch, isOrder } from '../../types/interfaces/search/search';
+import { isDirection, ISearch, isOrder, isPrinting } from '../../types/interfaces/search/search';
 
 export default function Home() {
     const { search, setSearch, searchString } = useSearch();
@@ -39,6 +39,7 @@ export default function Home() {
                     <SortSelectors
                         order={search.order}
                         direction={search.direction}
+                        printing={search.printing}
                         onOrderChange={(ord) =>
                             setSearch((search: ISearch): ISearch => {
                                 return isOrder(ord) ? { ...search, order: ord } : search;
@@ -48,6 +49,12 @@ export default function Home() {
                             setSearch((search: ISearch): ISearch => {
                                 console.log('setting dir:', dir);
                                 return isDirection(dir) ? { ...search, direction: dir } : search;
+                            })
+                        }
+                        onPrintingChange={(print) =>
+                            setSearch((search: ISearch): ISearch => {
+                                console.log('setting dir:', print);
+                                return isPrinting(print) ? { ...search, printing: print } : search;
                             })
                         }
                     />

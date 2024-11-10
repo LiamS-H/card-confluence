@@ -2,19 +2,37 @@ import { MenuItem, Select, FormControl, InputLabel, Box } from '@mui/material';
 
 // Constant lists of options
 
-import { orders, directions } from '../../types/interfaces/search/search';
+import { orders, directions, printings } from '../../types/interfaces/search/search';
 
 interface SortSelectorsProps {
     order: string;
     direction: string;
+    printing: string;
     onOrderChange: (value: string) => void;
     onDirectionChange: (value: string) => void;
+    onPrintingChange: (value: string) => void;
 }
 
 export default function SortSelectors(props: SortSelectorsProps) {
     return (
         <Box display='flex' flexDirection='row' width='100%' justifyContent='space-between' gap='1'>
-            <Box display='flex' flexGrow='1'></Box>
+            <Box display='flex' flexShrink='1'>
+                {/* Printing Selector */}
+                <FormControl variant='outlined' fullWidth margin='normal'>
+                    <InputLabel>Printing</InputLabel>
+                    <Select
+                        value={props.printing}
+                        onChange={(e) => props.onPrintingChange(e.target.value)}
+                        label='Order By'
+                    >
+                        {printings.map((option) => (
+                            <MenuItem key={option} value={option}>
+                                {option.charAt(0).toUpperCase() + option.slice(1)}
+                            </MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Box>
             <Box display='flex' flexShrink='1' minWidth='400px' gap='10px'>
                 {/* Order Selector */}
                 <FormControl variant='outlined' fullWidth margin='normal'>

@@ -57,7 +57,10 @@ export default function ScryfallInfiniteList(props: { queryString: string; colum
         style: React.CSSProperties;
     }) => {
         const index = rowIndex * props.columnCount + columnIndex;
-        const card = cards[index] ?? null;
+        const card = cards[index];
+        if (card === undefined) {
+            return null;
+        }
         return (
             <div
                 style={{

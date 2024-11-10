@@ -41,6 +41,7 @@ function useSearch() {
         },
         order: 'cmc',
         direction: 'auto',
+        printing: 'auto',
     });
     useEffect(() => {
         setSearchString(genQueryString(search));

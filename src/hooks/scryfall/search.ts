@@ -41,6 +41,7 @@ async function fetchQuery(
 }
 
 export function useScryfallSearch(queryString: string) {
+    const [message, setMessage] = useState<string[] | null>(null);
     const [totalCards, setTotalCards] = useState<number | null>(null);
     const targetPageRef = useRef<number | null>(null);
     const loadingPageRef = useRef<number | null>(null);
@@ -59,14 +60,17 @@ export function useScryfallSearch(queryString: string) {
             targetPageRef.current = null;
 
             // Prevent duplicate page loads
-            if (loadingPageRef.current === pageToFetch) {
-                console.log('duplicate load discarded', pageToFetch);
-                throw new Error('Page already loading');
-            }
+            // if (loadingPageRef.current === pageToFetch) {
+            //     console.log('duplicate load discarded', pageToFetch);
+            //     throw new Error('Page already loading');
+            // }
 
             loadingPageRef.current = pageToFetch;
             try {
                 const res = await fetchQuery(queryString, pageToFetch);
+                if (res.warnings) {
+                    setMessage(res.warnings);
+                }
                 if (res.object === 'error') {
                     throw new Error(res.details);
                 }
@@ -97,5 +101,5 @@ export function useScryfallSearch(queryString: string) {
         await cardQuery.fetchNextPage();
     };
 
-    return { ...cardQuery, totalCards, getPage };
+    return { ...cardQuery, totalCards, getPage, message };
 }

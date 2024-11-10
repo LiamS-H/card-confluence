@@ -8,9 +8,12 @@ export function isOrder(str: string): str is ISearch['order'] {
 }
 export const directions = ['asc', 'desc', 'auto'];
 export function isDirection(str: string): str is ISearch['direction'] {
-    console.log(directions.includes(str) ? 'is dir:' + str : 'not dir:' + str);
-
     return directions.includes(str);
+}
+
+export const printings = ['unique', 'newest', 'oldest', 'auto'];
+export function isPrinting(str: string): str is ISearch['printing'] {
+    return printings.includes(str);
 }
 
 interface ISearch {
@@ -19,6 +22,7 @@ interface ISearch {
     triggers: IComposition<ITrigger>;
     order: 'cmc' | 'release' | 'number' | 'price' | 'edhrec';
     direction: 'asc' | 'desc' | 'auto';
+    printing: 'unique' | 'newest' | 'oldest' | 'auto';
 }
 
 export type { ISearch };

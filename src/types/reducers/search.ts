@@ -145,7 +145,21 @@ function genQueryString(searchObj: ISearch): string {
     output.push(filterCompToQuery(searchObj.filters));
     output.push(triggerCompToQuery(searchObj.triggers));
     output.push(`order:${searchObj.order}`);
-    output.push(`direction:${searchObj.direction}`);
+    if (searchObj.direction != 'auto') output.push(`direction:${searchObj.direction}`);
+    if (searchObj.order == 'release' && searchObj.printing == 'auto') {
+        if (searchObj.direction != 'asc') output.push('prefer:newest');
+        if (searchObj.direction == 'asc') output.push('prefer:oldest');
+    }
+    switch (searchObj.printing) {
+        case 'unique':
+            output.push(`unique:prints`);
+            break;
+        case 'newest':
+        case 'oldest':
+            output.push(`prefer:${searchObj.printing}`);
+            break;
+        default:
+    }
 
     return output.join(' ');
 }
@@ -175,6 +189,7 @@ function genSearchObj(queryString: string): ISearch {
         },
         order: 'cmc',
         direction: 'auto',
+        printing: 'auto',
     };
 
     const matches = queryString.match(match_inside_comp_regex);

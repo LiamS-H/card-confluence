@@ -10,7 +10,7 @@ Imagine your phone defaults to soething like release because you are often looki
 
 ## Search page
  [ ] Make search adjust columns dynaimaclly to screensize
- [W] Add buttons for search order
+ [X] Add buttons for search order
  [ ] add import scryfall query
  [ ] add tagger to catalog for autocomplete
  [ ] add toggle for snap scrolling
@@ -20,9 +20,10 @@ Imagine your phone defaults to soething like release because you are often looki
  [ ] distinguish better between adding filter or group
  [ ] setting defaul behavior and storing blocks on your computer, can also make account if wanted
  [ ] add click to esp list and arrow keys
- [W] when a non order part changes make a call to make the scroll appear with the same cards in the center of the screen, can a play an animation
- [W] use easy animation library to make the cards move when filters change , try swapy, or react auto animate
- [W] youtube transparent scroll bar copy
+ ## Optimisic Client Side Updates
+ [ ] when a non order part changes make a call to make the scroll appear with the same cards in the center of the screen, can a play an animation
+ [ ] use easy animation library to make the cards move when filters change , try swapy, or react auto animate
+ [ ] youtube transparent scroll bar copy
 
 ## Maybe waste time on but later
  [ ] Move to tanstack router so that state can be stored in url
