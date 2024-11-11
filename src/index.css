@@ -1,6 +1,6 @@
 :root {
-  --scrollbar-thumb-color: rgb(255, 255, 255, 0.5);
-  --scrollbar-track-color: rgb(255, 255, 255, 0.1);
+  --scrollbar-thumb-color: rgb(120, 120, 120, 0.8);
+  --scrollbar-track-color: rgb(120, 120, 120, 0.2);
 }
 /* For Webkit-based browsers (Chrome, Safari) */
 ::-webkit-scrollbar {
