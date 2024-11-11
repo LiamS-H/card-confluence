@@ -10,7 +10,7 @@ export default function StringAutocomplete(props: {
     onSubmit: (result: string) => Promise<void> | void;
 }) {
     const [input, setInput] = useState<string>('');
-    const [esp, setEsp] = useState<(string | null)[]>([]);
+    const [suggestions, setSuggestions] = useState<(string | null)[]>([]);
     const [index, setIndex] = useState(0);
     const [queryPart, setQueryPart] = useState<string>('');
     const { Listener, width } = useWidth(input);
@@ -21,7 +21,7 @@ export default function StringAutocomplete(props: {
         }
         const queryList: string[] = [];
         const new_esp = Array.from(genEsp(props.map, input, queryList));
-        setEsp(new_esp);
+        setSuggestions(new_esp);
         const new_queryPart = queryList.at(-1);
         setQueryPart(new_queryPart !== undefined ? new_queryPart : '');
     }, [input, props.map]);
@@ -34,21 +34,30 @@ export default function StringAutocomplete(props: {
     }
 
     function complete(): string {
-        if (esp.length == 0) return input;
+        if (suggestions.length == 0) return input;
         let new_input;
-        if (!esp.includes(null) && esp[index] !== null) {
-            let selection = esp[index];
+        if (!suggestions.includes(null) && suggestions[index] !== null) {
+            let selection = suggestions[index];
             new_input = input + genCompletion(selection, queryPart);
             selection = '';
         }
         new_input ??= input;
         setInput(new_input);
+        setIndex(0);
         return new_input;
     }
     function onKeyDown(e: KeyboardEvent<HTMLFormElement>) {
         if (e.key == 'Tab') {
             e.preventDefault();
             complete();
+        }
+        if (e.key == 'ArrowUp') {
+            e.preventDefault();
+            setIndex((i) => (i - 1) % suggestions.length);
+        }
+        if (e.key == 'ArrowDown') {
+            e.preventDefault();
+            setIndex((i) => (i + 1) % suggestions.length);
         }
     }
 
@@ -78,10 +87,15 @@ export default function StringAutocomplete(props: {
                     variant='standard'
                     InputProps={{
                         inputProps: {
-                            // style: { textAlign: 'right' },
+                            // style: { overflow: 'visible' },
                         },
                         endAdornment: (
-                            <EspList suggestions={esp} query={queryPart} offset={width} />
+                            <EspList
+                                suggestions={suggestions}
+                                query={queryPart}
+                                offset={width}
+                                index={index}
+                            />
                         ),
                     }}
                 />

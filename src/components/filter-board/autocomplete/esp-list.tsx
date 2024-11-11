@@ -14,6 +14,7 @@ export default function EspList(props: {
     suggestions: (string | null)[];
     query: string;
     offset: number;
+    index: number;
 }) {
     const value = useFormControl();
     const focused = value ? value.focused : false;
@@ -23,9 +24,6 @@ export default function EspList(props: {
     const cropped_suggestions: EspData[] = props.suggestions.map((s, i) => {
         if (s == null) return { completion: '', crop: '' };
         const completion = genCompletion(s, props.query);
-        if (i == 0) {
-            return { completion, crop: '' };
-        }
         const offset = s.length - completion.length;
         const crop = s.slice(0, offset);
         return { completion, crop };
@@ -34,25 +32,29 @@ export default function EspList(props: {
     if (cropped_suggestions.length == 0) return null;
 
     function ListItem({ index, style, data }: ListChildComponentProps<EspData[]>) {
-        const item = data[index];
+        const adjustedIndex = (data.length + index + props.index) % data.length;
+        const item = data[adjustedIndex];
+        if (index == 0) {
+            item.crop = '';
+        }
         const { width, Listener } = useWidth(item.crop);
         return (
             <>
                 <Typography
                     color={'GrayText'}
                     style={{ ...style, left: props.offset - width }}
-                    key={index + 'crop'}
+                    key={adjustedIndex + 'crop'}
                 >
-                    {data[index].crop}
+                    {data[adjustedIndex].crop}
                 </Typography>
                 <Typography
                     color={'GrayText'}
                     style={{ ...style, left: props.offset }}
-                    key={index + 'comp'}
+                    key={adjustedIndex + 'comp'}
                 >
-                    {data[index].completion}
+                    {data[adjustedIndex].completion}
                 </Typography>
-                <Listener key={index + 'listener'} />
+                <Listener key={adjustedIndex + 'listener'} />
             </>
         );
     }
@@ -66,7 +68,7 @@ export default function EspList(props: {
             itemData={cropped_suggestions}
             overscanCount={5}
             style={{
-                zIndex: 1,
+                zIndex: 10,
                 top: '4px',
                 left: 0,
                 position: 'absolute',
