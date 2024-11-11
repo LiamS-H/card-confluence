@@ -3,6 +3,8 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import Home from './home';
 import { useMemo, useState } from 'react';
 import { CssBaseline } from '@mui/material';
+import Error from './error';
+import About from './about';
 
 export default function Root() {
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -22,6 +24,8 @@ export default function Root() {
             <BrowserRouter>
                 <Routes>
                     <Route path='/' Component={Home} />
+                    <Route path='/about' Component={About} />
+                    <Route path='*' Component={Error} />
                 </Routes>
             </BrowserRouter>
         </ThemeProvider>
