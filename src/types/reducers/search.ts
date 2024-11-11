@@ -207,4 +207,4 @@ function genSearchObj(queryString: string): ISearch {
     return searchObj;
 }
 
-export { genQueryString, genSearchObj, queryToFilterComp };
+export { genQueryString, genSearchObj, queryToFilterComp, filterToString };

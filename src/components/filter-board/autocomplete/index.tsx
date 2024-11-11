@@ -14,7 +14,6 @@ export default function StringAutocomplete(props: {
     const [index, setIndex] = useState(0);
     const [queryPart, setQueryPart] = useState<string>('');
     const { Listener, width } = useWidth(input);
-    console.log(queryPart);
 
     useEffect(() => {
         if (!props.map) {

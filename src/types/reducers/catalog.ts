@@ -200,6 +200,7 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                         {
                             keys: [':', '=', '<=', '>=', '<', '>'],
                             node: {
+                                terminating: true,
                                 repeating: true,
                                 forceUniqueRepeats: true,
                                 wordbank: ['w', 'u', 'b', 'r', 'g', 'c'],

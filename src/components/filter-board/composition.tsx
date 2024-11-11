@@ -144,6 +144,7 @@ export default function FilterComposition(props: {
             sx={{
                 width: 'fit-content',
                 margin: '10px',
+                overflowY: 'visible',
             }}
             elevation={depth}
         >

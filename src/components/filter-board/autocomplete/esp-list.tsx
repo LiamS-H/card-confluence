@@ -17,9 +17,9 @@ export default function EspList(props: {
 }) {
     const value = useFormControl();
     const focused = value ? value.focused : false;
-    console.log(props.suggestions);
     if (props.suggestions.length == 0) return null;
     if (props.suggestions.length == 1 && props.suggestions[0] == null) return null;
+    // console.log(props.suggestions);
     const cropped_suggestions: EspData[] = props.suggestions.map((s, i) => {
         if (s == null) return { completion: '', crop: '' };
         const completion = genCompletion(s, props.query);
@@ -28,10 +28,8 @@ export default function EspList(props: {
         }
         const offset = s.length - completion.length;
         const crop = s.slice(0, offset);
-        console.log(s, offset, crop, completion);
         return { completion, crop };
     });
-    console.log(cropped_suggestions);
     if (!focused) return null;
     if (cropped_suggestions.length == 0) return null;
 
@@ -77,7 +75,7 @@ export default function EspList(props: {
                 maxHeight: '200px',
                 display: 'flex',
                 flexDirection: 'column',
-                backgroundColor: 'rgba(0,0,0,0.1)',
+                backgroundColor: 'rgba(0,0,0,0.8)',
             }}
         >
             {ListItem}

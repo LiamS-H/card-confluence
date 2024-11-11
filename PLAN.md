@@ -18,7 +18,7 @@ Imagine your phone defaults to soething like release because you are often looki
     [ ] parse the scryfall warning returned string for the culprit tags and then search the tree for said tags.
     [ ] have a simple  ``` Set<string>``` of bad args that is then checked when rendering the tags
  [ ] distinguish better between adding filter or group
- [ ] setting defaul behavior and storing blocks on your computer, can also make account if wanted
+ [ ] setting default behavior and storing blocks on your computer, can also make account if wanted
  [ ] add click to esp list and arrow keys,
  [X] add full result to exp list by cropping based on index
  [ ] dedupe infinite scroll requests

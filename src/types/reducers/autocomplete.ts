@@ -168,7 +168,6 @@ export function genEsp(
                 const slice_index = cropped_text.indexOf(map.suffix) + 1;
                 const post_suf = cropped_text.slice(slice_index);
                 const pre_suf = cropped_text.slice(0, slice_index);
-                console.log('post_suf', post_suf);
                 if (post_suf !== '') {
                     suggestions.delete(null);
                     // suggestions.add(null);
@@ -186,7 +185,6 @@ export function genEsp(
 
                 const new_suggestions = genEsp(new_map, cropped_text, queryList);
                 new_suggestions.forEach((suggestion) => suggestions.add(suggestion));
-                suggestions.delete(null);
             }
 
             continue;

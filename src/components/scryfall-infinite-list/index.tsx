@@ -10,10 +10,10 @@ const CARDS_PER_PAGE = 175;
 const CARD_WIDTH = 200;
 const SCROLL_BAR_WIDTH = 15;
 
-export default function ScryfallInfiniteList(props: { queryString: string }) {
-    const searchQuery = useScryfallSearch(props.queryString);
-
-    const totalItems = searchQuery.totalCards ?? 0;
+export default function ScryfallInfiniteList(props: {
+    searchQuery: ReturnType<typeof useScryfallSearch>;
+}) {
+    const totalItems = props.searchQuery.totalCards ?? 0;
     const [snapEnabled, setSnapEnabled] = useState(true);
     const [width, setWidth] = useState<number>(0);
     const resizeRef = useRef<HTMLDivElement | null>(null);
@@ -37,8 +37,7 @@ export default function ScryfallInfiniteList(props: { queryString: string }) {
         const cards = Array<ScryfallCard.Any | null>(totalItems);
         cards.fill(null);
         // return searchQuery.data?.pages.map((page) => page.data).flat() || [];
-        searchQuery.data?.pages.forEach((page) => {
-            // console.log('updating data in page:', page.page);
+        props.searchQuery.data?.pages.forEach((page) => {
             page.data.forEach((card, cardIndex) => {
                 const index = page.page * CARDS_PER_PAGE + cardIndex;
                 cards[index] = card;
@@ -46,7 +45,7 @@ export default function ScryfallInfiniteList(props: { queryString: string }) {
         });
 
         return cards;
-    }, [searchQuery.data?.pages]);
+    }, [props.searchQuery.data?.pages]);
 
     // Use actual total or estimate based on current data
 
@@ -58,10 +57,9 @@ export default function ScryfallInfiniteList(props: { queryString: string }) {
     const loadMoreItems = async (startIndex: number, stopIndex: number) => {
         // Only load the immediate next page needed
         const targetPage = Math.floor(startIndex / CARDS_PER_PAGE);
-        console.log('requesting page', targetPage);
 
         // if (!searchQuery.data?.pages.some((p) => p.next_page?.includes(`page=${targetPage}`))) {
-        await searchQuery.getPage(targetPage);
+        await props.searchQuery.getPage(targetPage);
         // }
     };
 

@@ -55,7 +55,6 @@ export function useScryfallSearch(queryString: string) {
     >({
         queryKey: ['scryfallRequest', { queryString }],
         queryFn: async ({ pageParam }) => {
-            console.log('queryFn', pageParam, targetPageRef.current);
             const pageToFetch = targetPageRef.current ?? pageParam;
             targetPageRef.current = null;
 
@@ -96,7 +95,6 @@ export function useScryfallSearch(queryString: string) {
     });
 
     const getPage = async (page: number) => {
-        console.log('getting page');
         targetPageRef.current = page;
         await cardQuery.fetchNextPage();
     };
