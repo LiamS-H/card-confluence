@@ -5,13 +5,18 @@ import { IFilter } from '../../types/interfaces/search/filter';
 import { ISearch } from '../../types/interfaces/search/search';
 import { InvalidTagsProvider } from '../../contexts/invalidTags';
 
-function parseMessage(message: string[] | null): Set<string> | null {
-    const invalidTags = new Set<string>();
+function parseMessage(message: string[] | null): Record<string, string> {
+    const invalidTags: Record<string, string> = {};
     if (message == null) return invalidTags;
     const text = message.join(' ');
-    const matches = text.match(/Invalid expression “([^”]*)”/g);
-    if (!matches) return invalidTags;
-    matches.map((match) => match.match(/“([^”]*)”/)?.[1] ?? '').forEach((t) => invalidTags.add(t));
+    const regex = /Invalid expression “([^”]+)” was ignored\. (Unknown keyword “[^”]+”)/g;
+    let match;
+
+    while ((match = regex.exec(text)) !== null) {
+        const [_, expression, message] = match;
+        invalidTags[expression] = message;
+    }
+
     return invalidTags;
 }
 
