@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { genEsp, genFastAutocomplete } from '../../reducers/autocomplete';
-import { IAutocompleteMap, IFastAutocompleteMap } from './autcomplete';
+import { genEsp, genFastAutocomplete } from './autocomplete';
+import { IAutocompleteMap, IFastAutocompleteMap } from '../interfaces/search/autcomplete';
 
 const fastManaMap: IFastAutocompleteMap = {
     repeating: true,
