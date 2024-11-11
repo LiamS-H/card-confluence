@@ -210,7 +210,7 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                 },
             },
             {
-                keys: ['commander'],
+                keys: ['id', 'commander'],
                 node: {
                     singlemap: {
                         ':': {
