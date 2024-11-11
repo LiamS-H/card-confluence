@@ -12,7 +12,6 @@ interface IFilter {
     filter: Filter;
     operator: Operator;
     value: string;
-    error?: string;
 }
 
 export type { IFilter };
