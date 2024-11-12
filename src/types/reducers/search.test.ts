@@ -69,6 +69,9 @@ describe('string to filter obj', () => {
                 mode: 'and',
                 components: [],
             },
+            order: 'cmc',
+            printing: 'auto',
+            direction: 'auto',
         };
         expect(obj).toStrictEqual(expected);
     });
@@ -110,6 +113,9 @@ describe('string to filter obj', () => {
                 mode: 'and',
                 components: [],
             },
+            order: 'cmc',
+            printing: 'auto',
+            direction: 'auto',
         };
         expect(obj).toStrictEqual(expected);
     });
