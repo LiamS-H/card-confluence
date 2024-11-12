@@ -20,7 +20,7 @@ export default function EspList(props: {
     if (props.suggestions.length == 0) return null;
     if (props.suggestions.length == 1 && props.suggestions[0] == null) return null;
     // console.log(props.suggestions);
-    const cropped_suggestions: EspData[] = props.suggestions.map((s, i) => {
+    const cropped_suggestions: EspData[] = props.suggestions.map((s) => {
         if (s == null) return { completion: '', crop: '' };
         const completion = genCompletion(s, props.query);
         const offset = s.length - completion.length;

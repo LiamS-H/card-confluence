@@ -167,11 +167,9 @@ export function genEsp(
             if (repeatNode && map.suffix && cropped_text.includes(map.suffix)) {
                 const slice_index = cropped_text.indexOf(map.suffix) + 1;
                 const post_suf = cropped_text.slice(slice_index);
-                const pre_suf = cropped_text.slice(0, slice_index);
+                // const pre_suf = cropped_text.slice(0, slice_index);
                 if (post_suf !== '') {
                     suggestions.delete(null);
-                    // suggestions.add(null);
-                    // continue;
                 }
                 const new_suggestions = genEsp(repeatNode, post_suf, queryList);
                 new_suggestions.forEach((suggestion) => suggestions.add(suggestion));

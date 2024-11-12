@@ -199,9 +199,8 @@ function genSearchObj(queryString: string): ISearch {
     if (matches?.length < 3) {
         throw new Error('query string missing arguments');
     }
-    const [domain_comps, filter_comps, trigger_comps, order] = matches.map((m) =>
-        queryToFilterComp(m),
-    );
+    // const [domain_comps, filter_comps, trigger_comps, order] = matches.map((m) => queryToFilterComp(m));
+    const [domain_comps, filter_comps] = matches.map((m) => queryToFilterComp(m));
     searchObj.domain.components = domain_comps.components;
     searchObj.filters.components = filter_comps.components;
 

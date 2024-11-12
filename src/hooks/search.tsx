@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ISearch } from '../types/interfaces/search/search';
-import { genQueryString, genSearchObj } from '../types/reducers/search';
+import { genQueryString } from '../types/reducers/search';
 
 function useSearch() {
     const [searchString, setSearchString] = useState<string>('');

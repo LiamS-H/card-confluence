@@ -14,7 +14,7 @@ export default function ScryfallInfiniteList(props: {
     searchQuery: ReturnType<typeof useScryfallSearch>;
 }) {
     const totalItems = props.searchQuery.totalCards ?? 0;
-    const [snapEnabled, setSnapEnabled] = useState(true);
+    // const [snapEnabled, setSnapEnabled] = useState(true);
     const [width, setWidth] = useState<number>(0);
     const resizeRef = useRef<HTMLDivElement | null>(null);
     const columnCount: number = width ? Math.floor((width - SCROLL_BAR_WIDTH) / CARD_WIDTH) : 4;
@@ -47,21 +47,20 @@ export default function ScryfallInfiniteList(props: {
         return cards;
     }, [props.searchQuery.data?.pages]);
 
-    // Use actual total or estimate based on current data
-
     const isItemLoaded = (index: number) => {
         return cards[index] != null;
     };
 
     // Optimize loading strategy to load fewer pages at once
-    const loadMoreItems = async (startIndex: number, stopIndex: number) => {
+    async function loadMoreItems(startIndex: number) {
+        // async function loadMoreItems(startIndex: number, stopIndex:number) {
         // Only load the immediate next page needed
         const targetPage = Math.floor(startIndex / CARDS_PER_PAGE);
 
         // if (!searchQuery.data?.pages.some((p) => p.next_page?.includes(`page=${targetPage}`))) {
         await props.searchQuery.getPage(targetPage);
         // }
-    };
+    }
 
     const Cell = ({
         columnIndex,
@@ -92,8 +91,8 @@ export default function ScryfallInfiniteList(props: {
 
     return (
         <Box
-            onMouseDown={() => setSnapEnabled(false)}
-            onMouseUp={() => setSnapEnabled(true)}
+            // onMouseDown={() => setSnapEnabled(false)}
+            // onMouseUp={() => setSnapEnabled(true)}
             ref={resizeRef}
         >
             <InfiniteLoader

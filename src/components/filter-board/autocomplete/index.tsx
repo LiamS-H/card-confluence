@@ -1,5 +1,5 @@
 import { FormControl, TextField } from '@mui/material';
-import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
 import { IFastAutocompleteMap } from '../../../types/interfaces/search/autcomplete';
 import EspList from './esp-list';
 import { genCompletion, genEsp } from '../../../types/reducers/autocomplete';
