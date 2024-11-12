@@ -12,7 +12,6 @@ export default function Home() {
     const searchQuery = useScryfallSearch(searchString);
     useScryfallSymbols();
 
-    // const { isPending, error, data, isFetching } = useScryfallSearch(searchString);
     return (
         <Container>
             <Box color='gray'>
@@ -22,7 +21,12 @@ export default function Home() {
                     setSearch={setSearch}
                     message={searchQuery.message}
                 />
-                <Box height='1vh'>
+                <Box
+                    sx={{
+                        height: '1vh',
+                        minWidth: '430px',
+                    }}
+                >
                     <SortSelectors
                         order={search.order}
                         direction={search.direction}

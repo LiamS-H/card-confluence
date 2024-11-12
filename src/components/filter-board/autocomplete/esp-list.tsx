@@ -1,5 +1,4 @@
 import Typography from '@mui/material/Typography';
-import Box from '@mui/material/Box';
 import { useFormControl } from '@mui/material';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
 import { genCompletion } from '../../../types/reducers/autocomplete';

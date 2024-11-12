@@ -8,7 +8,8 @@ function triggerToString(trigger: ITrigger): string {
 }
 
 function filterToString(filter: IFilter): string {
-    if (filter.value.includes(' ')) {
+    const bounds = filter.value[0] + filter.value[filter.value.length - 1];
+    if (filter.value.includes(' ') && bounds != "''" && bounds != '""' && bounds != '//') {
         return `${filter.filter}${filter.operator}"${filter.value}"`;
     }
     if (!isNaN(parseFloat(filter.value))) {

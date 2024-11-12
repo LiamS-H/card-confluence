@@ -15,7 +15,13 @@ interface SortSelectorsProps {
 
 export default function SortSelectors(props: SortSelectorsProps) {
     return (
-        <Box display='flex' flexDirection='row' width='100%' justifyContent='space-between' gap='1'>
+        <Box
+            display='flex'
+            flexDirection='row'
+            width='100%'
+            justifyContent='space-between'
+            gap='10px'
+        >
             <Box display='flex' flexShrink='1'>
                 {/* Printing Selector */}
                 <FormControl variant='outlined' fullWidth margin='normal'>
@@ -33,7 +39,7 @@ export default function SortSelectors(props: SortSelectorsProps) {
                     </Select>
                 </FormControl>
             </Box>
-            <Box display='flex' flexShrink='1' minWidth='400px' gap='10px'>
+            <Box display='flex' gap='10px' minWidth='250px' flexShrink='1'>
                 {/* Order Selector */}
                 <FormControl variant='outlined' fullWidth margin='normal'>
                     <InputLabel>Order By</InputLabel>
