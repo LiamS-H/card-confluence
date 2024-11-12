@@ -1,8 +1,7 @@
 import { ScryfallError, ScryfallList } from '@scryfall/api-types';
-import { InfiniteData, useInfiniteQuery } from '@tanstack/react-query';
+import { InfiniteData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useRef, useState } from 'react';
-
 async function fetchQuery(
     queryString: string,
     page: number,
@@ -38,6 +37,20 @@ async function fetchQuery(
         }
         throw new Error('non axios request error');
     }
+}
+
+export function useScryfallNewest() {
+    const cardQuery = useQuery({
+        queryKey: ['scryfall', 'newest'],
+        queryFn: async () => {
+            const res = await fetchQuery('order:release direction:desc is:firstprinting', 1);
+            if (res.object === 'error') {
+                throw new Error(res.details);
+            }
+            return res.data;
+        },
+    });
+    return cardQuery;
 }
 
 export function useScryfallSearch(queryString: string) {

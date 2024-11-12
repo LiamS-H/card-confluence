@@ -1,8 +1,8 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { useMemo, useState } from 'react';
-import { CssBaseline, IconButton, Tooltip } from '@mui/material';
-import { Brightness4, Brightness7, Info, Search } from '@mui/icons-material';
+import { Box, CssBaseline, IconButton, Tooltip, Typography } from '@mui/material';
+import { Brightness4, Brightness7, Description, Info, Search } from '@mui/icons-material';
 
 export default function Root() {
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -38,32 +38,64 @@ export default function Root() {
                 </IconButton>
             </Tooltip>
             {location.pathname != '/about' ? (
-                <IconButton
-                    href={'/about'}
-                    sx={{
-                        position: 'absolute',
-                        top: 16,
-                        left: 16,
-                        color: 'inherit',
-                    }}
-                >
-                    <Info />
-                </IconButton>
+                <Tooltip title={'go to about.'}>
+                    <IconButton
+                        href={'/about'}
+                        sx={{
+                            position: 'absolute',
+                            top: 16,
+                            left: 16,
+                            color: 'inherit',
+                        }}
+                    >
+                        <Info />
+                    </IconButton>
+                </Tooltip>
             ) : null}
             {location.pathname != '/' ? (
+                <Tooltip title={'go to search.'}>
+                    <IconButton
+                        href={'/'}
+                        sx={{
+                            position: 'absolute',
+                            top: 16,
+                            left: 16,
+                            color: 'inherit',
+                        }}
+                    >
+                        <Search />
+                    </IconButton>
+                </Tooltip>
+            ) : null}
+            <Tooltip title={'go to syntaxs docs.'}>
                 <IconButton
-                    href={'/'}
+                    href={'https://scryfall.com/docs/syntax'}
+                    target={'_blank'}
                     sx={{
                         position: 'absolute',
                         top: 16,
-                        left: 16,
+                        left: 32 + 32,
                         color: 'inherit',
                     }}
                 >
-                    <Search />
+                    <Description />
                 </IconButton>
-            ) : null}
+            </Tooltip>
+            <Box
+                sx={{
+                    height: '40px', // Adjust height as needed
+                    display: { xs: 'block', sm: 'block', md: 'block', lg: 'none' },
+                }}
+            />
             <Outlet />
+            {location.pathname == '/about' ? (
+                <Box>
+                    <Typography>
+                        Not affiliated with Wizards of the Coast LLC © or Scryfall LLC. All
+                        trademarks are the property of their respective owners.
+                    </Typography>
+                </Box>
+            ) : null}
         </ThemeProvider>
     );
 }
