@@ -1,0 +1,21 @@
+:root {
+  --scrollbar-thumb-color: rgb(120, 120, 120, 0.8);
+  --scrollbar-track-color: rgb(120, 120, 120, 0.2);
+}
+/* For Webkit-based browsers (Chrome, Safari) */
+::-webkit-scrollbar {
+  width: 8px; /* Adjust the width of the scrollbar */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb-color); /* Semi-transparent thumb */
+  border-radius: 2px; /* Optional: rounded corners */
+}
+
+::-webkit-scrollbar-track {
+  background-color: var(--scrollbar-track-color); /* Transparent track */
+}
+
+/* For Firefox */
+scrollbar-width: thin; /* Make the scrollbar thinner */
+scrollbar-color: var(--scrollbar-track-color) var(--scollbar-thumb-color); /* Thumb and track colors */

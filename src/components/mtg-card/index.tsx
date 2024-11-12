@@ -1,23 +1,25 @@
-import { Card, CardActionArea, CardContent, CardHeader } from '@mui/material';
-import { IScryfallCard } from '../../types/interfaces/scryfall/cards';
 import MTGTypography from '../mtg-typography';
-import MTGOracleText from '../mtg-oracle-text';
+import { Scrycard } from 'react-scrycards';
+import { ScryfallCard } from '@scryfall/api-types';
 
-export default function MTGCard(props: { card: IScryfallCard }) {
+export default function MTGCard(props: {
+    card: ScryfallCard.Any | null | undefined;
+    size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+}) {
+    const card = (
+        <Scrycard
+            card={props.card}
+            symbol_text_renderer={MTGTypography}
+            size={props.size ?? 'lg'}
+            animated
+        />
+    );
+    if (!props.card?.scryfall_uri) {
+        return card;
+    }
     return (
-        <Card sx={{ width: '250px', margin: '5px' }}>
-            <CardHeader
-                title={
-                    <>
-                        {props.card.name}
-                        <MTGTypography>{props.card.mana_cost}</MTGTypography>
-                    </>
-                }
-            />
-            <CardContent>
-                <MTGOracleText>{props.card.oracle_text}</MTGOracleText>
-            </CardContent>
-            <CardActionArea></CardActionArea>
-        </Card>
+        <a href={props.card.scryfall_uri} target='_blank' rel='noopener noreferrer'>
+            {card}
+        </a>
     );
 }

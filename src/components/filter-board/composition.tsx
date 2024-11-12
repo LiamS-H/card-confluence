@@ -12,11 +12,10 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { IComposition } from '../../types/interfaces/search/composition';
-import { IFilter } from '../../types/interfaces/search/filter';
+import { IFilter, isOperator } from '../../types/interfaces/search/filter';
 import Filter from './filter';
 import StringAutocomplete from './autocomplete';
 import { useScryfallFilterMap } from '../../hooks/scryfall/catalog';
-import TextInput from '../text-input';
 import { MouseEvent, useState } from 'react';
 
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
@@ -56,7 +55,7 @@ export default function FilterComposition(props: {
         if (filter.type == 'composition') {
             return (
                 <FilterComposition
-                    key={`${props.depth} ${filter.name} ${index}`}
+                    key={filter.id}
                     comp={filter}
                     setComp={(comp: IComposition<IFilter> | null) => {
                         if (comp == null) {
@@ -98,7 +97,19 @@ export default function FilterComposition(props: {
         if (name === undefined || name === '') {
             name = 'new group';
         }
+        let id = name;
+        let i = 0;
+        while (
+            props.comp.components.find((comp) => {
+                if (comp.type != 'composition') return false;
+                return comp.id == id;
+            })
+        ) {
+            id = name + i;
+            i++;
+        }
         const newComp: IComposition<IFilter> = {
+            id: id,
             name: name,
             type: 'composition',
             mode: 'and',
@@ -110,12 +121,19 @@ export default function FilterComposition(props: {
 
     function addFilter(new_filter: string) {
         const new_filter_arr = new_filter.split(/(?:[=:<>]| )+/);
-        const operator = new_filter.match(/(?:[=:<>]| )+/) || [':'];
+
+        if (new_filter_arr.length === 1) {
+            addComp(new_filter);
+            return;
+        }
+
+        const match = new_filter.match(/(?:[=:<>]| )+/) || [':'];
+        const operator = isOperator(match[0]) ? match[0] : ':';
 
         const newFilter: IFilter = {
             type: 'filter',
             filter: new_filter_arr[0].toLowerCase(),
-            operator: operator[0],
+            operator: operator,
             value: new_filter_arr.slice(1).join(' '),
         };
         props.comp.components.unshift(newFilter);
@@ -126,6 +144,7 @@ export default function FilterComposition(props: {
             sx={{
                 width: 'fit-content',
                 margin: '10px',
+                overflowY: 'visible',
             }}
             elevation={depth}
         >
@@ -147,7 +166,7 @@ export default function FilterComposition(props: {
                     }
                     action={
                         <>
-                            {open ? (
+                            {open && !props.root ? (
                                 <ToggleButtonGroup
                                     exclusive
                                     value={props.comp.mode}
@@ -173,10 +192,16 @@ export default function FilterComposition(props: {
                 {open ? (
                     <>
                         <CardActions sx={{ display: 'flex', flexFlow: 'row wrap' }}>
-                            <TextInput variant={'standard'} label={'group'} onSubmit={addComp} />
                             <StringAutocomplete
                                 onSubmit={addFilter}
-                                map={filterMap ? filterMap : {}}
+                                map={
+                                    filterMap
+                                        ? filterMap
+                                        : {
+                                              sorted_options: [],
+                                              singlemap: {},
+                                          }
+                                }
                             />
 
                             {!props.root ? (

@@ -6,23 +6,42 @@ function useSearch() {
     const [searchString, setSearchString] = useState<string>('');
     const [search, setSearch] = useState<ISearch>({
         domain: {
-            name: 'domain',
+            id: 'domain',
+            name: 'Domain',
             type: 'composition',
             mode: 'and',
-            components: [],
+            components: [
+                {
+                    type: 'filter',
+                    filter: 'game',
+                    operator: ':',
+                    value: 'paper',
+                },
+                {
+                    type: 'filter',
+                    filter: 'legal',
+                    operator: ':',
+                    value: 'commander',
+                },
+            ],
         },
         filters: {
-            name: 'filters',
+            id: 'filters',
+            name: 'Filters',
             type: 'composition',
             mode: 'and',
             components: [],
         },
         triggers: {
-            name: 'triggers',
+            id: 'triggers',
+            name: 'Triggers',
             type: 'composition',
             mode: 'and',
             components: [],
         },
+        order: 'cmc',
+        direction: 'auto',
+        printing: 'auto',
     });
     useEffect(() => {
         setSearchString(genQueryString(search));
