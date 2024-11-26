@@ -33,7 +33,7 @@ export default function MTGCard(props: {
                         position: 'absolute',
                         width: '14%',
                         left: '0%',
-                        bottom: '1%',
+                        bottom: '3%',
                         '& svg': {
                             transform: flipped ? 'scaleX(-1)' : 'scaleX(1)',
                             transition: 'transform 0.3s ease',
@@ -41,7 +41,7 @@ export default function MTGCard(props: {
                     }}
                     onClick={() => setFlipped((f) => !f)}
                 >
-                    <FlipIcon />
+                    <FlipIcon color='primary' />
                 </IconButton>
             ) : null}
         </>
