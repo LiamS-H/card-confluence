@@ -34,7 +34,9 @@ export default function ScryfallInfiniteList(props: {
     }, []);
 
     const cards = useMemo(() => {
-        const cards = Array<ScryfallCard.Any | null>(totalItems);
+        const cards = Array<ScryfallCard.Any | null>(
+            totalItems - (columnCount - (totalItems % columnCount)),
+        );
         cards.fill(null);
         // return searchQuery.data?.pages.map((page) => page.data).flat() || [];
         props.searchQuery.data?.pages.forEach((page) => {
@@ -62,7 +64,7 @@ export default function ScryfallInfiniteList(props: {
         // }
     }
 
-    const Cell = ({
+    const ListItem = ({
         columnIndex,
         rowIndex,
         style,
@@ -135,7 +137,7 @@ export default function ScryfallInfiniteList(props: {
                             })
                         }
                     >
-                        {Cell}
+                        {ListItem}
                     </Grid>
                 )}
             </InfiniteLoader>
