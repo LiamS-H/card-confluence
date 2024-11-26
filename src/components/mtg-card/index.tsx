@@ -66,7 +66,8 @@ export default function MTGCard(props: {
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 }) {
     if (!props.card) {
-        return <Scrycard size='lg' card={null} faceDown />;
+        // return <Scrycard size='lg' card={null} faceDown textOnly />;
+        return <MTGCardBase card={props.card} size={props.size} />;
     }
 
     if (isFlippable(props.card)) {
