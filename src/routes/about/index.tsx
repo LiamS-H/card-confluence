@@ -10,9 +10,9 @@ import AutoStoriesIcon from '@mui/icons-material/AutoStories';
 import './index.css';
 import { useScryfallNewest } from '../../hooks/scryfall/search';
 import MTGCardGrid from '../../components/mtg-card-grid';
+import ScrollProgress from './scrollProgress';
 
 const About = () => {
-    const [scrollProgress, setScrollProgress] = useState(0);
     const { data: newestCards } = useScryfallNewest();
 
     const features = [
@@ -45,17 +45,6 @@ const About = () => {
     const sections = useRef<HTMLDivElement[]>([]);
 
     useEffect(() => {
-        const handleScroll = () => {
-            const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
-            const currentProgress = (window.scrollY / totalScroll) * 100;
-            setScrollProgress(currentProgress);
-        };
-
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    useEffect(() => {
         const observerOptions = {
             threshold: 0.5,
             rootMargin: '0px',
@@ -84,18 +73,7 @@ const About = () => {
     return (
         <Box>
             {/* Progress bar */}
-            <Box
-                sx={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    height: 2,
-                    bgcolor: 'success.main',
-                    zIndex: 50,
-                    width: `${scrollProgress}%`,
-                    transition: 'width 0.3s',
-                }}
-            />
+            <ScrollProgress />
 
             {/* Hero Section */}
             <Container sx={{ py: 20, pb: 40, textAlign: 'center' }}>
