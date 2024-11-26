@@ -1,7 +1,19 @@
 import { ScryfallCard } from '@scryfall/api-types';
-import MTGCard from '../mtg-card';
 import { useMemo, type ReactNode } from 'react';
 import { Box } from '@mui/material';
+import MTGTypography from '../mtg-typography';
+import { Scrycard } from 'react-scrycards';
+
+function GridCard(props: { card: ScryfallCard.Any }) {
+    return (
+        <Scrycard
+            card={props.card}
+            symbol_text_renderer={MTGTypography}
+            size='sm'
+            imageLink='auto'
+        />
+    );
+}
 
 function RowContainer(props: { children: ReactNode }) {
     return (
@@ -56,11 +68,12 @@ function MTGCardGrid(props: { cards: ScryfallCard.Any[] }) {
     const [topRowCards, middleRowCards, bottomRowCards] = useMemo(() => {
         const total = props.cards.length;
         const perRow = Math.ceil(total / 3);
+        // const perRow = 30;
 
         return [
             props.cards.slice(0, perRow),
             props.cards.slice(perRow, perRow * 2),
-            props.cards.slice(perRow * 2, total),
+            props.cards.slice(perRow * 2, perRow * 3),
         ];
     }, [props.cards]);
 
@@ -77,7 +90,7 @@ function MTGCardGrid(props: { cards: ScryfallCard.Any[] }) {
             <RowContainer>
                 {topRowCards.map((card, index) => (
                     <Box key={`top-${index}`} sx={{ flexShrink: 0 }}>
-                        <MTGCard card={card} size='sm' />
+                        <GridCard card={card} />
                     </Box>
                 ))}
             </RowContainer>
@@ -97,7 +110,7 @@ function MTGCardGrid(props: { cards: ScryfallCard.Any[] }) {
                 <RowContainer>
                     {middleRowCards.map((card, index) => (
                         <Box key={`middle-${index}`} sx={{ flexShrink: 0 }}>
-                            <MTGCard card={card} size='sm' />
+                            <GridCard card={card} />
                         </Box>
                     ))}
                 </RowContainer>
@@ -118,7 +131,7 @@ function MTGCardGrid(props: { cards: ScryfallCard.Any[] }) {
                 <RowContainer>
                     {bottomRowCards.map((card, index) => (
                         <Box key={`bottom-${index}`} sx={{ flexShrink: 0 }}>
-                            <MTGCard card={card} size='sm' />
+                            <GridCard card={card} />
                         </Box>
                     ))}
                 </RowContainer>
