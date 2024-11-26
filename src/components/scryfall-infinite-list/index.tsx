@@ -35,7 +35,7 @@ export default function ScryfallInfiniteList(props: {
 
     const cards = useMemo(() => {
         const cards = Array<ScryfallCard.Any | null>(
-            totalItems - (columnCount - (totalItems % columnCount)),
+            Math.max(0, totalItems - (columnCount - (totalItems % columnCount))),
         );
         cards.fill(null);
         // return searchQuery.data?.pages.map((page) => page.data).flat() || [];
