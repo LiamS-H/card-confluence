@@ -3,6 +3,7 @@ import { useFormControl } from '@mui/material';
 import { FixedSizeList, ListChildComponentProps } from 'react-window';
 import { genCompletion } from '../../../types/reducers/autocomplete';
 import useWidth from '../../../hooks/width';
+import { useEffect } from 'react';
 
 interface EspData {
     completion: string;
@@ -14,9 +15,11 @@ export default function EspList(props: {
     query: string;
     offset: number;
     index: number;
+    setFocused: (arg0: boolean) => void;
 }) {
     const value = useFormControl();
     const focused = value ? value.focused : false;
+    useEffect(() => props.setFocused(focused), [focused]);
     if (props.suggestions.length == 0) return null;
     if (props.suggestions.length == 1 && props.suggestions[0] == null) return null;
     // console.log(props.suggestions);
@@ -76,7 +79,6 @@ export default function EspList(props: {
                 maxHeight: '200px',
                 display: 'flex',
                 flexDirection: 'column',
-                backgroundColor: 'rgba(0,0,0,0.8)',
             }}
         >
             {ListItem}

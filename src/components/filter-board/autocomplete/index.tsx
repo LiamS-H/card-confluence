@@ -1,5 +1,5 @@
-import { FormControl, TextField } from '@mui/material';
-import { FormEvent, KeyboardEvent, useEffect, useState } from 'react';
+import { Box, Button, FormControl, TextField } from '@mui/material';
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { IFastAutocompleteMap } from '../../../types/interfaces/search/autcomplete';
 import EspList from './esp-list';
 import { genCompletion, genEsp } from '../../../types/reducers/autocomplete';
@@ -7,13 +7,14 @@ import useWidth from '../../../hooks/width';
 
 export default function StringAutocomplete(props: {
     map: IFastAutocompleteMap;
-    onSubmit: (result: string) => Promise<void> | void;
+    addFilter: (result: string) => Promise<void> | void;
 }) {
     const [input, setInput] = useState<string>('');
     const [suggestions, setSuggestions] = useState<(string | null)[]>([]);
     const [index, setIndex] = useState(0);
     const [queryPart, setQueryPart] = useState<string>('');
     const { Listener, width } = useWidth(input);
+    const [focused, setFocused] = useState(false);
 
     useEffect(() => {
         if (!props.map) {
@@ -30,7 +31,7 @@ export default function StringAutocomplete(props: {
         e.preventDefault();
         const new_input = complete();
         setInput('');
-        props.onSubmit(new_input);
+        props.addFilter(new_input);
     }
 
     function complete(): string {
@@ -61,45 +62,64 @@ export default function StringAutocomplete(props: {
         }
     }
 
+    const suggestion_len = focused ? Math.max(Math.min(suggestions.length, 5), 1) - 1 : 0;
+    const height = suggestion_len * 20 + 30;
+
     return (
-        <form
-            style={{ marginLeft: '0px' }}
-            onSubmit={onSubmit}
-            onKeyDown={onKeyDown}
-            noValidate
-            autoComplete='off'
-        >
-            <FormControl>
-                <Listener />
-                <TextField
-                    value={input}
-                    label='add filter'
-                    onChange={(event) => {
-                        const newText = event.target.value;
-                        setInput(newText);
-                    }}
-                    sx={{
-                        // minWidth: '100px',
-                        // width: '100px',
-                        // display: 'flex',
-                        flexShrink: 1,
-                    }}
-                    variant='standard'
-                    InputProps={{
-                        inputProps: {
+        <form onSubmit={onSubmit} onKeyDown={onKeyDown} noValidate autoComplete='off'>
+            <Box
+                sx={{
+                    marginLeft: '0px',
+                    // height: 6 * 20,
+                    display: 'flex',
+                    flexFlow: 'row nowrap',
+                }}
+            >
+                <FormControl>
+                    <Listener />
+                    <TextField
+                        value={input}
+                        label='add filter'
+                        onChange={(event) => {
+                            const newText = event.target.value;
+                            setInput(newText);
+                        }}
+                        sx={
+                            {
+                                // height:,
+                                // minWidth: '100px',
+                                // width: '100px',
+                                // display: 'flex',
+                                // alignItems: 'flex-end',
+                                // flexShrink: 1,
+                            }
+                        }
+                        variant='standard'
+                        FormHelperTextProps={{
+                            sx: {
+                                // height: height,
+                            },
+                        }}
+                        InputProps={{
                             // style: { overflow: 'visible' },
-                        },
-                        endAdornment: (
-                            <EspList
-                                suggestions={suggestions}
-                                query={queryPart}
-                                offset={width}
-                                index={index}
-                            />
-                        ),
-                    }}
-                />
-            </FormControl>
+                            sx: {
+                                height: height,
+                                alignItems: 'flex-start',
+                            },
+
+                            endAdornment: (
+                                <EspList
+                                    setFocused={setFocused}
+                                    suggestions={suggestions}
+                                    query={queryPart}
+                                    offset={width}
+                                    index={index}
+                                />
+                            ),
+                        }}
+                    />
+                </FormControl>
+            </Box>
         </form>
     );
 }
