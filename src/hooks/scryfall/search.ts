@@ -80,9 +80,10 @@ export function useScryfallSearch(queryString: string) {
             loadingPageRef.current = pageToFetch;
             try {
                 const res = await fetchQuery(queryString, pageToFetch);
-                if (res.warnings) {
-                    setMessage(res.warnings);
-                }
+                // if (res.warnings) {
+                //     setMessage(res.warnings);
+                // }
+                setMessage(res.warnings || []);
                 if (res.object === 'error') {
                     throw new Error(res.details);
                 }
