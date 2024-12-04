@@ -1,4 +1,5 @@
 import {
+    Box,
     Button,
     Card,
     CardActions,
@@ -17,7 +18,8 @@ import Filter from './filter';
 import StringAutocomplete from './autocomplete';
 import { useScryfallFilterMap } from '../../hooks/scryfall/catalog';
 import { MouseEvent, useState } from 'react';
-
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
+import AddBoxIcon from '@mui/icons-material/AddBox';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import EditableTypography from '../editable-typography';
@@ -119,6 +121,7 @@ export default function FilterComposition(props: {
         props.setComp(props.comp);
     }
 
+    // TO-DO use the string reducers from reducers instaed of rewrite, also look if this i better
     function addFilter(new_filter: string) {
         const new_filter_arr = new_filter.split(/(?:[=:<>]| )+/);
 
@@ -171,16 +174,11 @@ export default function FilterComposition(props: {
                                     exclusive
                                     value={props.comp.mode}
                                     onChange={handleMode}
+                                    color='standard'
                                 >
-                                    <ToggleButton color='success' value='and'>
-                                        and
-                                    </ToggleButton>
-                                    <ToggleButton color='info' value='or'>
-                                        or
-                                    </ToggleButton>
-                                    <ToggleButton color='error' value='not'>
-                                        not
-                                    </ToggleButton>
+                                    <ToggleButton value='and'>and</ToggleButton>
+                                    <ToggleButton value='or'>or</ToggleButton>
+                                    <ToggleButton value='not'>not</ToggleButton>
                                 </ToggleButtonGroup>
                             ) : null}
                             <IconButton onClick={() => setOpen(!open)}>
@@ -191,9 +189,14 @@ export default function FilterComposition(props: {
                 />
                 {open ? (
                     <>
-                        <CardActions sx={{ display: 'flex', flexFlow: 'row wrap' }}>
+                        <CardActions
+                            sx={{
+                                alignItems: 'flex-start',
+                                gap: '10px',
+                            }}
+                        >
                             <StringAutocomplete
-                                onSubmit={addFilter}
+                                addFilter={addFilter}
                                 map={
                                     filterMap
                                         ? filterMap
@@ -203,17 +206,36 @@ export default function FilterComposition(props: {
                                           }
                                 }
                             />
-
-                            {!props.root ? (
+                            <Box
+                                sx={{
+                                    display: 'flex',
+                                    flexFlow: 'row nowrap',
+                                    justifyContent: 'flex-start',
+                                    gap: '10px',
+                                    height: '50px',
+                                }}
+                            >
                                 <Button
                                     variant='outlined'
-                                    color='error'
-                                    onClick={() => props.setComp(null)}
-                                    sx={{ marginLeft: '0px' }}
+                                    color='success'
+                                    onClick={() => addFilter('')}
+                                    sx={{}}
                                 >
-                                    DELETE
+                                    GROUP
+                                    <AddBoxIcon />
                                 </Button>
-                            ) : null}
+                                {!props.root ? (
+                                    <Button
+                                        variant='outlined'
+                                        color='error'
+                                        onClick={() => props.setComp(null)}
+                                        sx={{}}
+                                    >
+                                        DELETE
+                                        <DeleteForeverIcon />
+                                    </Button>
+                                ) : null}
+                            </Box>
                         </CardActions>
                         <CardContent sx={{ flexFlow: 'row nowrap' }}>
                             {childFilters.length > 0 ? childFilters : null}

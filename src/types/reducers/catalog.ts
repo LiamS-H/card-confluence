@@ -187,7 +187,7 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                 },
             },
             {
-                keys: ['n', 'name'],
+                keys: ['name'],
                 node: {
                     prefix: ':',
                     wordbank: word_bank,
