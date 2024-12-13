@@ -1,7 +1,7 @@
 import { ScryfallError, ScryfallList } from '@scryfall/api-types';
 import { InfiniteData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 async function fetchQuery(
     queryString: string,
     page: number,
@@ -59,6 +59,10 @@ export function useScryfallSearch(queryString: string) {
     const targetPageRef = useRef<number | null>(null);
     const loadingPageRef = useRef<number | null>(null);
 
+    useEffect(() => {
+        setTotalCards(0);
+    }, [queryString]);
+
     const cardQuery = useInfiniteQuery<
         ScryfallList.Cards & { page: number },
         ScryfallError,
@@ -69,7 +73,7 @@ export function useScryfallSearch(queryString: string) {
         queryKey: ['scryfallRequest', { queryString }],
         queryFn: async ({ pageParam }) => {
             const pageToFetch = targetPageRef.current ?? pageParam;
-            targetPageRef.current = null;
+            // targetPageRef.current = null;
 
             // Prevent duplicate page loads
             // if (loadingPageRef.current === pageToFetch) {
