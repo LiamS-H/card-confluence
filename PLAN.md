@@ -15,7 +15,7 @@ Imagine your phone defaults to soething like release because you are often looki
  [ ] add tagger (atag and otag) to catalog for autocomplete
  [X] use scryfall errors to flag invalid tags
     [X] parse the scryfall warning returned string for the culprit tags and then search the tree for said tags.
- [ ] distinguish better between adding filter or group
+ [X] distinguish better between adding filter or group
  [ ] setting default behavior and storing blocks on your computer, can also make account if wanted
  [W] add click to esp list and arrow keys,
  [X] add full result to exp list by cropping based on index
@@ -24,7 +24,7 @@ Imagine your phone defaults to soething like release because you are often looki
  [ ] add copy paste to the query
 
 ## Docs page
- [ ] add docs or link to syntax
+ [X] add docs or link to syntax
 
 # Maybe waste time on but later
  [ ] make autocomplete update with global filters ie:setting to premodern removes some of the creature types
