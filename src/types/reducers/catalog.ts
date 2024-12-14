@@ -512,8 +512,14 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                     ],
                 },
             },
-            { keys: ['art', 'atag', 'arttag'], node: { wordbank: catalog['atags'] } },
-            { keys: ['function', 'otag', 'oracletag'], node: { wordbank: catalog['otags'] } },
+            {
+                keys: ['art', 'atag', 'arttag'],
+                node: { prefix: ':', wordbank: catalog['atags'] },
+            },
+            {
+                keys: ['function', 'otag', 'oracletag'],
+                node: { prefix: ':', wordbank: catalog['otags'] },
+            },
         ],
     };
 
