@@ -27,15 +27,24 @@ async function fetchQuery(
         );
         return response.data;
     } catch (error) {
-        if (axios.isAxiosError(error)) {
+        if (!axios.isAxiosError(error)) {
+            throw new Error('non axios request error');
+        }
+        if (error.response && error.response.data.object == 'error') {
+            const scry_error: ScryfallError = error.response.data;
             return {
                 object: 'error',
-                code: error.code ?? 'unknown',
-                details: error.message,
-                status: error.status ?? 400,
+                code: scry_error.code,
+                details: scry_error.details,
+                status: scry_error.status,
             };
         }
-        throw new Error('non axios request error');
+        return {
+            object: 'error',
+            code: error.code ?? 'unknown',
+            details: error.message,
+            status: error.status ?? 400,
+        };
     }
 }
 
@@ -87,9 +96,15 @@ export function useScryfallSearch(queryString: string) {
                 // if (res.warnings) {
                 //     setMessage(res.warnings);
                 // }
-                setMessage(res.warnings || []);
+                setMessage(res.warnings || ['']);
                 if (res.object === 'error') {
-                    throw new Error(res.details);
+                    setMessage([res.details]);
+                    return {
+                        data: [],
+                        has_more: false,
+                        object: 'list',
+                        page: 1,
+                    };
                 }
                 if ('total_cards' in res && res.total_cards) {
                     setTotalCards(res.total_cards);
