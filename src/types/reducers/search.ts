@@ -17,7 +17,7 @@ function filterToString(filter: IFilter): string {
     return `${filter.filter}${filter.operator}${filter.value}`;
 }
 
-function stringToFilter(filter_str: string): IFilter {
+export function stringToFilter(filter_str: string): IFilter {
     const regex = new RegExp(
         `(.*?)(${operators.map((o) => (o === ':' ? '\\:' : o)).join('|')})(.*)`,
     );
