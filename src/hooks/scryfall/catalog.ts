@@ -6,7 +6,6 @@ import { IScryfallSetResult } from '../../types/interfaces/scryfall/set';
 import { ScryfallCatalog } from '@scryfall/api-types';
 import { firestore } from '../../services/firebase/firebase';
 import { doc, getDoc } from 'firebase/firestore';
-import { TagDocument } from '../../types/interfaces/firebase';
 
 async function getScryfallCatalog(): Promise<IScryfallCatalog> {
     const promises = [];
