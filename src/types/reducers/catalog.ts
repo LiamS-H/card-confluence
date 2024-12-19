@@ -379,7 +379,7 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                 },
             },
             {
-                keys: ['f', 'format'],
+                keys: ['f', 'format', 'legal'],
                 node: {
                     prefix: ':',
                     wordbank: formats,
