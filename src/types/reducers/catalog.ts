@@ -26,7 +26,8 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
         ...catalog['planeswalker-types'],
         ...catalog['supertypes'],
     ].map((type) => type.toLowerCase());
-    const criteria = [...catalog['criteria']].map((set) => set.toLowerCase());
+    const criteria = [...catalog['criteria']].map((set) => set.toLowerCase().replace(/\s/g, ''));
+
     const card_sets = [...catalog.sets].map((set) => set.toLowerCase());
     const word_bank = [...catalog['word-bank'].map((word) => word.toLowerCase())];
     const long_rarities = ['common', 'uncommon', 'rare', 'mythic'];
