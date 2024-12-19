@@ -520,6 +520,10 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                 keys: ['function', 'otag', 'oracletag'],
                 node: { prefix: ':', wordbank: catalog['otags'] },
             },
+            {
+                keys: ['game'],
+                node: { prefix: ':', wordbank: games },
+            },
         ],
     };
 
