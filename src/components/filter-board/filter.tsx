@@ -1,9 +1,10 @@
-import { Chip, FormControl, Input, TextField, Tooltip } from '@mui/material';
+import { Chip, FormControl, TextField, Tooltip } from '@mui/material';
 import { IFilter } from '../../types/interfaces/search/filter';
 import MTGTypography from '../mtg-typography';
 import { useTagMessage } from '../../contexts/invalidTags';
 import { ChangeEvent, FormEvent, useState } from 'react';
 import { stringToFilter } from '../../types/reducers/search';
+import { CheckCircle } from '@mui/icons-material';
 
 export default function Filter(props: {
     filter: IFilter;
@@ -53,8 +54,8 @@ export default function Filter(props: {
                     </form>
                 }
                 color={tagMessage ? 'error' : color}
+                deleteIcon={<CheckCircle />}
                 onDelete={props.deleteFilter}
-                onClick={() => {}}
             />
         );
     }
