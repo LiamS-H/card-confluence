@@ -18,6 +18,8 @@ interface IScryfallCatalog {
     'card-types': string[];
     criteria: string[];
     'mana-costs': string[];
+    otags: string[];
+    atags: string[];
     sets: string[];
     [key: string]: string[];
 }

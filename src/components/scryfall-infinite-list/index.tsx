@@ -53,16 +53,15 @@ export default function ScryfallInfiniteList(props: {
         return cards[index] != null;
     };
 
-    // Optimize loading strategy to load fewer pages at once
     async function loadMoreItems(startIndex: number) {
         // async function loadMoreItems(startIndex: number, stopIndex:number) {
-        // Only load the immediate next page needed
         const targetPage = Math.floor(startIndex / CARDS_PER_PAGE);
 
         // if (!searchQuery.data?.pages.some((p) => p.next_page?.includes(`page=${targetPage}`))) {
         await props.searchQuery.getPage(targetPage);
         // }
     }
+    props.searchQuery;
 
     const ListItem = ({
         columnIndex,

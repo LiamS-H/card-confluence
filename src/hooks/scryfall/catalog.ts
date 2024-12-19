@@ -4,6 +4,8 @@ import { IScryfallCatalog } from '../../types/interfaces/scryfall/catalog';
 import { catalogToFastAutocomplete } from '../../types/reducers/catalog';
 import { IScryfallSetResult } from '../../types/interfaces/scryfall/set';
 import { ScryfallCatalog } from '@scryfall/api-types';
+import { firestore } from '../../services/firebase/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 async function getScryfallCatalog(): Promise<IScryfallCatalog> {
     const promises = [];
@@ -141,11 +143,14 @@ async function getScryfallCatalog(): Promise<IScryfallCatalog> {
             'Token',
             'Tombstone',
         ],
+        otags: [],
+        atags: [],
         'mana-costs': ['{W}', '{U}', '{B}', '{R}', '{G}'],
         sets: [],
     };
+    const altRetrieve = ['sets', 'otags', 'atags'];
     for (const category in catalog) {
-        if (category == 'sets' || catalog[category].length > 0) continue;
+        if (altRetrieve.includes(category) || catalog[category].length > 0) continue;
         const promise = axios
             .get<ScryfallCatalog>(`https://api.scryfall.com/catalog/${category}`)
             .then((response) => {
@@ -157,6 +162,19 @@ async function getScryfallCatalog(): Promise<IScryfallCatalog> {
         axios.get<IScryfallSetResult>(`https://api.scryfall.com/sets`).then((response) => {
             catalog['sets'] = response.data.data.map((set) => set.code);
         }),
+    );
+    promises.push(
+        getDoc(doc(firestore, 'cards', 'tags'))
+            .then((response) => {
+                if (!response.exists()) return;
+                // TO DO: add zod validation with TagDocument
+                const data = response.data();
+                catalog['otags'] = data.otags;
+                catalog['atags'] = data.atags;
+            })
+            .catch((reason) => {
+                console.error(reason);
+            }),
     );
     await Promise.all(promises);
     return catalog;

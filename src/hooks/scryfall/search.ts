@@ -1,7 +1,7 @@
 import { ScryfallError, ScryfallList } from '@scryfall/api-types';
 import { InfiniteData, useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 async function fetchQuery(
     queryString: string,
     page: number,
@@ -27,15 +27,24 @@ async function fetchQuery(
         );
         return response.data;
     } catch (error) {
-        if (axios.isAxiosError(error)) {
+        if (!axios.isAxiosError(error)) {
+            throw new Error('non axios request error');
+        }
+        if (error.response && error.response.data.object == 'error') {
+            const scry_error: ScryfallError = error.response.data;
             return {
                 object: 'error',
-                code: error.code ?? 'unknown',
-                details: error.message,
-                status: error.status ?? 400,
+                code: scry_error.code,
+                details: scry_error.details,
+                status: scry_error.status,
             };
         }
-        throw new Error('non axios request error');
+        return {
+            object: 'error',
+            code: error.code ?? 'unknown',
+            details: error.message,
+            status: error.status ?? 400,
+        };
     }
 }
 
@@ -59,6 +68,10 @@ export function useScryfallSearch(queryString: string) {
     const targetPageRef = useRef<number | null>(null);
     const loadingPageRef = useRef<number | null>(null);
 
+    useEffect(() => {
+        setTotalCards(0);
+    }, [queryString]);
+
     const cardQuery = useInfiniteQuery<
         ScryfallList.Cards & { page: number },
         ScryfallError,
@@ -69,7 +82,7 @@ export function useScryfallSearch(queryString: string) {
         queryKey: ['scryfallRequest', { queryString }],
         queryFn: async ({ pageParam }) => {
             const pageToFetch = targetPageRef.current ?? pageParam;
-            targetPageRef.current = null;
+            // targetPageRef.current = null;
 
             // Prevent duplicate page loads
             // if (loadingPageRef.current === pageToFetch) {
@@ -83,9 +96,15 @@ export function useScryfallSearch(queryString: string) {
                 // if (res.warnings) {
                 //     setMessage(res.warnings);
                 // }
-                setMessage(res.warnings || []);
+                setMessage(res.warnings || ['']);
                 if (res.object === 'error') {
-                    throw new Error(res.details);
+                    setMessage([res.details]);
+                    return {
+                        data: [],
+                        has_more: false,
+                        object: 'list',
+                        page: 1,
+                    };
                 }
                 if ('total_cards' in res && res.total_cards) {
                     setTotalCards(res.total_cards);

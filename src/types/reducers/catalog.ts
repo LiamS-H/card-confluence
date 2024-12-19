@@ -3,8 +3,17 @@ import {
     IAutocompleteMap,
     IAutocompleteNode,
     IFastAutocompleteMap,
+    IMultiMap,
 } from '../interfaces/search/autcomplete';
 import { genFastAutocomplete } from './autocomplete';
+
+function integerList(start: number, end: number): string[] {
+    const out: string[] = [];
+    for (let i = start; i <= end; i++) {
+        out.push(i.toString());
+    }
+    return out;
+}
 
 function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
     const card_types = [
@@ -17,11 +26,107 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
         ...catalog['planeswalker-types'],
         ...catalog['supertypes'],
     ].map((type) => type.toLowerCase());
-    const criteria = [...catalog['criteria']].map((set) => set.toLowerCase());
+    const criteria = [...catalog['criteria']].map((set) => set.toLowerCase().replace(/\s/g, ''));
+
     const card_sets = [...catalog.sets].map((set) => set.toLowerCase());
-    const word_bank = catalog['word-bank'];
-    const powers = catalog.powers;
-    const toughnesses = catalog.toughnesses;
+    const word_bank = [...catalog['word-bank'].map((word) => word.toLowerCase())];
+    const long_rarities = ['common', 'uncommon', 'rare', 'mythic'];
+    const rarities = ['c', 'u', 'r', 'm', ...long_rarities];
+    const cubes = [
+        'arena',
+        'grixis',
+        'legacy',
+        'chuck',
+        'twisted',
+        'protour',
+        'uncommon',
+        'april',
+        'modern',
+        'amaz',
+        'tinkerer',
+        'livethedream',
+        'chromatic',
+        'vintage',
+    ];
+    const formats = [
+        'historic',
+        'timeless',
+        'gladiator',
+        'pioneer',
+        'explorer',
+        'modern',
+        'legacy',
+        'pauper',
+        'vintage',
+        'penny', // Penny Dreadful
+        'commander',
+        'oathbreaker',
+        'standardbrawl',
+        'brawl',
+        'alchemy',
+        'paupercommander',
+        'duel', // Duel Commander
+        'oldschool', // Old School 93/94
+        'premodern',
+        'predh',
+    ];
+    const currencies = ['usd', 'eur', 'tix'];
+    const new_wordbank = ['art', 'artist', 'flavor', 'rarity'];
+    const products = [
+        'core',
+        'expansion',
+        'draftinnovation',
+        'masters',
+        'funny',
+        'commander',
+        'duel_deck',
+        'from_the_vault',
+        'spellbook',
+        'premium_deck',
+        'alchemy',
+        'archenemy',
+        'masterpiece',
+        'memorabilia',
+        'planechase',
+        'promo',
+        'starter',
+        'token',
+        'treasure_chest',
+        'vanguard',
+    ];
+    const borders = ['black', 'white', 'silver', 'borderless'];
+    const frames = [
+        '1993',
+        '1997',
+        '2003',
+        '2015',
+        'future',
+        'legendary',
+        'colorshifted',
+        'tombstone',
+        'enchantment',
+    ];
+    const stamps = ['oval', 'acorn', 'triangle', 'arena'];
+    const games = ['paper', 'mtgo', 'mtga'];
+
+    const year_node: IMultiMap<IAutocompleteNode> = {
+        keys: integerList(1993, 2025),
+        node: {
+            prefix: '-',
+            terminating: true,
+            multimaps: [
+                {
+                    keys: integerList(1, 12),
+                    node: {
+                        prefix: '-',
+                        terminating: true,
+                        wordbank: integerList(1, 31),
+                    },
+                },
+            ],
+        },
+    };
+
     const manaMap: IAutocompleteNode = {
         repeating: true,
         prefix: '{',
@@ -113,14 +218,14 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
         'power',
         'toughness',
         'token',
-        '',
+        '~',
     ]
         .map((word) => word.toLowerCase())
         .sort();
     const FilterAutocompleteMap: IAutocompleteMap = {
         multimaps: [
             {
-                keys: ['o', 'oracle'],
+                keys: ['o', 'oracle', 'fo', 'fulloracle'],
                 node: {
                     singlemap: {
                         ':': {
@@ -140,47 +245,71 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                 },
             },
             {
-                keys: ['s', 'set'],
+                keys: ['s', 'set', 'e', 'edition'],
                 node: {
                     prefix: ':',
                     wordbank: card_sets,
                 },
             },
             {
-                keys: ['is'],
+                keys: ['is', 'not'],
                 node: {
                     prefix: ':',
                     wordbank: criteria,
                 },
             },
             {
-                keys: ['p', 'power'],
+                keys: ['pow', 'power'],
                 node: {
                     multimaps: [
                         {
-                            keys: ['=', '<=', '>=', '<', '>'],
-                            node: powers,
+                            keys: ['=', '<=', '>=', '<', '>', '!='],
+                            node: [...catalog.powers, 'toughness', 'tou'],
                         },
                     ],
                 },
             },
             {
-                keys: ['toughness'],
+                keys: ['tou', 'toughness'],
                 node: {
                     multimaps: [
                         {
-                            keys: ['=', '<=', '>=', '<', '>'],
-                            node: toughnesses,
+                            keys: ['=', '<=', '>=', '<', '>', '!='],
+                            node: [...catalog.toughnesses, 'power', 'pow'],
                         },
                     ],
                 },
             },
             {
-                keys: ['m', 'mana'],
+                keys: ['pt', 'powtou'],
                 node: {
                     multimaps: [
                         {
-                            keys: ['=', '<=', '>=', '<', '>'],
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
+                            node: {
+                                wordbank: integerList(0, 16),
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['loy', 'loyalty'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: ['=', '<=', '>=', '<', '>', '!='],
+                            node: catalog['loyalties'],
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['m', 'mana', 'produces', 'devotion'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: ['=', '<=', '>=', '<', '>', '!='],
                             node: manaMap,
                         },
                     ],
@@ -194,11 +323,11 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                 },
             },
             {
-                keys: ['c', 'color'],
+                keys: ['c', 'color', 'id', 'commander'],
                 node: {
                     multimaps: [
                         {
-                            keys: [':', '=', '<=', '>=', '<', '>'],
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
                             node: {
                                 terminating: true,
                                 repeating: true,
@@ -210,16 +339,191 @@ function catalogToAutocomplete(catalog: IScryfallCatalog): IAutocompleteMap {
                 },
             },
             {
-                keys: ['id', 'commander'],
+                keys: ['kw', 'keyword'],
                 node: {
-                    singlemap: {
-                        ':': {
-                            repeating: true,
-                            forceUniqueRepeats: true,
-                            wordbank: ['w', 'u', 'b', 'r', 'g', 'c'],
-                        },
-                    },
+                    prefix: ':',
+                    wordbank: [...catalog['keyword-abilities'], ...catalog['keyword-actions']],
                 },
+            },
+            {
+                keys: ['mv', 'cmc'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
+                            node: {
+                                wordbank: integerList(0, 30),
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['r', 'rarity'],
+                node: {
+                    prefix: ':',
+                    wordbank: rarities,
+                },
+            },
+            {
+                keys: ['in'],
+                node: {
+                    prefix: ':',
+                    wordbank: [...catalog['sets'], ...long_rarities],
+                },
+            },
+            {
+                keys: ['cube'],
+                node: {
+                    prefix: ':',
+                    wordbank: cubes,
+                },
+            },
+            {
+                keys: ['f', 'format', 'legal'],
+                node: {
+                    prefix: ':',
+                    wordbank: formats,
+                },
+            },
+            {
+                keys: currencies,
+                node: {
+                    multimaps: [
+                        {
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
+                            node: null,
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['cheapest'],
+                node: {
+                    prefix: ':',
+                    wordbank: currencies,
+                },
+            },
+            {
+                keys: ['a', 'artist'],
+                node: {
+                    prefix: ':',
+                    wordbank: catalog['artist-names'],
+                },
+            },
+            {
+                keys: ['artists'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
+                            node: integerList(1, 2),
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['illustrations', 'sets', 'papersets', 'print', 'paperprints'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
+                            node: integerList(1, 20),
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['ft', 'flavor'],
+                node: {
+                    prefix: ':',
+                },
+            },
+            {
+                keys: ['wm', 'watermark'],
+                node: {
+                    prefix: ':',
+                    wordbank: catalog['watermarks'],
+                },
+            },
+            {
+                keys: ['new'],
+                node: {
+                    prefix: ':',
+                    wordbank: new_wordbank,
+                },
+            },
+            {
+                keys: ['st'],
+                node: {
+                    prefix: ':',
+                    wordbank: products,
+                },
+            },
+            {
+                keys: ['border'],
+                node: {
+                    prefix: ':',
+                    wordbank: borders,
+                },
+            },
+            {
+                keys: ['frame'],
+                node: {
+                    prefix: ':',
+                    wordbank: frames,
+                },
+            },
+            {
+                keys: ['stamp'],
+                node: {
+                    prefix: ':',
+                    wordbank: stamps,
+                },
+            },
+            {
+                keys: ['date'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
+                            node: {
+                                multimaps: [
+                                    year_node,
+                                    {
+                                        keys: catalog['sets'],
+                                        node: null,
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['year'],
+                node: {
+                    multimaps: [
+                        {
+                            keys: [':', '=', '<=', '>=', '<', '>', '!='],
+                            node: {
+                                multimaps: [year_node],
+                            },
+                        },
+                    ],
+                },
+            },
+            {
+                keys: ['art', 'atag', 'arttag'],
+                node: { prefix: ':', wordbank: catalog['atags'] },
+            },
+            {
+                keys: ['function', 'otag', 'oracletag'],
+                node: { prefix: ':', wordbank: catalog['otags'] },
+            },
+            {
+                keys: ['game'],
+                node: { prefix: ':', wordbank: games },
             },
         ],
     };
