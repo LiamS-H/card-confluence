@@ -1,30 +1,38 @@
-# React + TypeScript + Vite
+# MVP
+## Landing Page
+ [X] Standard product landing page explain the features we have over scryfall
+ [X] Cards scrolling by
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Search page
+ [X] Make search adjust columns dynaimaclly to screensize
+ [X] Add buttons for search order
+ [ ] add importing of scryfall queries
+ [X] add tagger (atag and otag) to catalog for autocomplete
+ [X] use scryfall errors to flag invalid tags
+    [X] parse the scryfall warning returned string for the culprit tags and then search the tree for said tags.
+ [X] distinguish better between adding filter or group
+ [ ] setting default behavior and storing blocks on your computer, can also make account if wanted
+ [W] add click to esp list and arrow keys,
+ [X] add full result to exp list by cropping based on index
+ [ ] dedupe infinite scroll requests - map the query pages to the actual pages in a map, then you can check if mapped page is loading
+ [ ] edit filters - default behavior deletes the value while keeping the tag and setting the curso at the tag. clicking off returns the original value if unedited.
+ [ ] add copy paste to the query
 
-Currently, two official plugins are available:
+## Docs page
+ [X] add docs or link to syntax
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+# Maybe waste time on but later
+ [ ] make autocomplete update with global filters ie:setting to premodern removes some of the creature types
+ [ ] Move to tanstack router so that state can be stored in url
+ [ ] add triggers
+ [ ] add dnd
+ [X] add light mode
+ [ ] editing text in time and then using graph isomophism from the generated and edited graphs to try and piece them together (this would preserve the state of named components.)
+ [ ] add scroll jumping to infinite scroll
+## AI Shit
+ [ ] Train a model for better tagging (could just use roberta)
+ [ ] Use an llm api for constructing queries 
+## Optimisic Client Side Updates
+ [ ] when a non order part changes make a call to make the scroll appear with the same cards in the center of the screen, can a play an animation
+ [ ] use easy animation library to make the cards move when filters change, try swapy, or react auto animate
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-};
-```
-
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
