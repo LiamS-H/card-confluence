@@ -23,6 +23,12 @@ function useSearch() {
                     operator: ':',
                     value: 'commander',
                 },
+                {
+                    type: 'filter',
+                    filter: 'legal',
+                    operator: ':',
+                    value: 'vintage',
+                },
             ],
         },
         filters: {
