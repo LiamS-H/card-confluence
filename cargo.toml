@@ -1,0 +1,3 @@
+[build]
+# Forces all sub-packages to use the root target folder
+target-dir = "target"
