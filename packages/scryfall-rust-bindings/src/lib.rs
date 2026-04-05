@@ -1,34 +1,20 @@
 use regex::Regex;
-use reqwest::header::{ACCEPT, HeaderMap, HeaderValue, USER_AGENT};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use url::Url;
 
-pub const SCRYFALL_BULK_DATA_TYPES: [&str; 5] = [
-    "oracle_cards",
-    "unique_artwork",
-    "default_cards",
-    "all_cards",
-    "rulings",
-];
+use crate::{
+    client::get_client,
+    types::{
+        bulk::ScryfallBulkData, card::ScryfallCardList, error::ScryfallError,
+        migration::ScryfallMigrationList, set::ScryfallSetList,
+    },
+};
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ScryfallBulkData {
-    pub object: String,
-    pub id: String,
-    pub r#type: String,
-    pub updated_at: String,
-    pub uri: String,
-    pub name: String,
-    pub description: String,
-    pub size: u64,
-    pub download_uri: String,
-    pub content_type: String,
-    pub content_encoding: String,
-}
+pub mod client;
+pub mod types;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct SearchSettings {
+#[derive(Debug, Serialize, Clone, Deserialize, Default)]
+pub struct ScryfallSearchSettings {
     pub unique: Option<String>,
     pub order: Option<String>,
     pub dir: Option<String>,
@@ -47,13 +33,9 @@ pub struct TagResult {
 }
 
 pub async fn fetch_bulk(endpoint: &str) -> Result<ScryfallBulkData, Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
     let url = format!("https://api.scryfall.com/bulk-data/{}", endpoint);
-    let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, HeaderValue::from_static("card-confluence/0.0"));
-    headers.insert(ACCEPT, HeaderValue::from_static("*/*"));
 
-    let response = client.get(url).headers(headers).send().await?;
+    let response = get_client().get(url).send().await?;
     let data = response.json::<ScryfallBulkData>().await?;
     Ok(data)
 }
@@ -61,7 +43,7 @@ pub async fn fetch_bulk(endpoint: &str) -> Result<ScryfallBulkData, Box<dyn std:
 pub async fn fetch_migrations(
     page: Option<u32>,
     fixed_url: Option<&str>,
-) -> Result<Value, Box<dyn std::error::Error>> {
+) -> Result<ScryfallMigrationList, Box<dyn std::error::Error>> {
     if fixed_url.is_some() && page.is_some() {
         return Err("overwriting page with fixed url.".into());
     }
@@ -72,20 +54,28 @@ pub async fn fetch_migrations(
         format!("https://api.scryfall.com/migrations/{}", page.unwrap_or(1))
     };
 
-    let client = reqwest::Client::new();
-    let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, HeaderValue::from_static("card-confluence/0.0"));
-    headers.insert(ACCEPT, HeaderValue::from_static("*/*"));
-
-    let response = client.get(url).headers(headers).send().await?;
-    let data = response.json::<Value>().await?;
+    let response = get_client().get(url).send().await?;
+    let data = response.json::<ScryfallMigrationList>().await?;
     Ok(data)
+}
+
+pub async fn fetch_sets() -> Result<ScryfallSetList, Box<dyn std::error::Error>> {
+    let url = Url::parse("https://api.scryfall.com/sets")?;
+
+    let response = get_client().get(url).send().await?;
+    let data = response.json::<ScryfallSetList>().await?;
+    Ok(data)
+}
+
+pub enum ScryfallSearchResponse {
+    List(ScryfallCardList),
+    Error(ScryfallError),
 }
 
 pub async fn fetch_search(
     query: &str,
-    settings: Option<SearchSettings>,
-) -> Result<Value, Box<dyn std::error::Error>> {
+    settings: Option<ScryfallSearchSettings>,
+) -> Result<ScryfallSearchResponse, Box<dyn std::error::Error>> {
     let mut url = Url::parse("https://api.scryfall.com/cards/search")?;
     {
         let mut query_params = url.query_pairs_mut();
@@ -122,28 +112,24 @@ pub async fn fetch_search(
         }
     }
 
-    let client = reqwest::Client::new();
-    let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, HeaderValue::from_static("card-confluence/0.0"));
-    headers.insert(ACCEPT, HeaderValue::from_static("*/*"));
+    let response = get_client().get(url).send().await?;
+    let raw_text = response.text().await?;
+    if let Ok(error) = serde_json::from_str::<ScryfallError>(&raw_text) {
+        return Ok(ScryfallSearchResponse::Error(error));
+    };
 
-    let response = client.get(url).headers(headers).send().await?;
-    let data = response.json::<Value>().await?;
-    Ok(data)
+    match serde_json::from_str::<ScryfallCardList>(&raw_text) {
+        Ok(list) => Ok(ScryfallSearchResponse::List(list)),
+        Err(e) => Err(Box::new(e)),
+    }
 }
 
 pub async fn fetch_all_tags() -> Result<TagResult, Box<dyn std::error::Error>> {
     let mut otags = Vec::new();
     let mut atags = Vec::new();
 
-    let client = reqwest::Client::new();
-    let mut headers = HeaderMap::new();
-    headers.insert(USER_AGENT, HeaderValue::from_static("card-confluence/0.0"));
-    headers.insert(ACCEPT, HeaderValue::from_static("*/*"));
-
-    let response = client
+    let response = get_client()
         .get("https://scryfall.com/docs/tagger-tags")
-        .headers(headers)
         .send()
         .await?;
     let text = response.text().await?;
