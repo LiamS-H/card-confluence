@@ -1,5 +1,5 @@
 [workspace]
-members = ["packages/scryfall-rust-bindings", "packages/db"]
+members = ["packages/scryfall-rust-bindings", "packages/card_confluence_db"]
 # members = ["packages/*", "apps/*"]
 resolver = "2"
 version = "0.10"

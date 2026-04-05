@@ -1,8 +1,8 @@
 pub mod data;
 pub mod transform;
 
-use crate::db_seed::data::fetch_data_cached;
 use crate::schema::{card::card::Card, ruling::Ruling, set::Set};
+use crate::seed::data::fetch_data_cached;
 use arrow_array::RecordBatch;
 use arrow_convert::serialize::TryIntoArrow;
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};

@@ -1,4 +1,4 @@
-use db::db_seed::{self, SeedMode};
+use card_confluence_db::seed::{self, SeedMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "" => SeedMode::Latest,
                     id => SeedMode::Specific(id.into()),
                 };
-                db_seed::seed(mode).await?;
+                seed::seed(mode).await?;
             }
             _ => {
                 eprintln!("Unknown command: {}", command);

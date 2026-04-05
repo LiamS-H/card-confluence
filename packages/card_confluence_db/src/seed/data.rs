@@ -14,7 +14,7 @@ use std::{
 };
 use tokio::time::sleep;
 
-use crate::db_seed::SeedMode;
+use crate::seed::SeedMode;
 
 const RATE_LIMIT: std::time::Duration = Duration::from_millis(1000);
 
