@@ -7,7 +7,6 @@ use tsify::Tsify;
 )]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Ruling {
-    pub object: String,
     pub oracle_id: String,
     pub source: String,
     /// ISO 8601 date string: "YYYY-MM-DD"

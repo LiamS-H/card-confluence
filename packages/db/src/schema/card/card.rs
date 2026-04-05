@@ -112,6 +112,7 @@ pub struct Card {
     /// Note: may be non-numeric, e.g. "*"
     pub toughness: Option<String>,
     pub type_line: String,
+    pub otags: Vec<String>,
 
     // -----------------------------------------------------------------------
     // Print fields
