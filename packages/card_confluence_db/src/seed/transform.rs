@@ -136,6 +136,7 @@ impl From<ScryfallCard> for Card {
             story_spotlight: scryfall.story_spotlight,
             textless: scryfall.textless,
             variation: scryfall.variation,
+            set_code: scryfall.set,
             variation_of: scryfall.variation_of,
             security_stamp: scryfall.security_stamp,
             watermark: scryfall.watermark,
@@ -245,10 +246,10 @@ impl From<ScryfallRelatedCard> for RelatedCard {
 impl From<ScryfallSet> for Set {
     fn from(scryfall: ScryfallSet) -> Self {
         Self {
-            set_name: scryfall.name,
+            name: scryfall.name,
             set_type: scryfall.set_type,
-            set: scryfall.code,
-            set_id: scryfall.id,
+            code: scryfall.code,
+            id: scryfall.id,
         }
     }
 }

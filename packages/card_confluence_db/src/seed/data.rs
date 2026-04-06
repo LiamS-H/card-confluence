@@ -27,7 +27,7 @@ struct TagProgress {
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ScryfallBulkMetadata {
-    pub oracle_cards_id: String,
+    pub cards_id: String,
     pub created_at: String,
     pub cards_uri: String,
     pub rulings_uri: String,
@@ -35,7 +35,7 @@ pub struct ScryfallBulkMetadata {
 
 impl ScryfallBulkMetadata {
     pub fn to_path(&self) -> PathBuf {
-        PathBuf::from(format!("{}_{}", self.created_at, self.oracle_cards_id))
+        PathBuf::from(format!("{}_{}", self.created_at, self.cards_id))
     }
 }
 
@@ -55,9 +55,9 @@ pub async fn fetch_data_cached(
     let mut metadata = match mode {
         SeedMode::Latest => {
             pb.set_message("Getting Latest Data");
-            let cards_bulk = fetch_bulk("oracle_cards").await?;
+            let cards_bulk = fetch_bulk("cards").await?;
             ScryfallBulkMetadata {
-                oracle_cards_id: cards_bulk.id,
+                cards_id: cards_bulk.id,
                 created_at: cards_bulk.updated_at,
                 cards_uri: cards_bulk.download_uri,
                 ..Default::default()

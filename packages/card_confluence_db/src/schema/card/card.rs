@@ -160,6 +160,7 @@ pub struct Card {
     /// ISO 8601 date string: "YYYY-MM-DD"
     pub released_at: String,
     pub reprint: bool,
+    pub set_code: String,
 
     pub story_spotlight: bool,
     pub textless: bool,

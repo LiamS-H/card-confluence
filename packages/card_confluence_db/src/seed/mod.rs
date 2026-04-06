@@ -58,7 +58,7 @@ pub async fn seed(mode: SeedMode) -> Result<(), Box<dyn std::error::Error>> {
     let metadata = fetch_data_cached(&multi, mode).await?;
     spinner.set_message(format!(
         "Using {} {}",
-        metadata.created_at, metadata.oracle_cards_id
+        metadata.created_at, metadata.cards_id
     ));
 
     let data_dir = Path::new(".scryfall").join(metadata.to_path());

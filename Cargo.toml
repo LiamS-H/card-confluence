@@ -1,6 +1,9 @@
 [workspace]
-members = ["packages/scryfall-rust-bindings", "packages/card_confluence_db"]
-# members = ["packages/*", "apps/*"]
+members = [
+    "packages/scryfall-rust-bindings",
+    "packages/card_confluence_db",
+    "packages/wasm_browser",
+]
 resolver = "2"
 version = "0.10"
 
@@ -8,6 +11,28 @@ version = "0.10"
 [workspace.dependencies]
 tokio = { version = "1.50.0", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0.149" }
+
 regex = { version = "1.12.3" }
 wasm-bindgen = { version = "0.2" }
+wasm-bindgen-futures = { version = "0.4" }
 tsify = { version = "0.5.6", features = ["js"] }
+
+async-trait = { version = "0.1" }
+futures = { version = "0.3.31" }
+chrono = { version = "0.4.40" }
+
+# we use arrow 57 as the latest version compatible with arrow_convert
+arrow = { version = "57" }
+parquet = { version = "57" }
+arrow-schema = { version = "57" }
+arrow-array = { version = "57" }
+datafusion = { version = "52.4" }
+arrow_convert = { version = "0.11.4" }
+object_store = { version = "0.12.4" }
+url = { version = "2.5.7" }
+
+[profile.release]
+opt-level = "z" # Optimize for size
+lto = true      # Enable Link Time Optimization
+strip = true    # Strip symbols
