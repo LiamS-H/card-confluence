@@ -42,11 +42,15 @@
         "wrangler": "^4.63.0",
       },
     },
-    "packages/scryfall-ts-bindings": {
+    "packages/scryfall_ts_bindings": {
       "name": "scryfall-ts-bindings",
       "devDependencies": {
         "@scryfall/api-types": "^1.0.0-alpha.4",
       },
+    },
+    "packages/wasm_browser": {
+      "name": "@packages/wasm-browser",
+      "version": "0.1.0",
     },
   },
   "packages": {
@@ -209,6 +213,8 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@packages/wasm-browser": ["@packages/wasm-browser@workspace:packages/wasm_browser"],
 
     "@playwright/test": ["@playwright/test@1.59.1", "", { "dependencies": { "playwright": "1.59.1" }, "bin": { "playwright": "cli.js" } }, "sha512-PG6q63nQg5c9rIi4/Z5lR5IVF7yU5MqmKaPOe0HSc0O2cX1fPi96sUQu5j7eo4gKCkB2AnNGoWt7y4/Xx3Kcqg=="],
 
@@ -622,7 +628,7 @@
 
     "sade": ["sade@1.8.1", "", { "dependencies": { "mri": "^1.1.0" } }, "sha512-xal3CZX1Xlo/k4ApwCFrHVACi9fBqJ7V+mwhBsuf/1IOKbBy098Fex+Wa/5QMubw09pSZ/u8EY8PWgevJsXp1A=="],
 
-    "scryfall-ts-bindings": ["scryfall-ts-bindings@workspace:packages/scryfall-ts-bindings"],
+    "scryfall-ts-bindings": ["scryfall-ts-bindings@workspace:packages/scryfall_ts_bindings"],
 
     "semver": ["semver@7.7.4", "", { "bin": { "semver": "bin/semver.js" } }, "sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA=="],
 

@@ -13,7 +13,7 @@ arrow_convert = { workspace = true }
 url = { workspace = true }
 object_store = { workspace = true }
 
-scryfall-rust-bindings = { path = "../scryfall-rust-bindings" }
+scryfall-rust-bindings = { path = "../scryfall_rust_bindings" }
 
 indicatif = "0.17.11"
 serde_json = { workspace = true }

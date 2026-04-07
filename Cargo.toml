@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "packages/scryfall-rust-bindings",
+    "packages/scryfall_rust_bindings",
     "packages/card_confluence_db",
     "packages/wasm_browser",
 ]
