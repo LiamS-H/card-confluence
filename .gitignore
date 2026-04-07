@@ -39,3 +39,6 @@ yarn-error.log*
 
 # rust
 target/
+
+# plan
+**/plan.md
