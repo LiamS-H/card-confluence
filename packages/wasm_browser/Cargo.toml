@@ -1,0 +1,50 @@
+[package]
+name = "wasm_browser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arrow = { workspace = true }
+arrow-ipc = { workspace = true }
+parquet = { workspace = true }
+arrow-schema = { workspace = true }
+arrow-array = { workspace = true }
+datafusion = { workspace = true }
+arrow_convert = { workspace = true }
+url = { workspace = true }
+object_store = { workspace = true }
+
+scryfall-rust-bindings = { path = "../scryfall-rust-bindings" }
+card-confluence-db = { path = "../card_confluence_db" }
+
+async-trait = { workspace = true }
+async-stream = "0.3"
+futures = { workspace = true }
+chrono = { workspace = true, features = ["wasmbind"] }
+
+reqwest = { version = "0.13", features = ["json"] }
+tokio = { workspace = true }
+
+serde_json = { workspace = true }
+
+
+serde = { workspace = true, features = ["derive"] }
+wasm-bindgen = { workspace = true }
+wasm-bindgen-futures = { workspace = true }
+tsify = { workspace = true }
+
+bytes = "1.5"
+web-sys = { version = "0.3", features = [
+    "FileSystemDirectoryHandle",
+    "FileSystemFileHandle",
+    "FileSystemWritableFileStream",
+    "Window",
+    "Navigator",
+    "StorageManager",
+    "File",
+    "Blob",
+] }
+js-sys = "0.3"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"

@@ -533,7 +533,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "card_confluence_db"
+name = "card-confluence-db"
 version = "0.1.0"
 dependencies = [
  "arrow",
@@ -3895,11 +3895,13 @@ version = "0.1.0"
 dependencies = [
  "arrow",
  "arrow-array",
+ "arrow-ipc",
  "arrow-schema",
  "arrow_convert",
  "async-stream",
  "async-trait",
  "bytes",
+ "card-confluence-db",
  "chrono",
  "datafusion",
  "futures",

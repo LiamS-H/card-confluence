@@ -23,6 +23,7 @@ futures = { version = "0.3.31" }
 chrono = { version = "0.4.40" }
 
 # we use arrow 57 as the latest version compatible with arrow_convert
+arrow-ipc = { version = "57" }
 arrow = { version = "57" }
 parquet = { version = "57" }
 arrow-schema = { version = "57" }
