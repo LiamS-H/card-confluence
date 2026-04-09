@@ -5,8 +5,11 @@ use url::Url;
 use crate::{
     client::get_client,
     types::{
-        bulk::ScryfallBulkData, card::ScryfallCardList, error::ScryfallError,
-        migration::ScryfallMigrationList, set::ScryfallSetList,
+        bulk::{SCRYFALL_BULK_DATA_ENDPOINTS, ScryfallBulkData},
+        card::ScryfallCardList,
+        error::ScryfallError,
+        migration::ScryfallMigrationList,
+        set::ScryfallSetList,
     },
 };
 
@@ -33,10 +36,28 @@ pub struct TagResult {
 }
 
 pub async fn fetch_bulk(endpoint: &str) -> Result<ScryfallBulkData, Box<dyn std::error::Error>> {
+    if !SCRYFALL_BULK_DATA_ENDPOINTS.contains(&endpoint) {
+        return Err(format!(
+            "Invalid bulk endpoint '{}', valid endpoints are: {}",
+            endpoint,
+            SCRYFALL_BULK_DATA_ENDPOINTS.join(", ")
+        )
+        .into());
+    };
+
     let url = format!("https://api.scryfall.com/bulk-data/{}", endpoint);
 
     let response = get_client().get(url).send().await?;
-    let data = response.json::<ScryfallBulkData>().await?;
+    let raw_text = response.text().await?;
+    if let Ok(error) = serde_json::from_str::<ScryfallError>(&raw_text) {
+        return Err(format!(
+            "{:#?}\n{:#?}",
+            raw_text,
+            serde_json::to_string_pretty(&error)
+        )
+        .into());
+    };
+    let data = serde_json::from_str::<ScryfallBulkData>(&raw_text)?;
     Ok(data)
 }
 
@@ -55,7 +76,16 @@ pub async fn fetch_migrations(
     };
 
     let response = get_client().get(url).send().await?;
-    let data = response.json::<ScryfallMigrationList>().await?;
+    let raw_text = response.text().await?;
+    if let Ok(error) = serde_json::from_str::<ScryfallError>(&raw_text) {
+        return Err(format!(
+            "{:#?}\n{:#?}",
+            raw_text,
+            serde_json::to_string_pretty(&error)
+        )
+        .into());
+    };
+    let data = serde_json::from_str::<ScryfallMigrationList>(&raw_text)?;
     Ok(data)
 }
 
@@ -63,7 +93,16 @@ pub async fn fetch_sets() -> Result<ScryfallSetList, Box<dyn std::error::Error>>
     let url = Url::parse("https://api.scryfall.com/sets")?;
 
     let response = get_client().get(url).send().await?;
-    let data = response.json::<ScryfallSetList>().await?;
+    let raw_text = response.text().await?;
+    if let Ok(error) = serde_json::from_str::<ScryfallError>(&raw_text) {
+        return Err(format!(
+            "{:#?}\n{:#?}",
+            raw_text,
+            serde_json::to_string_pretty(&error)
+        )
+        .into());
+    };
+    let data = serde_json::from_str::<ScryfallSetList>(&raw_text)?;
     Ok(data)
 }
 
@@ -153,6 +192,10 @@ pub async fn fetch_all_tags() -> Result<TagResult, Box<dyn std::error::Error>> {
         } else {
             atags.extend(tags);
         }
+    }
+
+    if otags.len() == 0 && atags.len() == 0 {
+        return Err("Didn't find any tags.".into());
     }
 
     Ok(TagResult { otags, atags })

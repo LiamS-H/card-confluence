@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-pub const SCRYFALL_BULK_DATA_TYPES: [&str; 5] = [
+pub const SCRYFALL_BULK_DATA_ENDPOINTS: [&str; 5] = [
     "oracle_cards",
     "unique_artwork",
     "default_cards",
