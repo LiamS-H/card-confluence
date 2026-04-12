@@ -1,12 +1,12 @@
-use std::path::Path;
-
 use card_confluence_db::{
-    query_executor::context::get_context,
+    query_executor::context::{get_context, TablePaths},
     query_parser::parse_query,
     seed::{self, SeedMode},
+    utils::get_latest,
 };
 use datafusion::prelude::col;
-use object_store::local::LocalFileSystem;
+use object_store::{local::LocalFileSystem, path::Path as ObjectPath, ObjectStore};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -22,7 +22,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "" => SeedMode::Latest,
                     id => SeedMode::Specific(id.into()),
                 };
-                seed::seed(mode).await?;
+                let json_store = Arc::new(LocalFileSystem::new_with_prefix(".scryfall")?);
+                let parquet_store = Arc::new(LocalFileSystem::new_with_prefix(".parquet")?);
+                seed::seed(mode, json_store, parquet_store).await?;
             }
             "query" => {
                 let query = if args.len() > 2 {
@@ -33,23 +35,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     std::process::exit(1);
                 };
 
-                let parquet_dir = Path::new(".parquet");
-                let mut entries: Vec<_> = std::fs::read_dir(parquet_dir)?
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.path().is_dir())
-                    .collect();
+                let parquet_store: Arc<dyn ObjectStore> =
+                    Arc::new(LocalFileSystem::new_with_prefix(".parquet")?);
 
-                entries.sort_by_key(|e| e.file_name());
-                let latest_path = entries
-                    .last()
-                    .ok_or("No parquet directories found. Run seed first.")?
-                    .path();
+                let latest_cards =
+                    get_latest(&parquet_store, &ObjectPath::from("cards"), "parquet")
+                        .await
+                        .ok_or("No card parquet files found. Run seed first.")?;
+                let latest_rulings =
+                    get_latest(&parquet_store, &ObjectPath::from("rulings"), "parquet")
+                        .await
+                        .ok_or("No ruling parquet files found. Run seed first.")?;
+                let latest_sets = get_latest(&parquet_store, &ObjectPath::from("sets"), "parquet")
+                    .await
+                    .ok_or("No set parquet files found. Run seed first.")?;
 
-                let ctx = get_context(
-                    LocalFileSystem::new_with_prefix(latest_path)
-                        .expect("Failed to instantiate LocalFileStore"),
-                )
-                .await?;
+                let paths = TablePaths {
+                    cards: format!("db://data/{}", latest_cards),
+                    rulings: format!("db://data/{}", latest_rulings),
+                    sets: format!("db://data/{}", latest_sets),
+                };
+
+                let ctx = get_context(parquet_store, paths).await?;
 
                 let plan = parse_query(&ctx, &query).await?;
 

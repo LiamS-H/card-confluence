@@ -3,13 +3,27 @@ name = "wasm-browser"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+    "-O",
+    "--enable-bulk-memory",
+    "--enable-nontrapping-float-to-int",
+    "--enable-sign-ext",
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 arrow = { workspace = true }
 arrow-ipc = { workspace = true }
-parquet = { workspace = true }
+parquet = { workspace = true, default-features = false, features = ["arrow"] }
 arrow-schema = { workspace = true }
 arrow-array = { workspace = true }
-datafusion = { workspace = true }
+datafusion = { workspace = true, default-features = false, features = [
+    "parquet",
+    "regex_expressions",
+] }
 arrow_convert = { workspace = true }
 url = { workspace = true }
 object_store = { workspace = true }
@@ -37,6 +51,8 @@ bytes = "1.5"
 web-sys = { version = "0.3", features = [
     "FileSystemDirectoryHandle",
     "FileSystemFileHandle",
+    "FileSystemSyncAccessHandle",
+    "FileSystemReadWriteOptions",
     "FileSystemWritableFileStream",
     "Window",
     "Navigator",
@@ -45,6 +61,7 @@ web-sys = { version = "0.3", features = [
     "Blob",
 ] }
 js-sys = "0.3"
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

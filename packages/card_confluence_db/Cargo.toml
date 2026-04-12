@@ -12,6 +12,8 @@ datafusion = { workspace = true }
 arrow_convert = { workspace = true }
 url = { workspace = true }
 object_store = { workspace = true }
+futures = { workspace = true }
+chrono = { workspace = true }
 
 scryfall-rust-bindings = { path = "../scryfall_rust_bindings" }
 
@@ -24,3 +26,6 @@ tokio = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 wasm-bindgen = { workspace = true }
 tsify = { workspace = true }
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "fs", "io-util"] }

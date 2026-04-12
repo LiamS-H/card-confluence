@@ -12,14 +12,14 @@ use futures::{
     stream::{self, BoxStream, StreamExt},
     TryStreamExt,
 };
-use js_sys::{ArrayBuffer, Uint8Array};
+use js_sys::Uint8Array;
 use object_store::{
     path::Path, Error, GetOptions, GetResult, GetResultPayload, ListResult, MultipartUpload,
     ObjectMeta, ObjectStore, PutMultipartOptions, PutOptions, PutPayload, PutResult, Result,
 };
-use wasm_bindgen::JsCast;
+use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::FileSystemFileHandle;
+use web_sys::{FileSystemFileHandle, FileSystemReadWriteOptions, FileSystemSyncAccessHandle};
 
 // ── SendWrapper ───────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ pub struct OpfsReadonlyStore {
     /// `FileSystemFileHandle` is `!Send`, which is fine — we only ever access
     /// this map on the one WASM thread, and `SendWrapper` silences the
     /// compiler.
-    files: HashMap<Path, SendWrapper<FileSystemFileHandle>>,
+    files: HashMap<Path, SendWrapper<FileSystemSyncAccessHandle>>,
 }
 
 impl OpfsReadonlyStore {
@@ -74,8 +74,18 @@ impl OpfsReadonlyStore {
     /// The handle must already exist in OPFS (i.e. obtained without
     /// `{ create: true }`). Registering the same path twice overwrites the
     /// previous handle.
-    pub fn register_file(&mut self, path: Path, handle: FileSystemFileHandle) {
-        self.files.insert(path, SendWrapper(handle));
+    pub async fn register_file(
+        &mut self,
+        path: Path,
+        handle: FileSystemFileHandle,
+    ) -> Result<(), JsValue> {
+        let promise = handle.create_sync_access_handle();
+        let js_val = JsFuture::from(promise).await?;
+        let sync_handle: FileSystemSyncAccessHandle = js_val.unchecked_into();
+
+        self.files.insert(path, SendWrapper(sync_handle));
+
+        Ok(())
     }
 
     /// Returns the set of all currently registered paths.
@@ -90,44 +100,33 @@ impl OpfsReadonlyStore {
         }
     }
 
-    async fn read_file_bytes_range(
-        handle: &FileSystemFileHandle,
+    fn read_file_bytes_range(
+        handle: &FileSystemSyncAccessHandle,
         range: Option<&object_store::GetRange>,
-        total_size: u64,
     ) -> Result<(Bytes, Range<u64>)> {
-        let file_val = JsFuture::from(handle.get_file())
-            .await
-            .map_err(|e| Error::Generic {
-                store: "OpfsReadonlyStore",
-                source: format!("getFile() failed: {:?}", e).into(),
-            })?;
-        let file: web_sys::File = file_val.dyn_into().map_err(|_| Error::Generic {
+        // 1. Get the current size synchronously
+        let total_size = handle.get_size().map_err(|e| Error::Generic {
             store: "OpfsReadonlyStore",
-            source: "getFile() did not return a File".into(),
-        })?;
+            source: format!("getSize() failed: {:?}", e).into(),
+        })? as u64;
 
         let byte_range = Self::resolve_range(range, total_size);
+        let len = byte_range.end - byte_range.start;
 
-        let blob = file
-            .slice_with_f64_and_f64(byte_range.start as f64, byte_range.end as f64)
+        // 2. Prepare the buffer and options
+        let buffer = Uint8Array::new_with_length(len as u32);
+        let options = FileSystemReadWriteOptions::new();
+        options.set_at(byte_range.start as f64);
+
+        // 3. Perform the synchronous read
+        handle
+            .read_with_buffer_source_and_options(&buffer, &options)
             .map_err(|e| Error::Generic {
                 store: "OpfsReadonlyStore",
-                source: format!("Blob.slice() failed: {:?}", e).into(),
+                source: format!("Sync read failed: {:?}", e).into(),
             })?;
 
-        let buf_val = JsFuture::from(blob.array_buffer())
-            .await
-            .map_err(|e| Error::Generic {
-                store: "OpfsReadonlyStore",
-                source: format!("arrayBuffer() failed: {:?}", e).into(),
-            })?;
-        let array_buf: ArrayBuffer = buf_val.dyn_into().map_err(|_| Error::Generic {
-            store: "OpfsReadonlyStore",
-            source: "arrayBuffer() did not return an ArrayBuffer".into(),
-        })?;
-
-        let uint8 = Uint8Array::new(&array_buf);
-        Ok((Bytes::from(uint8.to_vec()), byte_range))
+        Ok((Bytes::from(buffer.to_vec()), byte_range))
     }
 
     /// Resolves a [`GetRange`] to a concrete [`Range<u64>`] given the file's
@@ -143,22 +142,15 @@ impl OpfsReadonlyStore {
 
     /// Builds an [`ObjectMeta`] for a registered path using the file's own
     /// reported size and last-modified timestamp.
-    async fn file_meta(path: Path, handle: &FileSystemFileHandle) -> Result<ObjectMeta> {
-        let file_val = JsFuture::from(handle.get_file())
-            .await
-            .map_err(|e| Error::Generic {
-                store: "OpfsReadonlyStore",
-                source: format!("getFile() failed: {:?}", e).into(),
-            })?;
-        let file: web_sys::File = file_val.dyn_into().map_err(|_| Error::Generic {
+    fn file_meta(path: Path, handle: &FileSystemSyncAccessHandle) -> Result<ObjectMeta> {
+        let size = handle.get_size().map_err(|e| Error::Generic {
             store: "OpfsReadonlyStore",
-            source: "getFile() did not return a File".into(),
-        })?;
+            source: format!("getSize() failed: {:?}", e).into(),
+        })? as u64;
 
-        let size = file.size() as u64;
-        let last_modified_ms = file.last_modified();
-        let last_modified = chrono::DateTime::from_timestamp_millis(last_modified_ms as i64)
-            .unwrap_or_else(chrono::Utc::now);
+        // Note: SyncAccessHandle lacks a last_modified method.
+        // You may need to pass this in from a previous async getFile() call.
+        let last_modified = chrono::Utc::now();
 
         Ok(ObjectMeta {
             location: path,
@@ -211,16 +203,15 @@ impl ObjectStore for OpfsReadonlyStore {
         match result {
             Err(e) => Box::pin(async move { Err(e) }),
             Ok(handle) => {
-                let handle_ptr = &handle.0 as *const FileSystemFileHandle;
+                let handle_ptr = &handle.0 as *const FileSystemSyncAccessHandle;
 
                 send_future(async move {
                     let handle = unsafe { &*handle_ptr };
 
-                    let meta = Self::file_meta(location.clone(), handle).await?;
-                    let total = meta.size;
+                    let meta = Self::file_meta(location.clone(), handle)?;
 
                     let (sliced, byte_range) =
-                        Self::read_file_bytes_range(handle, options.range.as_ref(), total).await?;
+                        Self::read_file_bytes_range(handle, options.range.as_ref())?;
 
                     Ok(GetResult {
                         payload: GetResultPayload::Stream(Box::pin(stream::once(async move {
@@ -254,10 +245,10 @@ impl ObjectStore for OpfsReadonlyStore {
         match result {
             Err(e) => Box::pin(async move { Err(e) }),
             Ok(handle) => {
-                let handle_ptr = &handle.0 as *const FileSystemFileHandle;
+                let handle_ptr = &handle.0 as *const FileSystemSyncAccessHandle;
                 send_future(async move {
                     let handle = unsafe { &*handle_ptr };
-                    Self::file_meta(location, handle).await
+                    Self::file_meta(location, handle)
                 })
             }
         }
@@ -265,7 +256,7 @@ impl ObjectStore for OpfsReadonlyStore {
 
     fn list(&self, prefix: Option<&Path>) -> BoxStream<'static, Result<ObjectMeta>> {
         // Wrap the raw pointer in SendWrapper so the vector items are Send (just to make compiler happy)
-        let entries: Vec<(Path, SendWrapper<*const FileSystemFileHandle>)> = self
+        let entries: Vec<(Path, SendWrapper<*const FileSystemSyncAccessHandle>)> = self
             .files
             .iter()
             .filter(|(p, _)| match &prefix {
@@ -273,14 +264,19 @@ impl ObjectStore for OpfsReadonlyStore {
                 Some(pfx) => p.as_ref().starts_with(pfx.as_ref()),
             })
             // Wrap the pointer here
-            .map(|(p, h)| (p.clone(), SendWrapper(&h.0 as *const FileSystemFileHandle)))
+            .map(|(p, h)| {
+                (
+                    p.clone(),
+                    SendWrapper(&h.0 as *const FileSystemSyncAccessHandle),
+                )
+            })
             .collect();
 
         let stream = stream::iter(entries).then(|(path, ptr)| {
             send_future(async move {
                 // Unwrap it inside the future
                 let handle = unsafe { &*ptr.0 };
-                Self::file_meta(path, handle).await
+                Self::file_meta(path, handle)
             })
         });
 

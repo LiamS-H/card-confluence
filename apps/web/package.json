@@ -17,6 +17,7 @@
 		"gen": "wrangler types"
 	},
 	"devDependencies": {
+		"@packages/wasm-browser": "workspace:*",
 		"@eslint/compat": "^2.0.3",
 		"@eslint/js": "^10.0.1",
 		"@sveltejs/adapter-cloudflare": "^7.2.6",

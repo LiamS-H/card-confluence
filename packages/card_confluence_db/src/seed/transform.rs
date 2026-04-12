@@ -1,7 +1,7 @@
 use scryfall_rust_bindings::types::{
     card::{
         ScryfallCard, ScryfallCardFace, ScryfallImageUris, ScryfallLegalities, ScryfallPreview,
-        ScryfallPrices, ScryfallPurchaseUris, ScryfallRelatedCard, ScryfallRelatedUris,
+        ScryfallPrices, ScryfallPurchaseUris, ScryfallRelatedCard,
     },
     ruling::ScryfallRuling,
     set::ScryfallSet,
@@ -14,7 +14,8 @@ use crate::schema::{
         legality::Legalities,
         preview::Preview,
         price::{Prices, PurchaseUris},
-        related::{RelatedCard, RelatedUris},
+        print::{Illustration, Print},
+        related::RelatedCard,
     },
     ruling::Ruling,
     set::Set,
@@ -23,29 +24,20 @@ use crate::schema::{
 impl From<ScryfallCardFace> for CardFace {
     fn from(scryfall: ScryfallCardFace) -> Self {
         Self {
-            artist: scryfall.artist,
-            artist_id: scryfall.artist_id,
             cmc: scryfall.cmc.map(|c| c as f32),
             color_indicator: scryfall.color_indicator,
             colors: scryfall.colors,
             defense: scryfall.defense,
             flavor_text: scryfall.flavor_text,
-            illustration_id: scryfall.illustration_id,
-            image_uris: scryfall.image_uris.map(Into::into),
-            layout: scryfall.layout,
             loyalty: scryfall.loyalty,
             mana_cost: scryfall.mana_cost,
             name: scryfall.name,
-            object: scryfall.object,
+            // object: scryfall.object,
             oracle_id: scryfall.oracle_id,
             oracle_text: scryfall.oracle_text,
             power: scryfall.power,
-            printed_name: scryfall.printed_name,
-            printed_text: scryfall.printed_text,
-            printed_type_line: scryfall.printed_type_line,
             toughness: scryfall.toughness,
             type_line: scryfall.type_line,
-            watermark: scryfall.watermark,
         }
     }
 }
@@ -54,40 +46,45 @@ impl From<ScryfallCard> for Card {
     // type Error = &'static str;
     // fn try_from(scryfall: ScryfallCard) -> Result<Self, Self::Error> {
     fn from(scryfall: ScryfallCard) -> Self {
-        // if scryfall.card_back_id.is_none() {
-        //     return Err("Missing CardBack");
-        // }
         Self {
-            arena_id: scryfall.arena_id,
             id: scryfall.id,
-            lang: scryfall.lang,
-            mtgo_id: scryfall.mtgo_id,
-            mtgo_foil_id: scryfall.mtgo_foil_id,
-            multiverse_ids: scryfall.multiverse_ids,
-            resource_id: scryfall.resource_id,
-            tcgplayer_id: scryfall.tcgplayer_id,
-            tcgplayer_etched_id: scryfall.tcgplayer_etched_id,
-            cardmarket_id: scryfall.cardmarket_id,
-            object: scryfall.object,
+            // object: scryfall.object,
             layout: scryfall.layout,
-            oracle_id: scryfall.oracle_id,
+            oracle_id: scryfall.oracle_id.unwrap_or_else(|| {
+                scryfall
+                    .card_faces
+                    .clone()
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .oracle_id
+                    .clone()
+                    .unwrap()
+            }),
             all_parts: scryfall
                 .all_parts
                 .map(|v| v.into_iter().map(Into::into).collect()),
+            cmc: scryfall.cmc.unwrap_or_else(|| {
+                scryfall
+                    .card_faces
+                    .clone()
+                    .unwrap()
+                    .first()
+                    .unwrap()
+                    .cmc
+                    .unwrap()
+            }) as f32,
             card_faces: scryfall
                 .card_faces
                 .map(|v| v.into_iter().map(Into::into).collect()),
-            cmc: scryfall.cmc as f32,
             color_identity: scryfall.color_identity,
             color_indicator: scryfall.color_indicator,
-            colors: scryfall.colors,
+            colors: scryfall.colors.unwrap_or(Vec::new()),
             defense: scryfall.defense,
             edhrec_rank: scryfall.edhrec_rank,
-            game_changer: scryfall.game_changer,
-            hand_modifier: scryfall.hand_modifier,
+            game_changer: scryfall.game_changer.unwrap_or(false),
             keywords: scryfall.keywords,
             legalities: scryfall.legalities.into(),
-            life_modifier: scryfall.life_modifier,
             loyalty: scryfall.loyalty,
             mana_cost: scryfall.mana_cost,
             name: scryfall.name,
@@ -97,50 +94,98 @@ impl From<ScryfallCard> for Card {
             produced_mana: scryfall.produced_mana,
             reserved: scryfall.reserved,
             toughness: scryfall.toughness,
-            type_line: scryfall.type_line,
+            type_line: scryfall.type_line.unwrap_or("".into()),
             otags: Vec::new(),
-            artist: scryfall.artist,
-            artist_ids: scryfall.artist_ids,
-            attraction_lights: scryfall.attraction_lights,
-            booster: scryfall.booster,
-            border_color: scryfall.border_color,
-            card_back_id: scryfall
-                .card_back_id
-                .unwrap_or("0aeebaf5-8c7d-4636-9e82-8c27447861f7".into()),
+            preview: scryfall.preview.map(Into::into),
+            prints: Vec::new(),
+        }
+    }
+}
+
+impl From<ScryfallCardFace> for Illustration {
+    fn from(face: ScryfallCardFace) -> Self {
+        let mut artist_ids = Vec::new();
+        if let Some(artist_id) = face.artist_id {
+            artist_ids.push(artist_id);
+        };
+        Self {
+            illustration_id: face.illustration_id,
+            artist: face.artist,
+            artist_ids,
+            watermark: face.watermark,
+            flavor_text: face.flavor_text,
+            printed_name: face.printed_name,
+            printed_text: face.printed_text,
+            printed_type_line: face.printed_type_line,
+            image_uris: face.image_uris.map(Into::into),
+        }
+    }
+}
+impl From<ScryfallCard> for Illustration {
+    fn from(card: ScryfallCard) -> Self {
+        Self {
+            illustration_id: card.illustration_id,
+            artist: card.artist,
+            artist_ids: card.artist_ids.unwrap_or(Vec::new()),
+            watermark: card.watermark,
+            flavor_text: card.flavor_text,
+            printed_name: card.printed_name,
+            printed_text: card.printed_text,
+            printed_type_line: card.printed_type_line,
+            image_uris: card.image_uris.map(Into::into),
+        }
+    }
+}
+
+impl From<ScryfallCard> for Print {
+    fn from(scryfall: ScryfallCard) -> Self {
+        let mut illustrations = Vec::new();
+        for face in scryfall.card_faces.clone().unwrap_or(vec![]) {
+            illustrations.push(face.into());
+        }
+        if illustrations.len() == 0 {
+            illustrations.push(scryfall.clone().into())
+        }
+
+        Self {
+            lang: scryfall.lang,
+            arena_id: scryfall.arena_id,
+            mtgo_id: scryfall.mtgo_id,
+            mtgo_foil_id: scryfall.mtgo_foil_id,
+            multiverse_ids: scryfall.multiverse_ids,
+            tcgplayer_id: scryfall.tcgplayer_id,
+            tcgplayer_etched_id: scryfall.tcgplayer_etched_id,
+            cardmarket_id: scryfall.cardmarket_id,
             collector_number: scryfall.collector_number,
-            content_warning: scryfall.content_warning,
-            digital: scryfall.digital,
-            finishes: scryfall.finishes,
-            flavor_name: scryfall.flavor_name,
-            flavor_text: scryfall.flavor_text,
-            frame_effects: scryfall.frame_effects,
-            frame: scryfall.frame,
-            full_art: scryfall.full_art,
-            games: scryfall.games,
-            highres_image: scryfall.highres_image,
-            illustration_id: scryfall.illustration_id,
-            image_status: scryfall.image_status,
-            image_uris: scryfall.image_uris.map(Into::into),
-            oversized: scryfall.oversized,
-            prices: scryfall.prices.into(),
-            printed_name: scryfall.printed_name,
-            printed_text: scryfall.printed_text,
-            printed_type_line: scryfall.printed_type_line,
-            promo: scryfall.promo,
-            promo_types: scryfall.promo_types,
-            purchase_uris: scryfall.purchase_uris.map(Into::into),
-            rarity: scryfall.rarity,
-            related_uris: scryfall.related_uris.into(),
+            set_code: scryfall.set,
             released_at: scryfall.released_at,
             reprint: scryfall.reprint,
+            booster: scryfall.booster,
+            promo: scryfall.promo,
+            digital: scryfall.digital,
+            oversized: scryfall.oversized,
             story_spotlight: scryfall.story_spotlight,
             textless: scryfall.textless,
-            variation: scryfall.variation,
-            set_code: scryfall.set,
-            variation_of: scryfall.variation_of,
+            promo_types: scryfall.promo_types,
+            rarity: scryfall.rarity,
+            games: scryfall.games,
+            finishes: scryfall.finishes,
             security_stamp: scryfall.security_stamp,
-            watermark: scryfall.watermark,
-            preview: scryfall.preview.map(Into::into),
+            frame: scryfall.frame,
+            full_art: scryfall.full_art,
+            card_back_id: scryfall.card_back_id,
+            border_color: scryfall.border_color,
+            content_warning: scryfall.content_warning.unwrap_or(false),
+            illustrations,
+            artist_ids: scryfall.artist_ids,
+            flavor_name: scryfall.flavor_name,
+            frame_effects: scryfall.frame_effects,
+            image_status: scryfall.image_status,
+            highres_image: scryfall.highres_image,
+            variation: scryfall.variation,
+            variation_of: scryfall.variation_of,
+            purchase_uris: scryfall.purchase_uris.map(Into::into),
+            prices: scryfall.prices.into(),
         }
     }
 }
@@ -219,26 +264,14 @@ impl From<ScryfallPurchaseUris> for PurchaseUris {
     }
 }
 
-impl From<ScryfallRelatedUris> for RelatedUris {
-    fn from(scryfall: ScryfallRelatedUris) -> Self {
-        Self {
-            gatherer: scryfall.gatherer,
-            tcgplayer_infinite_articles: scryfall.tcgplayer_infinite_articles,
-            tcgplayer_infinite_decks: scryfall.tcgplayer_infinite_decks,
-            edhrec: scryfall.edhrec,
-        }
-    }
-}
-
 impl From<ScryfallRelatedCard> for RelatedCard {
     fn from(scryfall: ScryfallRelatedCard) -> Self {
         Self {
             id: scryfall.id,
-            object: scryfall.object,
+            // object: scryfall.object,
             component: scryfall.component,
             name: scryfall.name,
             type_line: scryfall.type_line,
-            uri: scryfall.uri,
         }
     }
 }

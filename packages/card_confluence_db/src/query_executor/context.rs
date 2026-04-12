@@ -7,8 +7,15 @@ use datafusion::{
 use object_store::ObjectStore;
 use url::Url;
 
+pub struct TablePaths {
+    pub cards: String,
+    pub rulings: String,
+    pub sets: String,
+}
+
 pub async fn get_context<T: ObjectStore>(
     object_store: T,
+    paths: TablePaths,
 ) -> Result<SessionContext, DataFusionError> {
     let store_url = Url::parse("db://data").unwrap();
 
@@ -16,17 +23,13 @@ pub async fn get_context<T: ObjectStore>(
     ctx.runtime_env()
         .register_object_store(&store_url, Arc::new(object_store));
 
-    ctx.register_parquet("cards", "db://data/cards.parquet", ParquetReadOptions::default())
+    ctx.register_parquet("cards", paths.cards, ParquetReadOptions::default())
         .await?;
 
-    ctx.register_parquet(
-        "rulings",
-        "db://data/rulings.parquet",
-        ParquetReadOptions::default(),
-    )
-    .await?;
+    ctx.register_parquet("rulings", paths.rulings, ParquetReadOptions::default())
+        .await?;
 
-    ctx.register_parquet("sets", "db://data/sets.parquet", ParquetReadOptions::default())
+    ctx.register_parquet("sets", paths.sets, ParquetReadOptions::default())
         .await?;
 
     Ok(ctx)
