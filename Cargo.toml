@@ -3,8 +3,8 @@ members = [
     "packages/scryfall_rust_bindings",
     "packages/card_confluence_db",
     "packages/wasm_browser",
+    "packages/wasm_workflow_seed",
     "packages/cloudflare_utils",
-    "apps/worker_seed",
 ]
 resolver = "2"
 version = "0.10"

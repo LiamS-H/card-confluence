@@ -1,0 +1,10 @@
+{
+  "name": "wasm-workflow-seed",
+  "scripts": {
+    "build": "RUSTFLAGS='-C target-feature=+bulk-memory' wasm-pack build --target web --out-dir dist"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "dist/cc_wasm_workflow_seed.js"
+}

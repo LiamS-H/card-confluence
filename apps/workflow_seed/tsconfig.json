@@ -1,0 +1,9 @@
+{
+  "extends": ["../../tsconfig.base.json"],
+  "compilerOptions": {
+    "rewriteRelativeImportExtensions": true,
+    "strict": true,
+    "moduleResolution": "bundler",
+    "types": ["@cloudflare/workers-types/2023-07-01"]
+  }
+}

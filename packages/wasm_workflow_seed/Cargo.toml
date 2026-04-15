@@ -1,13 +1,24 @@
 [package]
-name = "cc-seed"
+name = "cc-wasm-workflow-seed"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = [
+    "-O",
+    "--enable-bulk-memory",
+    "--enable-nontrapping-float-to-int",
+    "--enable-sign-ext",
+]
+
 [dependencies]
-worker = { workspace = true }
+serde = { workspace = true }
+wasm-bindgen = { workspace = true }
+tsify = { workspace = true }
+worker = { workspace = true, features = [] }
 worker-macros = { workspace = true }
 getrandom = { version = "0.3", features = ["wasm_js"] }
 card-confluence-db = { path = "../../packages/card_confluence_db" }

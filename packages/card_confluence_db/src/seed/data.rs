@@ -8,7 +8,7 @@ use crate::seed::keyword::{scrape_keyword_incremental, TagProgress};
 use crate::seed::SeedMode;
 use crate::utils::get_latest;
 
-pub struct SeedResult {
+pub struct SeedFetchResult {
     pub cards_path: Path,
     pub prints_path: Path,
     pub rulings_path: Path,
@@ -19,7 +19,7 @@ pub struct SeedResult {
 pub async fn fetch_data_cached(
     mode: SeedMode,
     store: &Arc<dyn ObjectStore>,
-) -> Result<SeedResult, Box<dyn std::error::Error>> {
+) -> Result<SeedFetchResult, Box<dyn std::error::Error>> {
     let timestamp = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, false);
 
     println!("Fetching oracle_cards...");
@@ -98,7 +98,7 @@ pub async fn fetch_data_cached(
         }
     };
 
-    Ok(SeedResult {
+    Ok(SeedFetchResult {
         prints_path,
         cards_path,
         rulings_path,

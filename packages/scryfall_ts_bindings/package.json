@@ -1,0 +1,9 @@
+{
+  "name": "scryfall-ts-bindings",
+  "devDependencies": {
+    "@scryfall/api-types": "^1.0.0-alpha.4"
+  },
+  "exports": [
+    "./index.ts"
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "name": "cron-uploader",
-  "scripts": {
-    "deploy": "wrangler deploy",
-    "dev": "wrangler dev"
-  }
-}
