@@ -2,10 +2,12 @@ use std::sync::Arc;
 
 use datafusion::common::DFSchema;
 
+use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::logical_expr::{
     col, lit, not, Expr as DFExpr, LogicalPlan, LogicalPlanBuilder, ScalarUDF,
 };
 use datafusion::prelude::{JoinType, SessionContext};
+use datafusion::scalar::ScalarValue;
 
 use crate::query_parser::lexer::Op;
 use crate::query_parser::parser::{Predicate, ScryfallExpr};
@@ -31,18 +33,28 @@ pub async fn build_plan(
     ctx: &SessionContext,
     expr: &ScryfallExpr,
 ) -> Result<LogicalPlan, PlanError> {
-    let needs_set_join = references_set_table(expr);
+    let mut df = ctx.table("cards").await?;
 
-    let base_plan = if needs_set_join {
-        let cards_df = ctx.table("cards").await?;
+    let needs_print = references_print_fields(expr) || references_set_table(expr);
+    let needs_set = references_set_table(expr);
+
+    if needs_print {
+        df = df.unnest_columns(&["prints"])?;
+        // Project commonly used fields from the prints struct
+        df = df.with_column("set_code", col("prints").field("set_code"))?;
+        df = df.with_column("rarity", col("prints").field("rarity"))?;
+        df = df.with_column("collector_number", col("prints").field("collector_number"))?;
+        // Artist is inside illustrations list, take first one
+        let illustrations = col("prints").field("illustrations");
+        df = df.with_column("artist", get_element_expr(illustrations, 1).field("artist"))?;
+    }
+
+    if needs_set {
         let sets_df = ctx.table("sets").await?;
-        cards_df
-            .join(sets_df, JoinType::Inner, &["set_code"], &["code"], None)?
-            .into_unoptimized_plan()
-    } else {
-        ctx.table("cards").await?.into_unoptimized_plan()
-    };
+        df = df.join(sets_df, JoinType::Inner, &["set_code"], &["code"], None)?;
+    }
 
+    let base_plan = df.into_unoptimized_plan();
     let schema = base_plan.schema().clone();
     let filter_expr = expr_to_df_expr(expr, &schema)?;
 
@@ -81,6 +93,12 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
         "f" | "format" => format_pred(&pred.value),
         "is" => is_pred(&pred.value),
 
+        "otag" | "oracle_tag" => Ok(array_contains_expr("otags", lit(pred.value.to_lowercase()))),
+        "kw" | "keyword" => Ok(array_contains_expr(
+            "keywords",
+            lit(pred.value.to_lowercase()),
+        )),
+
         "s" | "set" | "e" | "edition" => {
             // Short alphanumeric codes (≤4 chars) match set_code directly;
             // longer strings are treated as a partial set name match.
@@ -96,6 +114,17 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
 }
 
 fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
+    if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
+        let regex = &value[1..value.len() - 1];
+        return match op {
+            Op::Colon | Op::Eq => Ok(regexp_like_expr(column, regex)),
+            Op::Ne => Ok(not(regexp_like_expr(column, regex))),
+            other => Err(PlanError(format!(
+                "Operator {other:?} is not valid for regex on field '{column}'"
+            ))),
+        };
+    }
+
     match op {
         Op::Colon => Ok(col(column).ilike(lit(format!("%{value}%")))),
         Op::Eq => Ok(col(column).eq(lit(value.to_string()))),
@@ -130,111 +159,78 @@ fn numeric_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError>
 
 /// Build a color / color-identity filter.
 ///
-/// Colors are stored as comma-separated WUBRG letters, e.g. `"W,U"`.
-///
-/// | Query    | Meaning                                             |
-/// |----------|-----------------------------------------------------|
-/// | `c:blue` | colors contains U  (ilike '%U%')                    |
-/// | `c:WU`   | colors contains W AND contains U                    |
-/// | `c:C`    | colorless — colors is empty or NULL                 |
-/// | `c=WU`   | exact identity — WUBRG-ordered string equality      |
-/// | `c!=WU`  | not that exact identity                             |
-/// | `c>=2`   | at least 2 colors (regexp_like comma-count)         |
-///
-/// For numeric color-count comparisons we emit `regexp_like` nodes so the
-/// entire expression lives inside DataFusion's typed `Expr` tree and the
-/// optimizer can reason about it (e.g. constant-fold impossible predicates).
+/// Colors are now stored as a list of strings, e.g. `["W", "U"]`.
 fn color_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     let letters = normalize_colors(value);
 
     match op {
         Op::Colon => {
             if letters == "C" {
-                return Ok(col(column).eq(lit("")).or(col(column).is_null()));
+                return Ok(array_length_expr(column).eq(lit(0)));
             }
-            // AND together one ilike per required color letter.
+            // AND together array_contains for each required color letter.
             letters
                 .chars()
-                .map(|c| Ok(col(column).ilike(lit(format!("%{c}%")))))
+                .map(|c| {
+                    if c == 'M' {
+                        Ok(array_length_expr(column).gt(lit(1)))
+                    } else {
+                        Ok(array_contains_expr(column, lit(c.to_string())))
+                    }
+                })
                 .reduce(|a, b| Ok(a?.and(b?)))
                 .unwrap_or_else(|| Err(PlanError("Empty color value".into())))
         }
 
-        Op::Eq => Ok(col(column).eq(lit(canonical_color_string(&letters)))),
-        Op::Ne => Ok(col(column).not_eq(lit(canonical_color_string(&letters)))),
+        Op::Eq => {
+            let colors = canonical_color_vec(&letters);
+            Ok(col(column).eq(lit_array(colors)))
+        }
+        Op::Ne => {
+            let colors = canonical_color_vec(&letters);
+            Ok(col(column).not_eq(lit_array(colors)))
+        }
 
-        // Numeric color-count: c>=2 → "at least 2 colors".
-        //
-        // Colors is comma-separated, so N colors = N-1 commas.
-        // We count commas via regexp_like rather than a string-length function
-        // so the expression stays a typed ScalarFunction node that DataFusion
-        // can push down, constant-fold, and CSE-eliminate.
-        //
-        // "at least k commas" pattern: `(.*,){k}`
-        // "at most k commas"  pattern: NOT `(.*,){k+1}`
         Op::Gt | Op::Gte | Op::Lt | Op::Lte => {
             let n: i64 = value
                 .parse()
                 .map_err(|_| PlanError(format!("Cannot parse '{value}' as a color count")))?;
 
-            // Map the operator to (min_commas, max_commas) bounds.
-            let (min_commas, max_commas): (Option<i64>, Option<i64>) = match op {
-                Op::Gt => (Some(n), None),      // > n colors  → ≥ n commas
-                Op::Gte => (Some(n - 1), None), // ≥ n colors  → ≥ n-1 commas
-                Op::Lt => (None, Some(n - 2)),  // < n colors  → ≤ n-2 commas
-                Op::Lte => (None, Some(n - 1)), // ≤ n colors  → ≤ n-1 commas
+            let len = array_length_expr(column);
+            Ok(match op {
+                Op::Gt => len.gt(lit(n)),
+                Op::Gte => len.gt_eq(lit(n)),
+                Op::Lt => len.lt(lit(n)),
+                Op::Lte => len.lt_eq(lit(n)),
                 _ => unreachable!(),
-            };
-
-            let mut expr: Option<DFExpr> = None;
-
-            if let Some(min) = min_commas {
-                if min > 0 {
-                    // regexp_like(col, "(.*,){min}") — has at least `min` commas
-                    let pat = format!("(.*,){{{min}}}");
-                    expr = Some(and_opt(expr, regexp_like_expr(column, &pat)));
-                }
-                // min == 0 → trivially true, add nothing
-            }
-
-            if let Some(max) = max_commas {
-                if max < 0 {
-                    // Impossible (e.g. c<1 when min colors is 0): always false
-                    return Ok(lit(false));
-                }
-                // NOT regexp_like(col, "(.*,){max+1}") — has fewer than max+1 commas
-                let pat = format!("(.*,){{{}}}", max + 1);
-                expr = Some(and_opt(expr, not(regexp_like_expr(column, &pat))));
-            }
-
-            Ok(expr.unwrap_or(lit(true)))
+            })
         }
     }
 }
 
-/// Call DataFusion's built-in `regexp_like(col, pattern)` scalar function.
-///
-/// We call into `datafusion::functions::regex::regexplike` directly, which
-/// registers the function as a `ScalarFunction` node in the logical plan.
-/// This is preferred over going through SQL text because:
-///   1. No re-parsing overhead.
-///   2. The optimizer sees the concrete `ScalarUDF` and can apply
-///      function-specific rewrites (e.g. constant-pattern folding).
-///   3. The physical planner can use the compiled regex cache.
+/// Call DataFusion's built-in `regexp_like(col, pattern, flags)` scalar function.
 fn regexp_like_expr(column: &str, pattern: &str) -> DFExpr {
     let udf: Arc<ScalarUDF> = datafusion::functions::regex::regexp_like();
-
-    udf.call(vec![col(column), lit(pattern)])
+    // Use 'i' flag for case-insensitive matching by default
+    udf.call(vec![col(column), lit(pattern), lit("i")])
 }
 
-/// AND a new expression into an accumulator, returning the new expression
-/// standalone if the accumulator is empty.
-#[inline]
-fn and_opt(acc: Option<DFExpr>, new: DFExpr) -> DFExpr {
-    match acc {
-        None => new,
-        Some(e) => e.and(new),
-    }
+fn array_contains_expr(column: &str, element: DFExpr) -> DFExpr {
+    datafusion_functions_nested::expr_fn::array_has(col(column), element)
+}
+
+fn array_length_expr(column: &str) -> DFExpr {
+    datafusion_functions_nested::expr_fn::array_length(col(column))
+}
+
+fn get_element_expr(array: DFExpr, index: i64) -> DFExpr {
+    datafusion_functions_nested::expr_fn::array_element(array, lit(index))
+}
+
+fn lit_array(vec: Vec<String>) -> DFExpr {
+    let values: Vec<ScalarValue> = vec.into_iter().map(ScalarValue::from).collect();
+    let array = ScalarValue::new_list(&values, &arrow_schema::DataType::Utf8, true);
+    lit(ScalarValue::List(array))
 }
 
 // ---------------------------------------------------------------------------
@@ -242,13 +238,9 @@ fn and_opt(acc: Option<DFExpr>, new: DFExpr) -> DFExpr {
 // ---------------------------------------------------------------------------
 
 /// Filter cards legal in a given format.
-///
-/// `legalities` is a JSON string: `{"standard":"legal","modern":"not_legal",...}`.
-/// We use `regexp_like` so DataFusion holds a `ScalarFunction` node (not a
-/// raw LIKE string) and can compile the pattern once across batches.
 fn format_pred(value: &str) -> Result<DFExpr, PlanError> {
-    let pattern = format!(r#""{}":"legal""#, regex_escape(&value.to_lowercase()));
-    Ok(regexp_like_expr("legalities", &pattern))
+    let format = value.to_lowercase();
+    Ok(col("legalities").field(format).eq(lit("legal")))
 }
 
 // ---------------------------------------------------------------------------
@@ -257,29 +249,25 @@ fn format_pred(value: &str) -> Result<DFExpr, PlanError> {
 
 fn is_pred(value: &str) -> Result<DFExpr, PlanError> {
     match value.to_lowercase().as_str() {
-        "legendary" => Ok(col("is_legendary").eq(lit(true))),
-        "nonlegendary" => Ok(col("is_legendary").eq(lit(false))),
+        "legendary" => Ok(array_contains_expr("super_types", lit("Legendary"))),
+        "nonlegendary" => Ok(not(array_contains_expr("super_types", lit("Legendary")))),
 
-        // ilike produces a typed `Like { case_insensitive: true }` node that
-        // DataFusion can push into scans.
-        "land" => Ok(col("type_line").ilike(lit("%Land%"))),
-        "creature" => Ok(col("type_line").ilike(lit("%Creature%"))),
-        "artifact" => Ok(col("type_line").ilike(lit("%Artifact%"))),
-        "enchantment" => Ok(col("type_line").ilike(lit("%Enchantment%"))),
-        "planeswalker" => Ok(col("type_line").ilike(lit("%Planeswalker%"))),
-        "battle" => Ok(col("type_line").ilike(lit("%Battle%"))),
+        "land" => Ok(array_contains_expr("card_types", lit("Land"))),
+        "creature" => Ok(array_contains_expr("card_types", lit("Creature"))),
+        "artifact" => Ok(array_contains_expr("card_types", lit("Artifact"))),
+        "enchantment" => Ok(array_contains_expr("card_types", lit("Enchantment"))),
+        "planeswalker" => Ok(array_contains_expr("card_types", lit("Planeswalker"))),
+        "battle" => Ok(array_contains_expr("card_types", lit("Battle"))),
 
-        "spell" => Ok(col("type_line")
-            .ilike(lit("%Instant%"))
-            .or(col("type_line").ilike(lit("%Sorcery%")))),
+        "spell" => Ok(array_contains_expr("card_types", lit("Instant"))
+            .or(array_contains_expr("card_types", lit("Sorcery")))),
 
-        "permanent" => Ok(col("type_line")
-            .ilike(lit("%Creature%"))
-            .or(col("type_line").ilike(lit("%Artifact%")))
-            .or(col("type_line").ilike(lit("%Enchantment%")))
-            .or(col("type_line").ilike(lit("%Planeswalker%")))
-            .or(col("type_line").ilike(lit("%Land%")))
-            .or(col("type_line").ilike(lit("%Battle%")))),
+        "permanent" => Ok(array_contains_expr("card_types", lit("Creature"))
+            .or(array_contains_expr("card_types", lit("Artifact")))
+            .or(array_contains_expr("card_types", lit("Enchantment")))
+            .or(array_contains_expr("card_types", lit("Planeswalker")))
+            .or(array_contains_expr("card_types", lit("Land")))
+            .or(array_contains_expr("card_types", lit("Battle")))),
 
         other => Err(PlanError(format!("Unknown `is:` flag: '{other}'"))),
     }
@@ -290,7 +278,7 @@ fn is_pred(value: &str) -> Result<DFExpr, PlanError> {
 // ---------------------------------------------------------------------------
 
 fn normalize_colors(value: &str) -> String {
-    match value.to_lowercase().as_str() {
+    let colors = match value.to_lowercase().as_str() {
         "white" => "W".into(),
         "blue" => "U".into(),
         "black" => "B".into(),
@@ -299,41 +287,51 @@ fn normalize_colors(value: &str) -> String {
         "colorless" | "c" => "C".into(),
         "multicolor" | "m" => "M".into(),
         other => other.to_uppercase(),
-    }
+    };
+    return colors.chars().filter(|c| "WUBRGCM".contains(*c)).collect();
 }
 
-/// Sort color letters into WUBRG canonical order for exact-match comparisons.
-fn canonical_color_string(letters: &str) -> String {
+/// Sort color letters into WUBRG canonical order.
+fn canonical_color_vec(letters: &str) -> Vec<String> {
     const ORDER: &str = "WUBRG";
     let mut out: Vec<char> = letters.chars().filter(|c| ORDER.contains(*c)).collect();
     out.sort_by_key(|c| ORDER.find(*c).unwrap_or(usize::MAX));
     out.dedup();
-    out.into_iter().collect()
-}
-
-/// Escape special regex metacharacters in a user-supplied value.
-fn regex_escape(s: &str) -> String {
-    s.chars()
-        .flat_map(|c| {
-            if r"\.+*?()|[]{}^$#&-~".contains(c) {
-                vec!['\\', c]
-            } else {
-                vec![c]
-            }
-        })
-        .collect()
+    out.into_iter().map(|c| c.to_string()).collect()
 }
 
 /// Walk the AST and report whether any predicate needs the `sets` table.
 fn references_set_table(expr: &ScryfallExpr) -> bool {
     match expr {
-        ScryfallExpr::Predicate(p) => matches!(
-            p.field.as_str(),
-            "s" | "set" | "e" | "edition" | "st" | "settype"
-        ),
+        ScryfallExpr::Predicate(p) => {
+            let field = p.field.as_str();
+            if field == "st" || field == "settype" {
+                return true;
+            }
+            if matches!(field, "s" | "set" | "e" | "edition") {
+                // If value is long or has spaces, it's a set name match -> needs join
+                return p.value.len() > 4
+                    || p.value.contains(' ')
+                    || !p.value.chars().all(|c| c.is_alphanumeric());
+            }
+            false
+        }
         ScryfallExpr::And(l, r) | ScryfallExpr::Or(l, r) => {
             references_set_table(l) || references_set_table(r)
         }
         ScryfallExpr::Not(inner) => references_set_table(inner),
+    }
+}
+
+fn references_print_fields(expr: &ScryfallExpr) -> bool {
+    match expr {
+        ScryfallExpr::Predicate(p) => matches!(
+            p.field.as_str(),
+            "a" | "artist" | "cn" | "number" | "r" | "rarity" | "s" | "set" | "e" | "edition"
+        ),
+        ScryfallExpr::And(l, r) | ScryfallExpr::Or(l, r) => {
+            references_print_fields(l) || references_print_fields(r)
+        }
+        ScryfallExpr::Not(inner) => references_print_fields(inner),
     }
 }

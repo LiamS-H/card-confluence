@@ -10,10 +10,9 @@ use crate::seed::data::fetch_data_cached;
 use arrow_array::RecordBatch;
 use arrow_convert::serialize::TryIntoArrow;
 use chrono::Utc;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use parquet::arrow::arrow_writer::ArrowWriter;
 use scryfall_rust_bindings::types::{card::ScryfallCard, ruling::ScryfallRuling, set::ScryfallSet};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc};
 
 use object_store::{path::Path as ObjectPath, ObjectStore};
 
@@ -51,21 +50,13 @@ pub async fn seed(
     json_store: Arc<dyn ObjectStore>,
     parquet_store: Arc<dyn ObjectStore>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let multi = Arc::new(MultiProgress::new());
     let timestamp = Utc::now().format("%Y-%m-%dT%H:%M:%S").to_string();
 
-    let spinner = multi.add(ProgressBar::new_spinner());
-    spinner.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.green} [{elapsed_precise}] DB_SEED: {msg}")
-            .unwrap(),
-    );
-    spinner.enable_steady_tick(Duration::from_millis(100));
-    spinner.set_message("Fetching data.");
+    println!("Fetching data.");
 
-    let seed_result = fetch_data_cached(&multi, mode, &json_store).await?;
+    let seed_result = fetch_data_cached(mode, &json_store).await?;
 
-    spinner.set_message("Packaging sets...");
+    println!("Packaging sets...");
     let sets_json = json_store
         .get(&seed_result.sets_path)
         .await?
@@ -79,7 +70,7 @@ pub async fn seed(
         .put(&sets_parquet_path, sets_parquet.into())
         .await?;
 
-    spinner.set_message("Packaging rulings...");
+    println!("Packaging rulings...");
     let rulings_json = json_store
         .get(&seed_result.rulings_path)
         .await?
@@ -93,7 +84,7 @@ pub async fn seed(
         .put(&rulings_parquet_path, rulings_parquet.into())
         .await?;
 
-    spinner.set_message("Reading otags...");
+    println!("Reading otags...");
     let otags_json = json_store
         .get(&seed_result.otags_path)
         .await?
@@ -101,14 +92,14 @@ pub async fn seed(
         .await?;
     let otags: HashMap<String, Vec<String>> = serde_json::from_slice(&otags_json)?;
 
-    spinner.set_message("Reading cards...");
+    println!("Reading cards...");
     let cards_json = json_store
         .get(&seed_result.cards_path)
         .await?
         .bytes()
         .await?;
     let cards: Vec<ScryfallCard> = serde_json::from_slice(&cards_json)?;
-    spinner.set_message("Reading prints...");
+    println!("Reading prints...");
     let print_json = json_store
         .get(&seed_result.prints_path)
         .await?
@@ -123,7 +114,7 @@ pub async fn seed(
         }
         map
     };
-    spinner.set_message("Packaging cards...");
+    println!("Packaging cards...");
     let transformed_cards: Vec<Card> = cards
         .into_iter()
         .map(|c| {
@@ -145,6 +136,6 @@ pub async fn seed(
         .put(&cards_parquet_path, cards_parquet.into())
         .await?;
 
-    spinner.finish_with_message("Done.");
+    println!("Done.");
     Ok(())
 }

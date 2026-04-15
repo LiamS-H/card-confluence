@@ -40,8 +40,6 @@ pub struct CardFace {
 )]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Card {
-    pub id: String,
-
     pub layout: String,
     pub oracle_id: String,
 
@@ -70,6 +68,10 @@ pub struct Card {
     pub oracle_text: Option<String>,
     pub produced_mana: Option<Vec<String>>,
     pub type_line: String,
+    pub card_types: Vec<String>,
+    pub super_types: Vec<String>,
+    pub sub_types: Vec<String>,
+
     pub preview: Option<Preview>,
 
     pub card_faces: Option<Vec<CardFace>>,

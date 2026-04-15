@@ -9,6 +9,7 @@ parquet = { workspace = true }
 arrow-schema = { workspace = true }
 arrow-array = { workspace = true }
 datafusion = { workspace = true }
+datafusion-functions-nested = { workspace = true }
 arrow_convert = { workspace = true }
 url = { workspace = true }
 object_store = { workspace = true }
@@ -17,7 +18,6 @@ chrono = { workspace = true }
 
 scryfall-rust-bindings = { path = "../scryfall_rust_bindings" }
 
-indicatif = "0.17.11"
 serde_json = { workspace = true }
 reqwest = { version = "0.13.2", features = ["json"] }
 

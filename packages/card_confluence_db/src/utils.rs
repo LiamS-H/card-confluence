@@ -1,8 +1,12 @@
-use std::sync::Arc;
-use object_store::{ObjectStore, path::Path};
 use futures::stream::StreamExt;
+use object_store::{path::Path, ObjectStore};
+use std::sync::Arc;
 
-pub async fn get_latest(store: &Arc<dyn ObjectStore>, prefix: &Path, extension: &str) -> Option<Path> {
+pub async fn get_latest(
+    store: &Arc<dyn ObjectStore>,
+    prefix: &Path,
+    extension: &str,
+) -> Option<Path> {
     let mut list = store.list(Some(prefix));
     let mut latest: Option<Path> = None;
 
@@ -21,3 +25,13 @@ pub async fn get_latest(store: &Arc<dyn ObjectStore>, prefix: &Path, extension: 
     }
     latest
 }
+
+pub const KNOWN_SUPERTYPES: [&str; 7] = [
+    "Basic",
+    "Legendary",
+    "Snow",
+    "World",
+    "Ongoing",
+    "Elite",
+    "Host",
+];

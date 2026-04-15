@@ -83,19 +83,21 @@ impl CardConfluenceLocal {
                 .await
                 .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
 
-            if let Some(first_batch) = batches.first() {
-                let mut writer = StreamWriter::try_new(&mut buffer, &first_batch.schema())
-                    .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
+            let first_batch = batches
+                .first()
+                .ok_or(JsValue::from_str(format!("No Results").as_str()))?;
 
-                for batch in batches {
-                    writer
-                        .write(&batch)
-                        .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
-                }
+            let mut writer = StreamWriter::try_new(&mut buffer, &first_batch.schema())
+                .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
+
+            for batch in batches {
                 writer
-                    .finish()
+                    .write(&batch)
                     .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
             }
+            writer
+                .finish()
+                .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
         }
 
         Ok(buffer)

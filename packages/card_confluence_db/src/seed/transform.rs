@@ -7,18 +7,21 @@ use scryfall_rust_bindings::types::{
     set::ScryfallSet,
 };
 
-use crate::schema::{
-    card::{
-        card::{Card, CardFace},
-        image::ImageUris,
-        legality::Legalities,
-        preview::Preview,
-        price::{Prices, PurchaseUris},
-        print::{Illustration, Print},
-        related::RelatedCard,
+use crate::{
+    schema::{
+        card::{
+            card::{Card, CardFace},
+            image::ImageUris,
+            legality::Legalities,
+            preview::Preview,
+            price::{Prices, PurchaseUris},
+            print::{Illustration, Print},
+            related::RelatedCard,
+        },
+        ruling::Ruling,
+        set::Set,
     },
-    ruling::Ruling,
-    set::Set,
+    utils::KNOWN_SUPERTYPES,
 };
 
 impl From<ScryfallCardFace> for CardFace {
@@ -46,9 +49,31 @@ impl From<ScryfallCard> for Card {
     // type Error = &'static str;
     // fn try_from(scryfall: ScryfallCard) -> Result<Self, Self::Error> {
     fn from(scryfall: ScryfallCard) -> Self {
+        let mut sub_types: Vec<String> = Vec::new();
+        let mut super_types: Vec<String> = Vec::new();
+        let mut card_types: Vec<String> = Vec::new();
+
+        if let Some(type_line) = &scryfall.type_line {
+            let parts: Vec<&str> = type_line.split(" — ").collect();
+
+            if let Some(left) = parts.first() {
+                for word in left.split_whitespace() {
+                    if KNOWN_SUPERTYPES.contains(&word) {
+                        super_types.push(word.to_string());
+                    } else {
+                        card_types.push(word.to_string());
+                    }
+                }
+            }
+
+            if let Some(right) = parts.get(1) {
+                for word in right.split_whitespace() {
+                    sub_types.push(word.to_string());
+                }
+            }
+        };
+
         Self {
-            id: scryfall.id,
-            // object: scryfall.object,
             layout: scryfall.layout,
             oracle_id: scryfall.oracle_id.unwrap_or_else(|| {
                 scryfall
@@ -95,6 +120,9 @@ impl From<ScryfallCard> for Card {
             reserved: scryfall.reserved,
             toughness: scryfall.toughness,
             type_line: scryfall.type_line.unwrap_or("".into()),
+            card_types,
+            super_types,
+            sub_types,
             otags: Vec::new(),
             preview: scryfall.preview.map(Into::into),
             prints: Vec::new(),
@@ -148,6 +176,7 @@ impl From<ScryfallCard> for Print {
         }
 
         Self {
+            scryfall_id: scryfall.id,
             lang: scryfall.lang,
             arena_id: scryfall.arena_id,
             mtgo_id: scryfall.mtgo_id,

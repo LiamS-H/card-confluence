@@ -1,5 +1,4 @@
 use chrono::Utc;
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use object_store::{path::Path, ObjectStore};
 use scryfall_rust_bindings::{fetch_all_tags, fetch_sets, TagResult};
 use std::sync::Arc;
@@ -18,35 +17,23 @@ pub struct SeedResult {
 }
 
 pub async fn fetch_data_cached(
-    multi: &Arc<MultiProgress>,
     mode: SeedMode,
     store: &Arc<dyn ObjectStore>,
 ) -> Result<SeedResult, Box<dyn std::error::Error>> {
     let timestamp = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, false);
 
-    let pb = multi.add(ProgressBar::new(5));
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("[{elapsed_precise}] {bar:40.cyan/blue} {msg:<60}")
-            .unwrap()
-            .progress_chars("##-"),
-    );
-    pb.enable_steady_tick(std::time::Duration::from_millis(100));
-    pb.set_message("Fetching oracle_cards");
+    println!("Fetching oracle_cards...");
     let cards_path = fetch_bulk_cached("oracle_cards".into(), &mode, store).await?;
-    pb.inc(1);
 
-    pb.set_message("Fetching card_prints");
+    println!("Fetching card_prints...");
     let prints_path = fetch_bulk_cached("default_cards".into(), &mode, store).await?;
-    pb.inc(1);
-    pb.set_message("Fetching rulings");
-    let rulings_path = fetch_bulk_cached("rulings".into(), &mode, store).await?;
 
-    pb.inc(1);
+    println!("Fetching rulings...");
+    let rulings_path = fetch_bulk_cached("rulings".into(), &mode, store).await?;
 
     let sets_path = match mode {
         SeedMode::Latest => {
-            pb.set_message("Fetching sets");
+            println!("Fetching sets...");
             let bytes = serde_json::to_vec(&fetch_sets().await.unwrap().data)?;
             let path = Path::from(format!("sets/{}.json", timestamp));
             store.put(&path, bytes.into()).await?;
@@ -56,11 +43,10 @@ pub async fn fetch_data_cached(
             .await
             .ok_or("No cached sets found")?,
     };
-    pb.inc(1);
 
     let tags_path = match mode {
         SeedMode::Latest => {
-            pb.set_message("Fetching tags");
+            println!("Fetching tags...");
             let bytes = serde_json::to_vec(&fetch_all_tags().await?)?;
             let path = Path::from(format!("tags/{}.json", timestamp));
             store.put(&path, bytes.into()).await?;
@@ -70,7 +56,6 @@ pub async fn fetch_data_cached(
             .await
             .ok_or("No cached tags found")?,
     };
-    pb.inc(1);
 
     let otags_path = {
         let keyword = "otag";
@@ -97,10 +82,7 @@ pub async fn fetch_data_cached(
                 }
             };
 
-            pb.set_message("Scraping otags");
-
             let bytes = scrape_keyword_incremental(
-                multi,
                 keyword.to_string(),
                 scryfall_rust_bindings::ScryfallSearchSettings::default(),
                 &mut progress,
@@ -115,9 +97,6 @@ pub async fn fetch_data_cached(
             latest_final.unwrap()
         }
     };
-    pb.inc(1);
-
-    pb.finish_and_clear();
 
     Ok(SeedResult {
         prints_path,

@@ -12,7 +12,7 @@ use tsify::Tsify;
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Print {
     pub lang: String,
-
+    pub scryfall_id: String,
     pub arena_id: Option<i32>,
     pub mtgo_id: Option<i32>,
     pub mtgo_foil_id: Option<i32>,

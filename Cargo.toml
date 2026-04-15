@@ -3,12 +3,17 @@ members = [
     "packages/scryfall_rust_bindings",
     "packages/card_confluence_db",
     "packages/wasm_browser",
+    "packages/cloudflare_utils",
+    "apps/worker_seed",
 ]
 resolver = "2"
 version = "0.10"
 
 
 [workspace.dependencies]
+worker = { version = "0.8" }
+worker-macros = { version = "0.8" }
+
 tokio = { version = "1.50.0", features = ["rt", "macros", "sync", "time"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.149" }
@@ -25,13 +30,21 @@ chrono = { version = "0.4.40" }
 # we use arrow 57 as the latest version compatible with arrow_convert
 arrow-ipc = { version = "57" }
 arrow = { version = "57" }
-parquet = { version = "57", default-features = false, features = ["arrow", "snap"] }
+parquet = { version = "57", default-features = false, features = [
+    "arrow",
+    "snap",
+] }
 arrow-schema = { version = "57" }
 arrow-array = { version = "57" }
-datafusion = { version = "52.4", default-features = false, features = ["parquet", "regex_expressions"] }
+datafusion = { version = "52.4", default-features = false, features = [
+    "parquet",
+    "regex_expressions",
+    "array_expressions",
+] }
 arrow_convert = { version = "0.11.4" }
 object_store = { version = "0.12.4" }
 url = { version = "2.5.7" }
+datafusion-functions-nested = { version = "52.4" }
 
 [profile.release]
 opt-level = "z" # Optimize for size
