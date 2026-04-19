@@ -5,6 +5,7 @@ members = [
     "packages/wasm_browser",
     "packages/wasm_workflow_seed",
     "packages/cloudflare_utils",
+    "apps/card_confluence_cli",
 ]
 resolver = "2"
 version = "0.10"

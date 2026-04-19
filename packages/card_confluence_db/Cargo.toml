@@ -19,8 +19,6 @@ chrono = { workspace = true }
 scryfall-rust-bindings = { path = "../scryfall_rust_bindings" }
 
 serde_json = { workspace = true }
-reqwest = { version = "0.13.2", features = ["json"] }
-
 tokio = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
@@ -28,4 +26,4 @@ wasm-bindgen = { workspace = true }
 tsify = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "fs", "io-util"] }
+tokio = { workspace = true, features = ["fs", "io-util"] }

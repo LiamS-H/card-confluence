@@ -24,6 +24,7 @@ pub async fn write_parquets(
         .await?;
     let sets: Vec<ScryfallSet> = serde_json::from_slice(&sets_json)?;
     let transformed_sets: Vec<Set> = sets.into_iter().map(Into::into).collect();
+    println!("Writing sets...");
     let sets_parquet = write_parquet(transformed_sets)?;
     let sets_parquet_path = ObjectPath::from(format!("sets/{}.parquet", timestamp));
     parquet_store
@@ -38,6 +39,7 @@ pub async fn write_parquets(
         .await?;
     let rulings: Vec<ScryfallRuling> = serde_json::from_slice(&rulings_json)?;
     let transformed_rulings: Vec<Ruling> = rulings.into_iter().map(Into::into).collect();
+    println!("Writing rulings...");
     let rulings_parquet = write_parquet(transformed_rulings)?;
     let rulings_parquet_path = ObjectPath::from(format!("rulings/{}.parquet", timestamp));
     parquet_store
@@ -90,6 +92,7 @@ pub async fn write_parquets(
         })
         .collect();
 
+    println!("Writing cards...");
     let cards_parquet = write_parquet(transformed_cards)?;
     let cards_parquet_path = ObjectPath::from(format!("cards/{}.parquet", timestamp));
     parquet_store

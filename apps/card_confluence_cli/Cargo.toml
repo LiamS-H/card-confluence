@@ -1,0 +1,15 @@
+[package]
+name = "card-confluence-cli"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+clap = { version = "4.5", features = ["derive", "env"] }
+object_store = { workspace = true, features = ["aws"] }
+card-confluence-db = { path = "../../packages/card_confluence_db" }
+dotenvy = "0.15"
+anyhow = "1.0"
+futures = { workspace = true }
+datafusion = { workspace = true }
+url = { workspace = true }
