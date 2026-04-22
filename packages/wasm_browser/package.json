@@ -1,9 +1,11 @@
 {
-  "name": "@packages/wasm-browser",
-  "version": "0.1.0",
-  "type": "module",
+  "name": "wasm-browser",
   "scripts": {
     "build:parallel": "RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' wasm-pack build --target web --out-dir dist --out-name wasm_browser",
     "build": "RUSTFLAGS='-C target-feature=+bulk-memory' wasm-pack build --target web --out-dir dist --out-name wasm_browser"
-  }
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "dist/wasm_browser.js"
 }
