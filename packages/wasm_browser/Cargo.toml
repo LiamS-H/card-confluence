@@ -24,6 +24,7 @@ datafusion = { workspace = true, default-features = false, features = [
     "parquet",
     "regex_expressions",
 ] }
+datafusion-proto = { workspace = true }
 arrow_convert = { workspace = true }
 url = { workspace = true }
 object_store = { workspace = true }

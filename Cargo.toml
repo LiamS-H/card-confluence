@@ -37,11 +37,12 @@ parquet = { version = "57", default-features = false, features = [
 ] }
 arrow-schema = { version = "57" }
 arrow-array = { version = "57" }
-datafusion = { version = "52.4", default-features = false, features = [
+datafusion = { version = "52", default-features = false, features = [
     "parquet",
     "regex_expressions",
     "array_expressions",
 ] }
+datafusion-proto = { version = "52" }
 arrow_convert = { version = "0.11.4" }
 object_store = { version = "0.12.4" }
 url = { version = "2.5.7" }

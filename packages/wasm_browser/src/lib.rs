@@ -3,7 +3,11 @@ use card_confluence_db::{
     query_executor::context::{get_context, TablePaths},
     query_parser::parse_query,
 };
-use datafusion::prelude::{col, SessionContext};
+use datafusion::{
+    logical_expr::LogicalPlan,
+    prelude::{col, SessionContext},
+};
+use datafusion_proto::bytes::{logical_plan_from_bytes, logical_plan_to_bytes};
 use object_store::path::Path;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use web_sys::FileSystemFileHandle;
@@ -62,9 +66,18 @@ impl CardConfluenceLocal {
         Ok(Self { context })
     }
 
-    pub async fn query(&self, query: String) -> Result<Vec<u8>, JsValue> {
+    pub async fn plan_index(&self, query: String) -> Result<Vec<u8>, JsValue> {
         let plan = parse_query(&self.context, &query)
             .await
+            .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
+
+        return Ok(logical_plan_to_bytes(&plan)
+            .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?
+            .into());
+    }
+
+    pub async fn query(&self, plan: Vec<u8>) -> Result<Vec<u8>, JsValue> {
+        let plan: LogicalPlan = logical_plan_from_bytes(&plan, &self.context.task_ctx())
             .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
 
         let df = self
