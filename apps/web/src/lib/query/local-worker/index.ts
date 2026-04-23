@@ -2,7 +2,13 @@
 import init, { CardConfluenceLocal } from 'wasm-browser';
 import { get_local_parquet, sync_local_parquet } from './files';
 import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
-import { cache_get, cache_insert, local_cache } from './cache';
+import {
+	cache_clear,
+	cache_store_get,
+	cache_store_insert,
+	local_cache,
+	QUERY_CACHE_TABLE
+} from '../cache';
 import { query_to_string, type QueryRequest } from '../client';
 
 export type QueryWorkerEvent = {
@@ -18,7 +24,7 @@ export type QueryWorkerResponse =
 	| {
 			tag: string;
 			type: 'result';
-			data: Uint8Array<ArrayBuffer>;
+			index: Uint8Array<ArrayBuffer>;
 	  };
 
 async function initBrowser(files: ReturnType<typeof get_local_parquet>) {
@@ -50,17 +56,17 @@ async function handle_message(event: MessageEvent<QueryRequest>) {
 		// cast to declare not shared array buffer
 		const plan = (await browser.plan_index(event.data.query)) as Uint8Array<ArrayBuffer>;
 
-		const transaction = cache.transaction(['queries'], 'readwrite');
-		const store = transaction.objectStore('queries');
-		let data = await cache_get(plan, store);
+		const transaction = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
+		const store = transaction.objectStore(QUERY_CACHE_TABLE);
+		let data = await cache_store_get(plan, store);
 		if (data === null) {
 			data = (await browser.query(plan)) as Uint8Array<ArrayBuffer>;
-			await cache_insert(plan, data, store);
+			await cache_store_insert(plan, data, store);
 		}
 		message = {
 			tag,
 			type: 'result',
-			data: plan
+			index: plan
 		};
 	} catch (error) {
 		message = {
@@ -83,7 +89,8 @@ QueryEventsChannel.onmessage(async (event) => {
 		browser.free();
 
 		local_browser = initBrowser(sync_local_parquet());
-		await local_browser;
+		const reset = cache_clear();
+		await Promise.all([local_browser, reset]);
 		QueryEventsChannel.postMessage({ type: 'db-sync-complete' });
 	}
 });

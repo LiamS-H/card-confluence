@@ -2,10 +2,11 @@ import { query_client, query_to_string, type QueryRequest } from '$lib/query/cli
 
 // export function use_query(query: QueryRequest) {
 export function use_query(getQuery: () => QueryRequest) {
+	const tag = crypto.randomUUID();
 	const query = $derived(getQuery());
 
 	$effect(() => {
-		query_client.ensure(query);
+		query_client.ensure_query(query, tag);
 	});
 
 	return {

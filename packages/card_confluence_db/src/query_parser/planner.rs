@@ -64,7 +64,10 @@ pub async fn build_plan(
         let illustrations = col("prints").field("illustrations");
         let first_illustration = get_element_expr(illustrations, 1);
         df = df.with_column("artist", first_illustration.clone().field("artist"))?;
-        df = df.with_column("flavor_text", first_illustration.clone().field("flavor_text"))?;
+        df = df.with_column(
+            "flavor_text",
+            first_illustration.clone().field("flavor_text"),
+        )?;
         df = df.with_column("watermark", first_illustration.field("watermark"))?;
     }
 
@@ -118,7 +121,7 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
         "cn" | "number" => exact_pred("collector_number", &pred.value),
         "r" | "rarity" => exact_pred("rarity", &pred.value),
         "st" | "settype" => exact_pred("set_type", &pred.value),
-        "f" | "format" => format_pred(&pred.value),
+        "f" | "format" | "legal" => format_pred(&pred.value),
         "is" => is_pred(&pred.value),
         "in" => {
             let val = pred.value.to_lowercase();
@@ -163,7 +166,6 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
         unknown => Err(PlanError(format!("Unknown Scryfall field: '{unknown}'"))),
     }
 }
-
 
 fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
@@ -229,7 +231,6 @@ fn cast_expr(expr: DFExpr, data_type: arrow_schema::DataType) -> DFExpr {
         data_type,
     })
 }
-
 
 // ---------------------------------------------------------------------------
 // Color predicates
@@ -318,7 +319,10 @@ fn lit_array(vec: Vec<String>) -> DFExpr {
 /// Filter cards legal in a given format.
 fn format_pred(value: &str) -> Result<DFExpr, PlanError> {
     let format = value.to_lowercase();
-    Ok(col("legalities").field(format).eq(lit("legal")))
+    Ok(col("legalities")
+        .field(&format)
+        .not_eq(lit("not_legal"))
+        .and(col("legalities").field(format).not_eq(lit("banned"))))
 }
 
 // ---------------------------------------------------------------------------

@@ -3,10 +3,7 @@ use card_confluence_db::{
     query_executor::context::{get_context, TablePaths},
     query_parser::parse_query,
 };
-use datafusion::{
-    logical_expr::LogicalPlan,
-    prelude::{col, SessionContext},
-};
+use datafusion::{logical_expr::LogicalPlan, prelude::SessionContext};
 use datafusion_proto::bytes::{logical_plan_from_bytes, logical_plan_to_bytes};
 use object_store::path::Path;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
@@ -84,9 +81,6 @@ impl CardConfluenceLocal {
             .context
             .execute_logical_plan(plan)
             .await
-            .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
-        let df = df
-            .select(vec![col("name"), col("colors"), col("mana_cost")])
             .map_err(|u| JsValue::from_str(format!("{:?}", u).as_str()))?;
 
         let mut buffer = Vec::new();

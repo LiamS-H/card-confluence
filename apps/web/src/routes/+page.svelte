@@ -1,20 +1,32 @@
 <script lang="ts">
 	import { use_query } from '$lib';
+	import Card from '../components/card.svelte';
+	import VirtualList from 'svelte-tiny-virtual-list';
 
 	let query = $state('t:instant cmc=0');
 	let { response } = $derived(use_query(() => ({ query })));
+
+	$effect(() => {
+		if (!response.error && !response.loading) {
+			console.log(response.ids);
+		}
+	});
 </script>
 
 <h1>CC</h1>
-<button
-	onclick={async () => {
-		query = 'test';
-	}}>test</button
->
+<textarea bind:value={query}></textarea>
+
 {#if response.loading}
 	<p>Loading...</p>
 {:else if response.error}
 	<p>Error: {response.message}</p>
 {:else}
-	<p>Size: {response.data.byteLength}</p>
+	<p>{response.ids.length}</p>
+	<div>
+		<VirtualList height={600} width="100%" itemCount={response.ids.length} itemSize={120}>
+			<div slot="item" let:index let:style {style}>
+				<Card id={response.ids[index] as string} />
+			</div>
+		</VirtualList>
+	</div>
 {/if}
