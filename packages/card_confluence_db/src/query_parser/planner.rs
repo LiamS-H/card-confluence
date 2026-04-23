@@ -44,9 +44,28 @@ pub async fn build_plan(
         df = df.with_column("set_code", col("prints").field("set_code"))?;
         df = df.with_column("rarity", col("prints").field("rarity"))?;
         df = df.with_column("collector_number", col("prints").field("collector_number"))?;
-        // Artist is inside illustrations list, take first one
+        df = df.with_column("lang", col("prints").field("lang"))?;
+        df = df.with_column("border_color", col("prints").field("border_color"))?;
+        df = df.with_column("frame", col("prints").field("frame"))?;
+        df = df.with_column("security_stamp", col("prints").field("security_stamp"))?;
+        df = df.with_column("released_at", col("prints").field("released_at"))?;
+        df = df.with_column("scryfall_id", col("prints").field("scryfall_id"))?;
+        df = df.with_column("reprint", col("prints").field("reprint"))?;
+        df = df.with_column("booster", col("prints").field("booster"))?;
+        df = df.with_column("promo", col("prints").field("promo"))?;
+        df = df.with_column("digital", col("prints").field("digital"))?;
+        df = df.with_column("oversized", col("prints").field("oversized"))?;
+        df = df.with_column("story_spotlight", col("prints").field("story_spotlight"))?;
+        df = df.with_column("textless", col("prints").field("textless"))?;
+        df = df.with_column("full_art", col("prints").field("full_art"))?;
+        df = df.with_column("games", col("prints").field("games"))?;
+
+        // Artist and flavor text are inside illustrations list, take first one
         let illustrations = col("prints").field("illustrations");
-        df = df.with_column("artist", get_element_expr(illustrations, 1).field("artist"))?;
+        let first_illustration = get_element_expr(illustrations, 1);
+        df = df.with_column("artist", first_illustration.clone().field("artist"))?;
+        df = df.with_column("flavor_text", first_illustration.clone().field("flavor_text"))?;
+        df = df.with_column("watermark", first_illustration.field("watermark"))?;
     }
 
     if needs_set {
@@ -80,10 +99,19 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
         "type" | "t" => text_pred("type_line", &pred.op, &pred.value),
         "oracle" | "o" => text_pred("oracle_text", &pred.op, &pred.value),
         "mana" | "m" => text_pred("mana_cost", &pred.op, &pred.value),
-        "pow" | "power" => text_pred("power", &pred.op, &pred.value),
-        "tou" | "toughness" => text_pred("toughness", &pred.op, &pred.value),
-        "loy" | "loyalty" => text_pred("loyalty", &pred.op, &pred.value),
+        "pow" | "power" => flexible_numeric_pred("power", &pred.op, &pred.value),
+        "tou" | "toughness" => flexible_numeric_pred("toughness", &pred.op, &pred.value),
+        "loy" | "loyalty" => flexible_numeric_pred("loyalty", &pred.op, &pred.value),
+        "def" | "defense" => flexible_numeric_pred("defense", &pred.op, &pred.value),
+        "edhrec" => numeric_pred("edhrec_rank", &pred.op, &pred.value),
+        "penny" => numeric_pred("penny_rank", &pred.op, &pred.value),
+        "pt" | "powtou" => numeric_pred("powtou", &pred.op, &pred.value),
         "a" | "artist" => text_pred("artist", &pred.op, &pred.value),
+        "flavor" | "ft" => text_pred("flavor_text", &pred.op, &pred.value),
+        "wm" | "watermark" => text_pred("watermark", &pred.op, &pred.value),
+        "border" => text_pred("border_color", &pred.op, &pred.value),
+        "frame" => text_pred("frame", &pred.op, &pred.value),
+        "stamp" => text_pred("security_stamp", &pred.op, &pred.value),
         "color" | "c" => color_pred("colors", &pred.op, &pred.value),
         "identity" | "ci" | "id" => color_pred("color_identity", &pred.op, &pred.value),
         "cmc" | "mv" | "manavalue" => numeric_pred("cmc", &pred.op, &pred.value),
@@ -92,6 +120,27 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
         "st" | "settype" => exact_pred("set_type", &pred.value),
         "f" | "format" => format_pred(&pred.value),
         "is" => is_pred(&pred.value),
+        "in" => {
+            let val = pred.value.to_lowercase();
+            if matches!(
+                val.as_str(),
+                "common" | "uncommon" | "rare" | "mythic" | "special" | "bonus"
+            ) {
+                exact_pred("rarity", &pred.value)
+            } else if matches!(val.as_str(), "paper" | "arena" | "mtgo") {
+                Ok(array_contains_expr("games", lit(val)))
+            } else {
+                exact_pred("set_code", &pred.value)
+            }
+        }
+        "game" => Ok(array_contains_expr("games", lit(pred.value.to_lowercase()))),
+        "lang" | "l" => exact_pred("lang", &pred.value),
+        "scryfallid" => exact_pred("scryfall_id", &pred.value),
+        "oracleid" => exact_pred("oracle_id", &pred.value),
+        "produces" => Ok(array_contains_expr(
+            "produced_mana",
+            lit(pred.value.to_uppercase()),
+        )),
 
         "otag" | "oracle_tag" => Ok(array_contains_expr("otags", lit(pred.value.to_lowercase()))),
         "kw" | "keyword" => Ok(array_contains_expr(
@@ -109,9 +158,12 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
             }
         }
 
+        "year" | "date" => text_pred("released_at", &pred.op, &pred.value),
+
         unknown => Err(PlanError(format!("Unknown Scryfall field: '{unknown}'"))),
     }
 }
+
 
 fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
@@ -143,15 +195,41 @@ fn numeric_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError>
     let n: f64 = value
         .parse()
         .map_err(|_| PlanError(format!("Cannot parse '{value}' as a number")))?;
+
+    let col_expr = if column == "powtou" {
+        cast_expr(col("power"), arrow_schema::DataType::Float64)
+            + cast_expr(col("toughness"), arrow_schema::DataType::Float64)
+    } else if matches!(column, "power" | "toughness" | "loyalty" | "defense") {
+        cast_expr(col(column), arrow_schema::DataType::Float64)
+    } else {
+        col(column)
+    };
+
     Ok(match op {
-        Op::Colon | Op::Eq => col(column).eq(lit(n)),
-        Op::Ne => col(column).not_eq(lit(n)),
-        Op::Lt => col(column).lt(lit(n)),
-        Op::Lte => col(column).lt_eq(lit(n)),
-        Op::Gt => col(column).gt(lit(n)),
-        Op::Gte => col(column).gt_eq(lit(n)),
+        Op::Colon | Op::Eq => col_expr.eq(lit(n)),
+        Op::Ne => col_expr.not_eq(lit(n)),
+        Op::Lt => col_expr.lt(lit(n)),
+        Op::Lte => col_expr.lt_eq(lit(n)),
+        Op::Gt => col_expr.gt(lit(n)),
+        Op::Gte => col_expr.gt_eq(lit(n)),
     })
 }
+
+fn flexible_numeric_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
+    if value.parse::<f64>().is_ok() || matches!(op, Op::Lt | Op::Lte | Op::Gt | Op::Gte) {
+        numeric_pred(column, op, value)
+    } else {
+        text_pred(column, op, value)
+    }
+}
+
+fn cast_expr(expr: DFExpr, data_type: arrow_schema::DataType) -> DFExpr {
+    DFExpr::Cast(datafusion::logical_expr::Cast {
+        expr: Box::new(expr),
+        data_type,
+    })
+}
+
 
 // ---------------------------------------------------------------------------
 // Color predicates
@@ -269,6 +347,25 @@ fn is_pred(value: &str) -> Result<DFExpr, PlanError> {
             .or(array_contains_expr("card_types", lit("Land")))
             .or(array_contains_expr("card_types", lit("Battle")))),
 
+        "reprint" => Ok(col("reprint").eq(lit(true))),
+        "firstprinting" => Ok(col("reprint").eq(lit(false))),
+        "booster" => Ok(col("booster").eq(lit(true))),
+        "promo" => Ok(col("promo").eq(lit(true))),
+        "digital" => Ok(col("digital").eq(lit(true))),
+        "oversized" => Ok(col("oversized").eq(lit(true))),
+        "story_spotlight" => Ok(col("story_spotlight").eq(lit(true))),
+        "textless" => Ok(col("textless").eq(lit(true))),
+        "full_art" => Ok(col("full_art").eq(lit(true))),
+        "reserved" => Ok(col("reserved").eq(lit(true))),
+
+        "foil" => Ok(array_contains_expr("finishes", lit("foil"))),
+        "nonfoil" => Ok(array_contains_expr("finishes", lit("nonfoil"))),
+        "etched" => Ok(array_contains_expr("finishes", lit("etched"))),
+
+        "commander" => Ok((array_contains_expr("super_types", lit("Legendary"))
+            .and(array_contains_expr("card_types", lit("Creature"))))
+        .or(array_contains_expr("otags", lit("can_be_your_commander")))),
+
         other => Err(PlanError(format!("Unknown `is:` flag: '{other}'"))),
     }
 }
@@ -325,10 +422,54 @@ fn references_set_table(expr: &ScryfallExpr) -> bool {
 
 fn references_print_fields(expr: &ScryfallExpr) -> bool {
     match expr {
-        ScryfallExpr::Predicate(p) => matches!(
-            p.field.as_str(),
-            "a" | "artist" | "cn" | "number" | "r" | "rarity" | "s" | "set" | "e" | "edition"
-        ),
+        ScryfallExpr::Predicate(p) => {
+            if matches!(
+                p.field.as_str(),
+                "a" | "artist"
+                    | "cn"
+                    | "number"
+                    | "r"
+                    | "rarity"
+                    | "s"
+                    | "set"
+                    | "e"
+                    | "edition"
+                    | "flavor"
+                    | "ft"
+                    | "wm"
+                    | "watermark"
+                    | "border"
+                    | "frame"
+                    | "stamp"
+                    | "date"
+                    | "year"
+                    | "game"
+                    | "scryfallid"
+                    | "lang"
+                    | "l"
+                    | "in"
+            ) {
+                return true;
+            }
+            if p.field == "is" {
+                return matches!(
+                    p.value.to_lowercase().as_str(),
+                    "reprint"
+                        | "firstprinting"
+                        | "booster"
+                        | "promo"
+                        | "digital"
+                        | "oversized"
+                        | "story_spotlight"
+                        | "textless"
+                        | "full_art"
+                        | "foil"
+                        | "nonfoil"
+                        | "etched"
+                );
+            }
+            false
+        }
         ScryfallExpr::And(l, r) | ScryfallExpr::Or(l, r) => {
             references_print_fields(l) || references_print_fields(r)
         }

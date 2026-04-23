@@ -1,4 +1,4 @@
-import { ClientEventsChannel } from '../channels';
+import { QueryEventsChannel } from '../channels';
 
 async function initCacheDB(): Promise<IDBDatabase> {
 	const { resolve, reject, promise } = Promise.withResolvers<IDBDatabase>();
@@ -6,7 +6,7 @@ async function initCacheDB(): Promise<IDBDatabase> {
 	const db_req = indexedDB.open('query-cache', 1);
 
 	db_req.onerror = () => {
-		ClientEventsChannel.postMessage({ type: 'error-fatal' });
+		QueryEventsChannel.postMessage({ type: 'error-fatal' });
 		reject();
 	};
 
@@ -17,7 +17,6 @@ async function initCacheDB(): Promise<IDBDatabase> {
 	db_req.onsuccess = () => {
 		resolve(db_req.result);
 	};
-
 	return promise;
 }
 

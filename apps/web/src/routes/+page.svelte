@@ -1,13 +1,20 @@
 <script lang="ts">
-	import { query_client } from '$lib/query/client';
+	import { use_query } from '$lib';
+
+	let query = $state('t:instant cmc=0');
+	let { response } = $derived(use_query(() => ({ query })));
 </script>
 
 <h1>CC</h1>
 <button
 	onclick={async () => {
-		const resp = await query_client.query({ query: 't:instant cmc=0' });
-		console.log(resp);
-	}}
+		query = 'test';
+	}}>test</button
 >
-	query
-</button>
+{#if response.loading}
+	<p>Loading...</p>
+{:else if response.error}
+	<p>Error: {response.message}</p>
+{:else}
+	<p>Size: {response.data.byteLength}</p>
+{/if}

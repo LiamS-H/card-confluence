@@ -1,24 +1,24 @@
 /// <reference lib="webworker" />
 import init, { CardConfluenceLocal } from 'wasm-browser';
 import { get_local_parquet, sync_local_parquet } from './files';
-import { ClientEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
+import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
 import { cache_get, cache_insert, local_cache } from './cache';
+import { query_to_string, type QueryRequest } from '../client';
 
-export interface QueryRequest {
-	id: string;
-	query: string;
-}
+export type QueryWorkerEvent = {
+	type: 'promotion' | 'db-sync' | 'db-sync-complete' | 'error-fatal';
+};
 
-export type QueryResponse =
+export type QueryWorkerResponse =
 	| {
-			id: string;
+			tag: string;
 			type: 'error';
-			error: unknown;
+			error: string;
 	  }
 	| {
-			id: string;
+			tag: string;
 			type: 'result';
-			data: unknown;
+			data: Uint8Array<ArrayBuffer>;
 	  };
 
 async function initBrowser(files: ReturnType<typeof get_local_parquet>) {
@@ -41,11 +41,13 @@ async function initBrowser(files: ReturnType<typeof get_local_parquet>) {
 let local_browser = initBrowser(get_local_parquet());
 
 async function handle_message(event: MessageEvent<QueryRequest>) {
-	const browser = await local_browser;
-	let message!: QueryResponse;
-	const cache = await local_cache;
+	console.log('[worker]', event.data); // why isn't this firing
+	let message!: QueryWorkerResponse;
+	const tag = query_to_string(event.data);
 	try {
-		// remove shared array buffer during cast
+		const browser = await local_browser;
+		const cache = await local_cache;
+		// cast to declare not shared array buffer
 		const plan = (await browser.plan_index(event.data.query)) as Uint8Array<ArrayBuffer>;
 
 		const transaction = cache.transaction(['queries'], 'readwrite');
@@ -56,15 +58,15 @@ async function handle_message(event: MessageEvent<QueryRequest>) {
 			await cache_insert(plan, data, store);
 		}
 		message = {
-			id: event.data.id,
+			tag,
 			type: 'result',
 			data: plan
 		};
 	} catch (error) {
 		message = {
-			id: event.data.id,
+			tag,
 			type: 'error',
-			error
+			error: String(error)
 		};
 	}
 
@@ -75,11 +77,21 @@ self.onmessage = handle_message;
 
 QueryReqChannel.onmessage(handle_message);
 
-ClientEventsChannel.onmessage(async (event) => {
+QueryEventsChannel.onmessage(async (event) => {
 	if (event.data.type === 'db-sync') {
 		const browser = await local_browser;
 		browser.free();
 
 		local_browser = initBrowser(sync_local_parquet());
+		await local_browser;
+		QueryEventsChannel.postMessage({ type: 'db-sync-complete' });
 	}
 });
+
+export type LocalWorkerStatus = 'ready';
+
+function updateStatus(status: LocalWorkerStatus) {
+	self.postMessage(status);
+}
+
+updateStatus('ready');
