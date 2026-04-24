@@ -1,13 +1,18 @@
 <script lang="ts">
-	import { query_client } from '$lib/query/client';
-	import type { Card } from 'wasm-browser';
+	import { use_card } from '$lib';
 
-	const { id }: { id: string } = $props();
+	const { id, key, debounce }: { id: string; key?: string; debounce?: number } = $props();
 
-	const card = $derived(query_client.cards.get(id) as Card);
+	let { card } = $derived(use_card(() => id, key, debounce));
 </script>
 
-<div>
-	<span>{card.name}</span>
-	<p>{card.oracle_text}</p>
-</div>
+{#if card.loading}
+	<p>Loading...</p>
+{:else if card.error}
+	<p>Error: {card.message}</p>
+{:else}
+	<div>
+		<span>{card.card.name}</span>
+		<p>{card.card.oracle_text}</p>
+	</div>
+{/if}

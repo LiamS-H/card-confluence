@@ -51,17 +51,27 @@ async function handle_message(event: MessageEvent<QueryRequest>) {
 	let message!: QueryWorkerResponse;
 	const tag = query_to_string(event.data);
 	try {
+		let time = Date.now();
 		const browser = await local_browser;
 		const cache = await local_cache;
 		// cast to declare not shared array buffer
+		console.log('fetch browser and cache', Date.now() - time);
+		time = Date.now();
 		const plan = (await browser.plan_index(event.data.query)) as Uint8Array<ArrayBuffer>;
+		console.log('await plan', Date.now() - time);
+		time = Date.now();
 
 		const transaction = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
 		const store = transaction.objectStore(QUERY_CACHE_TABLE);
 		let data = await cache_store_get(plan, store);
+		console.log('indexdb cache get', Date.now() - time);
+		time = Date.now();
 		if (data === null) {
 			data = (await browser.query(plan)) as Uint8Array<ArrayBuffer>;
+			console.log('query', Date.now() - time);
+			time = Date.now();
 			await cache_store_insert(plan, data, store);
+			console.log('indexdb cache write', Date.now() - time);
 		}
 		message = {
 			tag,
@@ -79,7 +89,7 @@ async function handle_message(event: MessageEvent<QueryRequest>) {
 	QueryResChannel.postMessage(message);
 }
 
-self.onmessage = handle_message;
+// self.onmessage = handle_message;
 
 QueryReqChannel.onmessage(handle_message);
 
