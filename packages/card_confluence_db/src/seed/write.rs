@@ -79,8 +79,11 @@ pub async fn write_parquets(
     println!("Packaging cards...");
     let transformed_cards: Vec<Card> = cards
         .into_iter()
-        .map(|c| {
+        .filter_map(|c| {
             let mut card: Card = c.into();
+            if card.layout == "art_series" {
+                return None;
+            }
             let oid = &card.oracle_id;
             if let Some(tags) = otags.get(oid) {
                 card.otags = tags.clone();
@@ -88,7 +91,7 @@ pub async fn write_parquets(
             if let Some(print) = prints.get(oid) {
                 card.prints.push(print.clone());
             }
-            card
+            Some(card)
         })
         .collect();
 
