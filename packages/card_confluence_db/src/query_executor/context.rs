@@ -4,8 +4,12 @@ use datafusion::{
     error::DataFusionError,
     prelude::{ParquetReadOptions, SessionContext},
 };
-use object_store::ObjectStore;
+use object_store::{
+    local::LocalFileSystem, path::Path as ObjectPath, prefix::PrefixStore, ObjectStore,
+};
 use url::Url;
+
+use crate::utils::get_latest;
 
 pub struct TablePaths {
     pub cards: String,
@@ -50,4 +54,56 @@ pub async fn get_context<T: ObjectStore>(
         .await?;
 
     Ok(ctx)
+}
+
+pub async fn get_local_context() -> Result<SessionContext, DataFusionError> {
+    let mut current_dir = std::env::current_dir().unwrap();
+    let mut parquet_path = None;
+
+    for _ in 0..5 {
+        let test_path = current_dir.join(".parquet");
+        if test_path.exists() {
+            parquet_path = Some(test_path);
+            break;
+        }
+        // Also check apps/card_confluence_cli/.parquet
+        let cli_path = current_dir.join("apps/card_confluence_cli/.parquet");
+        if cli_path.exists() {
+            parquet_path = Some(cli_path);
+            break;
+        }
+
+        if let Some(parent) = current_dir.parent() {
+            current_dir = parent.to_path_buf();
+        } else {
+            break;
+        }
+    }
+
+    let p_path = parquet_path.ok_or_else(|| {
+        DataFusionError::External("Could not find .parquet directory in parent tree".into())
+    })?;
+    let p_path = p_path.canonicalize().unwrap();
+
+    let local = LocalFileSystem::new_with_prefix(&p_path)?;
+    let parquet_store: Arc<dyn ObjectStore> = Arc::new(PrefixStore::new(local, ""));
+
+    let latest_cards = get_latest(&parquet_store, &ObjectPath::from("cards"), "parquet")
+        .await
+        .ok_or_else(|| DataFusionError::External("Couldn't find cards file".into()))?;
+
+    let latest_rulings = get_latest(&parquet_store, &ObjectPath::from("rulings"), "parquet")
+        .await
+        .ok_or_else(|| DataFusionError::External("Couldn't find rulings file".into()))?;
+    let latest_sets = get_latest(&parquet_store, &ObjectPath::from("sets"), "parquet")
+        .await
+        .ok_or_else(|| DataFusionError::External("Couldn't find sets file".into()))?;
+
+    let paths = TablePaths {
+        cards: format!("db://data/{}", latest_cards),
+        rulings: format!("db://data/{}", latest_rulings),
+        sets: format!("db://data/{}", latest_sets),
+    };
+
+    return get_context(parquet_store, paths).await;
 }

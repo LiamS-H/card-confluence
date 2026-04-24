@@ -93,6 +93,7 @@ fn expr_to_df_expr(expr: &ScryfallExpr, schema: &DFSchema) -> Result<DFExpr, Pla
         ScryfallExpr::And(l, r) => Ok(expr_to_df_expr(l, schema)?.and(expr_to_df_expr(r, schema)?)),
         ScryfallExpr::Or(l, r) => Ok(expr_to_df_expr(l, schema)?.or(expr_to_df_expr(r, schema)?)),
         ScryfallExpr::Not(inner) => Ok(not(expr_to_df_expr(inner, schema)?)),
+        ScryfallExpr::True => Ok(lit(true)),
     }
 }
 
@@ -114,6 +115,7 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
         "wm" | "watermark" => text_pred("watermark", &pred.op, &pred.value),
         "border" => text_pred("border_color", &pred.op, &pred.value),
         "frame" => text_pred("frame", &pred.op, &pred.value),
+        "layout" => text_pred("layout", &pred.op, &pred.value),
         "stamp" => text_pred("security_stamp", &pred.op, &pred.value),
         "color" | "c" => color_pred("colors", &pred.op, &pred.value),
         "identity" | "ci" | "id" => color_pred("color_identity", &pred.op, &pred.value),
@@ -161,7 +163,7 @@ fn predicate_to_df_expr(pred: &Predicate, _schema: &DFSchema) -> Result<DFExpr, 
             }
         }
 
-        "year" | "date" => text_pred("released_at", &pred.op, &pred.value),
+        "year" | "date" => text_pred("released_at", &pred.op, &pred.value), // TODO: If the value if 3characters, join with the sets table look up the release date of the set, compare using >< to both iso and set.  So you can look up year>cmm (printed after commander masters)
 
         unknown => Err(PlanError(format!("Unknown Scryfall field: '{unknown}'"))),
     }
@@ -421,6 +423,7 @@ fn references_set_table(expr: &ScryfallExpr) -> bool {
             references_set_table(l) || references_set_table(r)
         }
         ScryfallExpr::Not(inner) => references_set_table(inner),
+        ScryfallExpr::True => false,
     }
 }
 
@@ -478,5 +481,6 @@ fn references_print_fields(expr: &ScryfallExpr) -> bool {
             references_print_fields(l) || references_print_fields(r)
         }
         ScryfallExpr::Not(inner) => references_print_fields(inner),
+        ScryfallExpr::True => false,
     }
 }

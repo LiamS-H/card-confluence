@@ -1,8 +1,4 @@
-/// Scryfall query parser.
-///
-/// Consumes a `Vec<Token>` produced by the lexer and returns a `ScryfallExpr`
-/// AST that the planner can walk to build a DataFusion `LogicalPlan`.
-use crate::query_parser::lexer::{Op, Token};
+use crate::query_parser::lexer::{Op, Token, TokenKind};
 
 /// A single field comparison: `field OP value`
 #[derive(Debug, Clone, PartialEq)]
@@ -10,6 +6,8 @@ pub struct Predicate {
     pub field: String,
     pub op: Op,
     pub value: String,
+    pub start: usize,
+    pub end: usize,
 }
 
 /// The AST node.
@@ -23,6 +21,8 @@ pub enum ScryfallExpr {
     Or(Box<ScryfallExpr>, Box<ScryfallExpr>),
     /// Logical NOT of a sub-expression
     Not(Box<ScryfallExpr>),
+    /// Matches everything (used for autocompletion context)
+    True,
 }
 
 #[derive(Debug)]
@@ -55,10 +55,12 @@ impl Parser {
         tok
     }
 
-    fn expect_value(&mut self) -> Result<String, ParseError> {
+    fn expect_value(&mut self) -> Result<(String, usize, usize), ParseError> {
         match self.advance() {
-            Some(Token::Value(v)) => Ok(v.clone()),
-            Some(other) => Err(ParseError(format!("Expected value, got {other:?}"))),
+            Some(t) => match &t.kind {
+                TokenKind::Value(v) => Ok((v.clone(), t.start, t.end)),
+                other => Err(ParseError(format!("Expected value, got {other:?}"))),
+            },
             None => Err(ParseError("Expected value, got end of input".into())),
         }
     }
@@ -74,7 +76,7 @@ impl Parser {
     fn parse_or(&mut self) -> Result<ScryfallExpr, ParseError> {
         let mut left = self.parse_and()?;
 
-        while matches!(self.peek(), Some(Token::Or)) {
+        while matches!(self.peek(), Some(t) if matches!(t.kind, TokenKind::Or)) {
             self.advance(); // consume OR
             let right = self.parse_and()?;
             left = ScryfallExpr::Or(Box::new(left), Box::new(right));
@@ -89,16 +91,22 @@ impl Parser {
         loop {
             match self.peek() {
                 // Explicit AND keyword
-                Some(Token::And) => {
+                Some(t) if matches!(t.kind, TokenKind::And) => {
                     self.advance();
                     let right = self.parse_not()?;
                     left = ScryfallExpr::And(Box::new(left), Box::new(right));
                 }
                 // Implicit AND: next token can start a new atom and is not OR / RParen / EOF
-                Some(Token::Ident(_))
-                | Some(Token::Value(_))
-                | Some(Token::Not)
-                | Some(Token::LParen) => {
+                Some(t)
+                    if matches!(
+                        t.kind,
+                        TokenKind::Ident(_)
+                            | TokenKind::Value(_)
+                            | TokenKind::Not
+                            | TokenKind::LParen
+                            | TokenKind::RParen
+                    ) =>
+                {
                     let right = self.parse_not()?;
                     left = ScryfallExpr::And(Box::new(left), Box::new(right));
                 }
@@ -110,7 +118,7 @@ impl Parser {
     }
 
     fn parse_not(&mut self) -> Result<ScryfallExpr, ParseError> {
-        if matches!(self.peek(), Some(Token::Not)) {
+        if matches!(self.peek(), Some(t) if matches!(t.kind, TokenKind::Not)) {
             self.advance(); // consume NOT / `-`
             let inner = self.parse_not()?; // right-associative
             return Ok(ScryfallExpr::Not(Box::new(inner)));
@@ -120,29 +128,35 @@ impl Parser {
 
     fn parse_atom(&mut self) -> Result<ScryfallExpr, ParseError> {
         match self.peek() {
-            Some(Token::LParen) => {
+            Some(t) if matches!(t.kind, TokenKind::LParen) => {
                 self.advance(); // consume `(`
                 let inner = self.parse_expr()?;
                 match self.advance() {
-                    Some(Token::RParen) => Ok(inner),
-                    other => Err(ParseError(format!("Expected closing ')', got {other:?}"))),
+                    Some(t) if matches!(t.kind, TokenKind::RParen) => Ok(inner),
+                    Some(other) => Err(ParseError(format!("Expected closing ')', got {other:?}"))),
+                    None => Err(ParseError("Expected closing ')', got end of input".into())),
                 }
             }
 
             // field OP value
-            Some(Token::Ident(_)) => {
-                let field = match self.advance() {
-                    Some(Token::Ident(f)) => f.clone(),
+            Some(t) if matches!(t.kind, TokenKind::Ident(_)) => {
+                let (field, start) = match self.advance() {
+                    Some(t) => match &t.kind {
+                        TokenKind::Ident(f) => (f.clone(), t.start),
+                        _ => unreachable!(),
+                    },
                     _ => unreachable!(),
                 };
 
                 let op = match self.advance() {
-                    Some(Token::Op(o)) => o.clone(),
-                    Some(other) => {
-                        return Err(ParseError(format!(
-                            "Expected operator after field '{field}', got {other:?}"
-                        )))
-                    }
+                    Some(t) => match &t.kind {
+                        TokenKind::Op(o) => o.clone(),
+                        other => {
+                            return Err(ParseError(format!(
+                                "Expected operator after field '{field}', got {other:?}"
+                            )))
+                        }
+                    },
                     None => {
                         return Err(ParseError(format!(
                             "Expected operator after field '{field}', got end of input"
@@ -150,26 +164,38 @@ impl Parser {
                     }
                 };
 
-                let value = self.expect_value()?;
-                Ok(ScryfallExpr::Predicate(Predicate { field, op, value }))
+                let (value, _, end) = self.expect_value()?;
+                Ok(ScryfallExpr::Predicate(Predicate {
+                    field,
+                    op,
+                    value,
+                    start,
+                    end,
+                }))
             }
 
             // Bare word — treat as `name:<value>` (case-insensitive name contains)
-            Some(Token::Value(_)) => {
-                let value = match self.advance() {
-                    Some(Token::Value(v)) => v.clone(),
+            Some(t) if matches!(t.kind, TokenKind::Value(_)) => {
+                let (value, start, end) = match self.advance() {
+                    Some(t) => match &t.kind {
+                        TokenKind::Value(v) => (v.clone(), t.start, t.end),
+                        _ => unreachable!(),
+                    },
                     _ => unreachable!(),
                 };
                 Ok(ScryfallExpr::Predicate(Predicate {
                     field: "name".into(),
                     op: Op::Colon,
                     value,
+                    start,
+                    end,
                 }))
             }
 
-            other => Err(ParseError(format!(
+            Some(other) => Err(ParseError(format!(
                 "Unexpected token at start of expression: {other:?}"
             ))),
+            None => Err(ParseError("Unexpected end of input".into())),
         }
     }
 }
@@ -204,7 +230,9 @@ mod tests {
             ScryfallExpr::Predicate(Predicate {
                 field: "c".into(),
                 op: Op::Colon,
-                value: "blue".into()
+                value: "blue".into(),
+                start: 0,
+                end: 6,
             })
         );
     }
@@ -240,7 +268,9 @@ mod tests {
             ScryfallExpr::Predicate(Predicate {
                 field: "name".into(),
                 op: Op::Colon,
-                value: "lightning".into()
+                value: "lightning".into(),
+                start: 0,
+                end: 9,
             })
         );
     }

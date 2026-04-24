@@ -10,7 +10,7 @@ pub enum Op {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Token {
+pub enum TokenKind {
     /// A bare keyword or field name, e.g. `cmc`, `name`, `t`
     Ident(String),
     /// A comparison operator
@@ -27,6 +27,13 @@ pub enum Token {
     LParen,
     /// `)`
     RParen,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub start: usize,
+    pub end: usize,
 }
 
 #[derive(Debug)]
@@ -46,32 +53,34 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
     let mut tokens: Vec<Token> = Vec::new();
 
     while pos < chars.len() {
-        match chars[pos] {
+        let start = pos;
+        let kind = match chars[pos] {
             ' ' | '\t' | '\n' | '\r' => {
                 pos += 1;
+                continue;
             }
 
             '(' => {
-                tokens.push(Token::LParen);
                 pos += 1;
+                TokenKind::LParen
             }
 
             ')' => {
-                tokens.push(Token::RParen);
                 pos += 1;
+                TokenKind::RParen
             }
 
             // `-` as prefix NOT (must not be part of a number in value position)
-            '-' if !matches!(tokens.last(), Some(Token::Value(_))) => {
-                tokens.push(Token::Not);
+            '-' if !matches!(tokens.last(), Some(t) if matches!(t.kind, TokenKind::Op(_))) => {
                 pos += 1;
+                TokenKind::Not
             }
 
             // Operators: !=  <=  >=  <  >  =
             '!' => {
                 if chars.get(pos + 1) == Some(&'=') {
-                    tokens.push(Token::Op(Op::Ne));
                     pos += 2;
+                    TokenKind::Op(Op::Ne)
                 } else {
                     return Err(LexError(format!("Unexpected '!' at position {pos}")));
                 }
@@ -79,38 +88,38 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
 
             '<' => {
                 if chars.get(pos + 1) == Some(&'=') {
-                    tokens.push(Token::Op(Op::Lte));
                     pos += 2;
+                    TokenKind::Op(Op::Lte)
                 } else {
-                    tokens.push(Token::Op(Op::Lt));
                     pos += 1;
+                    TokenKind::Op(Op::Lt)
                 }
             }
 
             '>' => {
                 if chars.get(pos + 1) == Some(&'=') {
-                    tokens.push(Token::Op(Op::Gte));
                     pos += 2;
+                    TokenKind::Op(Op::Gte)
                 } else {
-                    tokens.push(Token::Op(Op::Gt));
                     pos += 1;
+                    TokenKind::Op(Op::Gt)
                 }
             }
 
             '=' => {
-                tokens.push(Token::Op(Op::Eq));
                 pos += 1;
+                TokenKind::Op(Op::Eq)
             }
 
             ':' => {
-                tokens.push(Token::Op(Op::Colon));
                 pos += 1;
+                TokenKind::Op(Op::Colon)
             }
 
             // Quoted string value
             '"' => {
                 pos += 1; // skip opening quote
-                let start = pos;
+                let inner_start = pos;
                 while pos < chars.len() && chars[pos] != '"' {
                     if chars[pos] == '\\' {
                         pos += 1; // skip escape char
@@ -120,9 +129,9 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 if pos >= chars.len() {
                     return Err(LexError("Unterminated quoted string".into()));
                 }
-                let value: String = chars[start..pos].iter().collect();
-                tokens.push(Token::Value(value));
+                let value: String = chars[inner_start..pos].iter().collect();
                 pos += 1; // skip closing quote
+                TokenKind::Value(value)
             }
 
             // Identifiers and bare values
@@ -133,7 +142,7 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 || c == '.'
                 || c == '-' =>
             {
-                let start = pos;
+                let inner_start = pos;
                 while pos < chars.len()
                     && (chars[pos].is_alphanumeric()
                         || chars[pos] == '_'
@@ -144,13 +153,13 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 {
                     pos += 1;
                 }
-                let word: String = chars[start..pos].iter().collect();
+                let word: String = chars[inner_start..pos].iter().collect();
 
                 // Resolve boolean keywords case-insensitively
                 match word.to_uppercase().as_str() {
-                    "AND" => tokens.push(Token::And),
-                    "OR" => tokens.push(Token::Or),
-                    "NOT" => tokens.push(Token::Not),
+                    "AND" => TokenKind::And,
+                    "OR" => TokenKind::Or,
+                    "NOT" => TokenKind::Not,
                     _ => {
                         // Decide Ident vs Value based on what follows.
                         // If the very next non-space char is an operator, this is a field name.
@@ -159,9 +168,9 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                             next_non_space,
                             Some(':') | Some('=') | Some('<') | Some('>') | Some('!')
                         ) {
-                            tokens.push(Token::Ident(word.to_lowercase()));
+                            TokenKind::Ident(word.to_lowercase())
                         } else {
-                            tokens.push(Token::Value(word));
+                            TokenKind::Value(word)
                         }
                     }
                 }
@@ -172,7 +181,13 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                     "Unexpected character '{other}' at position {pos}"
                 )));
             }
-        }
+        };
+
+        tokens.push(Token {
+            kind,
+            start,
+            end: pos,
+        });
     }
 
     Ok(tokens)
@@ -188,9 +203,21 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Ident("c".into()),
-                Token::Op(Op::Colon),
-                Token::Value("blue".into()),
+                Token {
+                    kind: TokenKind::Ident("c".into()),
+                    start: 0,
+                    end: 1
+                },
+                Token {
+                    kind: TokenKind::Op(Op::Colon),
+                    start: 1,
+                    end: 2
+                },
+                Token {
+                    kind: TokenKind::Value("blue".into()),
+                    start: 2,
+                    end: 6
+                },
             ]
         );
     }
@@ -201,9 +228,21 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Ident("cmc".into()),
-                Token::Op(Op::Gte),
-                Token::Value("3".into()),
+                Token {
+                    kind: TokenKind::Ident("cmc".into()),
+                    start: 0,
+                    end: 3
+                },
+                Token {
+                    kind: TokenKind::Op(Op::Gte),
+                    start: 3,
+                    end: 5
+                },
+                Token {
+                    kind: TokenKind::Value("3".into()),
+                    start: 5,
+                    end: 6
+                },
             ]
         );
     }
@@ -214,13 +253,41 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Ident("t".into()),
-                Token::Op(Op::Colon),
-                Token::Value("creature".into()),
-                Token::Or,
-                Token::Ident("t".into()),
-                Token::Op(Op::Colon),
-                Token::Value("instant".into()),
+                Token {
+                    kind: TokenKind::Ident("t".into()),
+                    start: 0,
+                    end: 1
+                },
+                Token {
+                    kind: TokenKind::Op(Op::Colon),
+                    start: 1,
+                    end: 2
+                },
+                Token {
+                    kind: TokenKind::Value("creature".into()),
+                    start: 2,
+                    end: 10
+                },
+                Token {
+                    kind: TokenKind::Or,
+                    start: 11,
+                    end: 13
+                },
+                Token {
+                    kind: TokenKind::Ident("t".into()),
+                    start: 14,
+                    end: 15
+                },
+                Token {
+                    kind: TokenKind::Op(Op::Colon),
+                    start: 15,
+                    end: 16
+                },
+                Token {
+                    kind: TokenKind::Value("instant".into()),
+                    start: 16,
+                    end: 23
+                },
             ]
         );
     }
@@ -231,9 +298,21 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Ident("name".into()),
-                Token::Op(Op::Colon),
-                Token::Value("Serra Angel".into()),
+                Token {
+                    kind: TokenKind::Ident("name".into()),
+                    start: 0,
+                    end: 4
+                },
+                Token {
+                    kind: TokenKind::Op(Op::Colon),
+                    start: 4,
+                    end: 5
+                },
+                Token {
+                    kind: TokenKind::Value("Serra Angel".into()),
+                    start: 5,
+                    end: 18
+                },
             ]
         );
     }
@@ -244,10 +323,26 @@ mod tests {
         assert_eq!(
             tokens,
             vec![
-                Token::Not,
-                Token::Ident("t".into()),
-                Token::Op(Op::Colon),
-                Token::Value("land".into()),
+                Token {
+                    kind: TokenKind::Not,
+                    start: 0,
+                    end: 1
+                },
+                Token {
+                    kind: TokenKind::Ident("t".into()),
+                    start: 1,
+                    end: 2
+                },
+                Token {
+                    kind: TokenKind::Op(Op::Colon),
+                    start: 2,
+                    end: 3
+                },
+                Token {
+                    kind: TokenKind::Value("land".into()),
+                    start: 3,
+                    end: 7
+                },
             ]
         );
     }

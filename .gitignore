@@ -42,3 +42,7 @@ target/
 
 # plan
 **/plan.md
+
+# db artifacts
+**/.parquet/
+**/.scryfall/

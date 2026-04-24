@@ -1,6 +1,6 @@
-mod lexer;
-mod parser;
-mod planner;
+pub mod lexer;
+pub mod parser;
+pub mod planner;
 
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::prelude::SessionContext;

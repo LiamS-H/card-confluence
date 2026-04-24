@@ -13,3 +13,4 @@ anyhow = "1.0"
 futures = { workspace = true }
 datafusion = { workspace = true }
 url = { workspace = true }
+rustyline = "18"

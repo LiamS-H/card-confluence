@@ -1,15 +1,10 @@
+mod commands;
+
 use anyhow::{Context, Result};
-use card_confluence_db::{
-    query_executor::context::{get_context, TablePaths},
-    query_parser::parse_query,
-    seed::{self, SeedMode},
-    utils::get_latest,
-};
 use clap::{Parser, Subcommand};
-use datafusion::prelude::col;
 use dotenvy::dotenv;
 use object_store::{
-    aws::AmazonS3Builder, local::LocalFileSystem, path::Path as ObjectPath, prefix::PrefixStore,
+    aws::AmazonS3Builder, local::LocalFileSystem, prefix::PrefixStore,
     ObjectStore,
 };
 use std::sync::Arc;
@@ -32,11 +27,8 @@ enum Commands {
         /// Mode: cached, latest, or a specific ID
         mode: Option<String>,
     },
-    /// Query the latest parquet data
-    Query {
-        /// The query string
-        query: String,
-    },
+    /// Query the latest parquet data via interactive TUI
+    Query,
     /// Move latest local parquet files to R2
     UploadLatest,
 }
@@ -80,62 +72,14 @@ async fn main() -> Result<()> {
 
     match cli.command {
         Commands::Seed { mode } => {
-            let mode = match mode.as_deref() {
-                Some("cached") => SeedMode::LatestCached,
-                None | Some("") => SeedMode::Latest,
-                Some(id) => SeedMode::Specific(id.into()),
-            };
-            seed::seed(mode, json_store, parquet_store)
-                .await
-                .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+            commands::seed::exec(mode, json_store, parquet_store).await?;
         }
-        Commands::Query { query } => {
-            let latest_cards = get_latest(&parquet_store, &ObjectPath::from("cards"), "parquet")
-                .await
-                .ok_or_else(|| anyhow::anyhow!("No card parquet files found. Run seed first."))?;
-            let latest_rulings =
-                get_latest(&parquet_store, &ObjectPath::from("rulings"), "parquet")
-                    .await
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("No ruling parquet files found. Run seed first.")
-                    })?;
-            let latest_sets = get_latest(&parquet_store, &ObjectPath::from("sets"), "parquet")
-                .await
-                .ok_or_else(|| anyhow::anyhow!("No set parquet files found. Run seed first."))?;
-
-            let paths = TablePaths {
-                cards: format!("db://data/{}", latest_cards),
-                rulings: format!("db://data/{}", latest_rulings),
-                sets: format!("db://data/{}", latest_sets),
-            };
-
-            let ctx = get_context(parquet_store, paths).await?;
-            let plan = parse_query(&ctx, &query).await?;
-            let df = ctx.execute_logical_plan(plan).await?;
-            let df = df.select(vec![col("name"), col("colors"), col("mana_cost")])?;
-            df.show().await?;
+        Commands::Query => {
+            commands::query::exec(parquet_store).await?;
         }
         Commands::UploadLatest => {
             let latest_store = get_r2_from_env_prefix("LATEST")?;
-
-            for table in &["cards", "rulings", "sets"] {
-                println!("Uploading latest {}...", table);
-                if let Some(latest) =
-                    get_latest(&parquet_store, &ObjectPath::from(*table), "parquet").await
-                {
-                    let source_path = ObjectPath::from(latest.clone());
-                    let dest_path = ObjectPath::from(format!("{}.parquet", table));
-
-                    println!("Moving {} to {}", source_path, dest_path);
-
-                    let get_res = parquet_store.get(&source_path).await?;
-                    let bytes = get_res.bytes().await?;
-                    latest_store.put(&dest_path, bytes.into()).await?;
-                    println!("Uploaded {}.parquet", table);
-                } else {
-                    println!("No latest file found for {}", table);
-                }
-            }
+            commands::upload::exec(parquet_store, latest_store).await?;
         }
     }
 
