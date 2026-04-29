@@ -26,6 +26,7 @@ pub struct SeedFetchPaths {
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct SeedFinalPaths {
     pub cards_path: String,
+    pub prints_path: String,
     pub sets_path: String,
     pub rulings_path: String,
 }
@@ -68,76 +69,8 @@ pub async fn parquets_from_json(
         .map_err(|u| JsValue::from(format!("{:#?}", u)))?;
     return Ok(SeedFinalPaths {
         cards_path: parquet_paths.cards_parquet_path.to_string(),
+        prints_path: parquet_paths.prints_parquet_path.to_string(),
         sets_path: parquet_paths.sets_parquet_path.to_string(),
         rulings_path: parquet_paths.rulings_parquet_path.to_string(),
     });
 }
-
-// #[wasm_bindgen]
-// pub async fn perform_seed_step(env: Env) {
-//     let Ok(history_bucket) = env.bucket("cc_parquet_history") else {
-//         console_log!("Error: Could not find cc_parquet_history R2 binding");
-//         return;
-//     };
-//     let Ok(latest_bucket) = env.bucket("cc_parquet_latest") else {
-//         console_log!("Error: Could not find cc_parquet_history R2 binding");
-//         return;
-//     };
-
-//     let r2_history_store: Arc<dyn ObjectStore> = Arc::new(R2WorkerStore::new(history_bucket));
-
-//     let history_json_store: Arc<dyn ObjectStore> =
-//         Arc::new(PrefixStore::new(r2_history_store.clone(), ".scryfall"));
-//     let history_parquet_store: Arc<dyn ObjectStore> =
-//         Arc::new(PrefixStore::new(r2_history_store.clone(), ".parquet"));
-
-//     let latest_store: Arc<dyn ObjectStore> = Arc::new(R2WorkerStore::new(latest_bucket));
-
-//     console_log!("Starting seed");
-
-//     let Ok(paths) = seed::seed(
-//         SeedMode::Latest,
-//         history_json_store.clone(),
-//         history_parquet_store.clone(),
-//     )
-//     .await
-//     else {
-//         console_log!("Seeding failed");
-//         return;
-//     };
-//     console_log!("Successfully seeded");
-
-//     let targets = [
-//         (paths.cards_parquet_path, "cards.parquet", "cards"),
-//         (paths.sets_parquet_path, "sets.parquet", "sets"),
-//         (paths.rulings_parquet_path, "rulings.parquet", "rulings"),
-//     ];
-
-//     for (src_path, dest_file, name) in targets {
-//         let process = async {
-//             let res = history_parquet_store
-//                 .get(&src_path)
-//                 .await
-//                 .map_err(|e| format!("Failed to get {src_path} from history: {e:?}"))?;
-
-//             let bytes = res
-//                 .bytes()
-//                 .await
-//                 .map_err(|e| format!("Failed to read bytes for {src_path}: {e:?}"))?;
-
-//             latest_store
-//                 .put(&ObjectPath::from(dest_file), bytes.into())
-//                 .await
-//                 .map_err(|e| format!("Failed to update {name}: {e:?}"))?;
-
-//             Ok::<(), String>(())
-//         };
-
-//         match process.await {
-//             Ok(_) => console_log!("Successfully updated {}", name),
-//             Err(err_msg) => console_log!("{}", err_msg),
-//         }
-//     }
-
-//     console_log!("Finished seed at: {}", Utc::now().to_rfc3339());
-// }

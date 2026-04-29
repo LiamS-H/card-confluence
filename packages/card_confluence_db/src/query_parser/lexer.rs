@@ -1,12 +1,12 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Op {
-    Colon, // :  (contains / equals, Scryfall default)
-    Eq,    // =
-    Ne,    // !=
-    Lt,    // <
-    Lte,   // <=
-    Gt,    // >
-    Gte,   // >=
+    Colon,
+    Eq,
+    Ne,
+    Lt,
+    Lte,
+    Gt,
+    Gte,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,19 +64,18 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 pos += 1;
                 TokenKind::LParen
             }
-
             ')' => {
                 pos += 1;
                 TokenKind::RParen
             }
 
-            // `-` as prefix NOT (must not be part of a number in value position)
-            '-' if !matches!(tokens.last(), Some(t) if matches!(t.kind, TokenKind::Op(_))) => {
+            // `-` at word-boundary position is always a NOT prefix.
+            // Mid-word `-` is consumed inside the alphanumeric arm below.
+            '-' => {
                 pos += 1;
                 TokenKind::Not
             }
 
-            // Operators: !=  <=  >=  <  >  =
             '!' => {
                 if chars.get(pos + 1) == Some(&'=') {
                     pos += 2;
@@ -110,19 +109,17 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 pos += 1;
                 TokenKind::Op(Op::Eq)
             }
-
             ':' => {
                 pos += 1;
                 TokenKind::Op(Op::Colon)
             }
 
-            // Quoted string value
             '"' => {
-                pos += 1; // skip opening quote
+                pos += 1;
                 let inner_start = pos;
                 while pos < chars.len() && chars[pos] != '"' {
                     if chars[pos] == '\\' {
-                        pos += 1; // skip escape char
+                        pos += 1;
                     }
                     pos += 1;
                 }
@@ -130,18 +127,11 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                     return Err(LexError("Unterminated quoted string".into()));
                 }
                 let value: String = chars[inner_start..pos].iter().collect();
-                pos += 1; // skip closing quote
+                pos += 1;
                 TokenKind::Value(value)
             }
 
-            // Identifiers and bare values
-            c if c.is_alphanumeric()
-                || c == '_'
-                || c == '*'
-                || c == '/'
-                || c == '.'
-                || c == '-' =>
-            {
+            c if c.is_alphanumeric() || c == '_' || c == '*' || c == '/' || c == '.' => {
                 let inner_start = pos;
                 while pos < chars.len()
                     && (chars[pos].is_alphanumeric()
@@ -155,7 +145,6 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 }
                 let word: String = chars[inner_start..pos].iter().collect();
 
-                // Resolve boolean keywords case-insensitively
                 match word.to_uppercase().as_str() {
                     "AND" => TokenKind::And,
                     "OR" => TokenKind::Or,
@@ -172,6 +161,14 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                         } else {
                             TokenKind::Value(word)
                         }
+                        // Value only if the previous token was an operator
+                        // match tokens.last() {
+                        //     Some(Token {
+                        //         kind: TokenKind::Op(_),
+                        //         ..
+                        //     }) => TokenKind::Value(word),
+                        //     _ => TokenKind::Ident(word.to_lowercase()),
+                        // }
                     }
                 }
             }
@@ -196,6 +193,38 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn test_naked_ident() {
+        let tokens = tokenize("n").unwrap();
+        assert_eq!(
+            tokens,
+            vec![Token {
+                kind: TokenKind::Value("n".into()),
+                start: 0,
+                end: 1
+            },]
+        );
+    }
+
+    #[test]
+    fn test_negated_naked_ident() {
+        let tokens = tokenize("-n").unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                Token {
+                    kind: TokenKind::Not,
+                    start: 0,
+                    end: 1
+                },
+                Token {
+                    kind: TokenKind::Value("n".into()),
+                    start: 1,
+                    end: 2
+                },
+            ]
+        );
+    }
 
     #[test]
     fn test_basic_field_colon() {

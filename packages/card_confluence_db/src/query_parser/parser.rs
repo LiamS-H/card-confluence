@@ -86,35 +86,39 @@ impl Parser {
     }
 
     fn parse_and(&mut self) -> Result<ScryfallExpr, ParseError> {
-        let mut left = self.parse_not()?;
+        let mut expr = self.parse_not()?;
 
         loop {
-            match self.peek() {
-                // Explicit AND keyword
-                Some(t) if matches!(t.kind, TokenKind::And) => {
-                    self.advance();
-                    let right = self.parse_not()?;
-                    left = ScryfallExpr::And(Box::new(left), Box::new(right));
-                }
-                // Implicit AND: next token can start a new atom and is not OR / RParen / EOF
-                Some(t)
-                    if matches!(
-                        t.kind,
-                        TokenKind::Ident(_)
-                            | TokenKind::Value(_)
-                            | TokenKind::Not
-                            | TokenKind::LParen
-                            | TokenKind::RParen
-                    ) =>
-                {
-                    let right = self.parse_not()?;
-                    left = ScryfallExpr::And(Box::new(left), Box::new(right));
-                }
-                _ => break,
+            let implicit_and = matches!(
+                self.peek(),
+                Some(Token {
+                    kind: TokenKind::Ident(_)
+                        | TokenKind::Value(_)
+                        | TokenKind::Not
+                        | TokenKind::LParen,
+                    ..
+                })
+            );
+
+            let explicit_and = matches!(
+                self.peek(),
+                Some(Token {
+                    kind: TokenKind::And,
+                    ..
+                })
+            );
+
+            if explicit_and {
+                self.advance();
+            } else if !implicit_and {
+                break;
             }
+
+            let rhs = self.parse_not()?;
+            expr = ScryfallExpr::And(Box::new(expr), Box::new(rhs));
         }
 
-        Ok(left)
+        Ok(expr)
     }
 
     fn parse_not(&mut self) -> Result<ScryfallExpr, ParseError> {
@@ -258,7 +262,34 @@ mod tests {
     #[test]
     fn test_parentheses() {
         let expr = p("(t:creature OR t:instant) c:blue");
-        assert!(matches!(expr, ScryfallExpr::And(_, _)));
+        let ScryfallExpr::And(arg1, arg2) = expr else {
+            panic!()
+        };
+        assert!(matches!(*arg1, ScryfallExpr::Or(_, _)));
+        assert!(matches!(*arg2, ScryfallExpr::Predicate(_)));
+    }
+
+    #[test]
+    fn test_nested_parentheses() {
+        let expr = p("is:test OR ((t:creature OR t:instant) c:blue)");
+        let ScryfallExpr::Or(arg1, arg2) = expr else {
+            panic!()
+        };
+        assert!(matches!(*arg1, ScryfallExpr::Predicate(_)));
+        let ScryfallExpr::And(arg2_1, arg2_2) = *arg2 else {
+            panic!()
+        };
+        assert!(matches!(*arg2_1, ScryfallExpr::Or(_, _)));
+        assert!(matches!(*arg2_2, ScryfallExpr::Predicate(_)));
+    }
+    #[test]
+    fn test_touching_parentheses() {
+        let expr = p("(t:creature OR t:instant)c:blue");
+        let ScryfallExpr::And(arg1, arg2) = expr else {
+            panic!()
+        };
+        assert!(matches!(*arg1, ScryfallExpr::Or(_, _)));
+        assert!(matches!(*arg2, ScryfallExpr::Predicate(_)));
     }
 
     #[test]

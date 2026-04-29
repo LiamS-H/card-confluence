@@ -47,6 +47,7 @@ arrow_convert = { version = "0.11.4" }
 object_store = { version = "0.12.4" }
 url = { version = "2.5.7" }
 datafusion-functions-nested = { version = "52.4" }
+datafusion-functions-aggregate = { version = "52.4" }
 
 [profile.release]
 opt-level = "z" # Optimize for size

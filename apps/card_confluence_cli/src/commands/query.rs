@@ -1,12 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use card_confluence_db::{
     autocompletion::autocomplete,
-    query_executor::context::{get_context, TablePaths},
+    query_executor::context::{get_context, get_latest_paths},
     query_parser::parse_query,
-    utils::get_latest,
 };
 use datafusion::prelude::{col, SessionContext};
-use object_store::{path::Path as ObjectPath, ObjectStore};
+use object_store::ObjectStore;
 use rustyline::completion::{Completer, Pair};
 use rustyline::config::Configurer;
 use rustyline::error::ReadlineError;
@@ -63,22 +62,7 @@ impl Highlighter for QueryHelper {}
 impl Validator for QueryHelper {}
 
 pub async fn exec(parquet_store: Arc<dyn ObjectStore>) -> Result<()> {
-    let latest_cards = get_latest(&parquet_store, &ObjectPath::from("cards"), "parquet")
-        .await
-        .ok_or_else(|| anyhow!("No card parquet files found. Run seed first."))?;
-    let latest_rulings = get_latest(&parquet_store, &ObjectPath::from("rulings"), "parquet")
-        .await
-        .ok_or_else(|| anyhow!("No ruling parquet files found. Run seed first."))?;
-    let latest_sets = get_latest(&parquet_store, &ObjectPath::from("sets"), "parquet")
-        .await
-        .ok_or_else(|| anyhow!("No set parquet files found. Run seed first."))?;
-
-    let paths = TablePaths {
-        cards: format!("db://data/{}", latest_cards),
-        rulings: format!("db://data/{}", latest_rulings),
-        sets: format!("db://data/{}", latest_sets),
-    };
-
+    let paths = get_latest_paths(parquet_store.clone()).await?;
     let ctx = get_context(parquet_store, paths).await?;
     let handle = Handle::current();
 
@@ -111,6 +95,7 @@ pub async fn exec(parquet_store: Arc<dyn ObjectStore>) -> Result<()> {
                 match parse_query(&ctx, &line).await {
                     Ok(plan) => match ctx.execute_logical_plan(plan).await {
                         Ok(df) => {
+                            println!("schema:{:#?}", df.schema());
                             let df =
                                 df.select(vec![col("name"), col("colors"), col("mana_cost")])?;
                             if let Err(e) = df.show().await {

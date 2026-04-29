@@ -31,12 +31,9 @@ impl From<ScryfallCardFace> for CardFace {
             color_indicator: scryfall.color_indicator,
             colors: scryfall.colors,
             defense: scryfall.defense,
-            flavor_text: scryfall.flavor_text,
             loyalty: scryfall.loyalty,
             mana_cost: scryfall.mana_cost,
             name: scryfall.name,
-            // object: scryfall.object,
-            oracle_id: scryfall.oracle_id,
             oracle_text: scryfall.oracle_text,
             power: scryfall.power,
             toughness: scryfall.toughness,
@@ -125,7 +122,6 @@ impl From<ScryfallCard> for Card {
             sub_types,
             otags: Vec::new(),
             preview: scryfall.preview.map(Into::into),
-            prints: Vec::new(),
         }
     }
 }
@@ -175,7 +171,10 @@ impl From<ScryfallCard> for Print {
             illustrations.push(scryfall.clone().into())
         }
 
+        let card: Card = scryfall.clone().into();
+
         Self {
+            oracle_id: card.oracle_id.clone(),
             scryfall_id: scryfall.id,
             lang: scryfall.lang,
             arena_id: scryfall.arena_id,

@@ -4,8 +4,9 @@ interface OpfsError {
 	type: 'failed_to_fetch' | 'opfs_error';
 	message: string;
 }
-const files = ['cards', 'sets', 'rulings'] as const;
+const files = ['cards', 'prints', 'sets', 'rulings'] as const;
 const root = await navigator.storage.getDirectory();
+
 export async function download_to_opfs(
 	file_uri: string,
 	opfs_file: string
@@ -41,25 +42,27 @@ export async function sync_local_parquet() {
 		}
 		handles.push(file);
 	}
-	const [cards, sets, rulings] = handles as [
+	const [cards, prints, sets, rulings] = handles as [
+		FileSystemFileHandle,
 		FileSystemFileHandle,
 		FileSystemFileHandle,
 		FileSystemFileHandle
 	];
 
-	return { cards, sets, rulings };
+	return { cards, prints, sets, rulings };
 }
 
 export async function get_local_parquet() {
 	try {
 		// this will fail when not present
 		const handles = await Promise.all(files.map((file) => root.getFileHandle(`${file}.parquet`)));
-		const [cards, sets, rulings] = handles as [
+		const [cards, prints, sets, rulings] = handles as [
+			FileSystemFileHandle,
 			FileSystemFileHandle,
 			FileSystemFileHandle,
 			FileSystemFileHandle
 		];
-		return { cards, sets, rulings };
+		return { cards, prints, sets, rulings };
 	} catch {
 		return sync_local_parquet();
 	}

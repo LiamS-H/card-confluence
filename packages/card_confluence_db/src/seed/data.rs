@@ -32,7 +32,7 @@ pub async fn fetch_data_cached(
     let rulings_path = fetch_bulk_cached("rulings".into(), &mode, store).await?;
 
     let sets_path = match mode {
-        SeedMode::Latest => {
+        SeedMode::Latest | SeedMode::LatestOldTags => {
             println!("Fetching sets...");
             let bytes = serde_json::to_vec(&fetch_sets().await.unwrap().data)?;
             let path = Path::from(format!("sets/{}.json", timestamp));

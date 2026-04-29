@@ -1,7 +1,12 @@
 use datafusion::prelude::SessionContext;
 
-use crate::autocompletion::completion::{FORMATS, IS_VALUES, KEYWORDS};
+use crate::autocompletion::completion::{
+    // FORMATS,
+    IS_VALUES,
+    KEYWORDS,
+};
 use crate::query_parser::lexer::{self, Token, TokenKind};
+use crate::query_parser::{parser, planner};
 
 pub mod completion;
 
@@ -12,50 +17,60 @@ pub struct Completion {
 }
 
 pub async fn autocomplete(ctx: &SessionContext, input: &str, pos: usize) -> Option<Completion> {
+    // println!(
+    //     "\n\"{}\"[{}]=\"{}\"",
+    //     input,
+    //     pos,
+    //     input.chars().nth(pos).unwrap_or_default()
+    // );
     let mut tokens = lexer::tokenize(input).ok()?;
+    // println!("{:?}", tokens);
 
     let mut current_token_idx = None;
     // could be bin search; but this is probably faster for short distances
-    for (i, token) in tokens.iter().rev().enumerate() {
-        if pos > token.start && pos <= token.end {
-            current_token_idx = Some(i);
-            break;
+    for (i, token) in tokens.iter().enumerate().rev() {
+        if !(pos >= token.start && pos < token.end) {
+            continue;
         }
+        match token.kind {
+            TokenKind::RParen => break, // we can start a new ident recommendation _)
+            TokenKind::LParen | TokenKind::Not => return None, // unsure how to handle this one _(),_-
+            TokenKind::Op(_) => {
+                if token.start == pos {
+                    break; // we are at the start of an op look for the token before this
+                }
+            }
+            _ => {}
+        }
+        current_token_idx = Some(i);
     }
 
     // if pos isn't in the token tree check for the token before pos
     if current_token_idx.is_none() {
-        for (i, token) in tokens.iter().rev().enumerate() {
-            if pos > token.start && pos - 1 <= token.end {
-                match &token.kind {
-                    TokenKind::And | TokenKind::Or => {
-                        return Some(Completion {
-                            // we aren't on a token and are directly after "and" or "or" no suggestion
-                            start: pos,
-                            end: pos,
-                            strings: Vec::new(),
-                        });
-                    }
-                    TokenKind::Ident(_)
-                    | TokenKind::Not
-                    | TokenKind::LParen
-                    | TokenKind::RParen => {
-                        break; // break and return the default blank completion (we are right after an ident, return the ident suggestion)
-                    }
-                    TokenKind::Op(_) => {
-                        current_token_idx = Some(i + 1); // we are directly after an op add a value to complete
-                        tokens.push(Token {
+        for (i, token) in tokens.iter().enumerate().rev() {
+            if !(pos >= token.start && pos - 1 < token.end) {
+                continue;
+            }
+            match &token.kind {
+                TokenKind::Op(_) => {
+                    current_token_idx = Some(i + 1); // we are directly after an op add a value to complete the predicate
+                    tokens.insert(
+                        i,
+                        Token {
                             start: pos,
                             end: pos,
                             kind: TokenKind::Value("".into()),
-                        });
-                        break;
-                    }
-                    TokenKind::Value(_) => {
-                        // we are directly after a value return the value
-                        current_token_idx = Some(i);
-                        break;
-                    }
+                        },
+                    );
+                    break;
+                }
+                TokenKind::Value(_) | TokenKind::Ident(_) | TokenKind::And | TokenKind::Or => {
+                    // we are directly after a token that we can complete
+                    current_token_idx = Some(i);
+                    break;
+                }
+                TokenKind::Not | TokenKind::LParen | TokenKind::RParen => {
+                    break; // break and return the default blank completion (we are at a blank and ready to start an ident)
                 }
             }
         }
@@ -72,13 +87,89 @@ pub async fn autocomplete(ctx: &SessionContext, input: &str, pos: usize) -> Opti
 
     let token = &tokens[idx];
 
+    match &token.kind {
+        TokenKind::And | TokenKind::Or => {
+            return Some(Completion {
+                start: token.start,
+                end: token.end,
+                strings: vec!["and".into(), "or".into()],
+            })
+        }
+        TokenKind::Ident(_) => {
+            return Some(Completion {
+                start: token.start,
+                end: token.end,
+                strings: KEYWORDS.iter().map(|k| k.to_string()).collect(),
+            })
+        }
+        TokenKind::Op(_) => {
+            // return None;
+            return Some(Completion {
+                start: token.start,
+                end: token.end,
+                strings: vec![
+                    ":".into(),
+                    "=".into(),
+                    "<".into(),
+                    ">".into(),
+                    "<=".into(),
+                    ">=".into(),
+                ],
+            });
+        }
+        TokenKind::Value(val) => {
+            if idx == 0 {
+                return Some(Completion {
+                    start: token.start,
+                    end: token.end,
+                    strings: KEYWORDS.iter().map(|k| k.to_string()).collect(),
+                });
+            }
+            if let Some(prev) = tokens.iter().nth(idx - 1) {
+                if !matches!(prev.kind, TokenKind::Op(_)) {
+                    let keywords: Vec<_> = KEYWORDS.iter().map(|k| k.to_string()).collect();
+                    if keywords.contains(val) {
+                        return Some(Completion {
+                            start: token.start,
+                            end: token.end,
+                            strings: keywords,
+                        });
+                    }
+                }
+            };
+
+            // we move on to the complicated query completion
+        }
+        _ => return None,
+    };
+
     // the tree should now be able to be parsed
+    let start = token.start;
+    let end = token.end;
 
-    // get the parser predicates and replace the predicate at the cursor with TRUE
+    let ast = parser::parse(tokens).ok()?;
 
-    // run that query and filter for the given value
+    // get the current predicate
 
-    return None;
+    let strings = if false {
+        // get the PredicateField and handle "Is" separately, with the IS_VALUES
+        IS_VALUES.iter().map(|k| k.to_string()).collect()
+    } else {
+        // replace the current predicate with ScryfallExpr::True
+
+        let plan = planner::build_plan(ctx, &ast).await.ok()?;
+
+        let results = ctx.execute_logical_plan(plan).await.ok()?;
+
+        // run that query and filter for the given value
+
+        Vec::new()
+    };
+    return Some(Completion {
+        start,
+        end,
+        strings,
+    });
 }
 
 #[cfg(test)]

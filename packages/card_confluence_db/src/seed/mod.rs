@@ -14,12 +14,14 @@ use object_store::{path::Path as ObjectPath, ObjectStore};
 #[derive(Debug, PartialEq)]
 pub enum SeedMode {
     Latest,
+    LatestOldTags,
     LatestCached,
     Specific(String),
 }
 
 pub struct SeedResult {
     pub cards_parquet_path: ObjectPath,
+    pub prints_parquet_path: ObjectPath,
     pub sets_parquet_path: ObjectPath,
     pub rulings_parquet_path: ObjectPath,
 }

@@ -27,10 +27,14 @@ extern "C" {
     pub fn cards(this: &DBFileHandles) -> FileSystemFileHandle;
 
     #[wasm_bindgen(method, getter)]
+    pub fn prints(this: &DBFileHandles) -> FileSystemFileHandle;
+
+    #[wasm_bindgen(method, getter)]
     pub fn rulings(this: &DBFileHandles) -> FileSystemFileHandle;
 
     #[wasm_bindgen(method, getter)]
     pub fn sets(this: &DBFileHandles) -> FileSystemFileHandle;
+
 }
 
 #[wasm_bindgen]
@@ -42,9 +46,15 @@ impl CardConfluenceLocal {
         store
             .register_file(Path::from("cards.parquet"), files.cards())
             .await?;
+
+        store
+            .register_file(Path::from("prints.parquet"), files.prints())
+            .await?;
+
         store
             .register_file(Path::from("rulings.parquet"), files.rulings())
             .await?;
+
         store
             .register_file(Path::from("sets.parquet"), files.sets())
             .await?;
@@ -53,6 +63,7 @@ impl CardConfluenceLocal {
             store,
             TablePaths {
                 cards: "cards.parquet".into(),
+                prints: "prints.parquet".into(),
                 rulings: "rulings.parquet".into(),
                 sets: "sets.parquet".into(),
             },

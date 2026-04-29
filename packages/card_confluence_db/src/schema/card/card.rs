@@ -1,5 +1,3 @@
-use crate::schema::card::print::Print;
-
 use super::{
     legality::Legalities,
     preview::Preview,
@@ -19,11 +17,9 @@ use tsify::Tsify;
 pub struct CardFace {
     /// Always "card_face"
     // pub object: String,
-    pub oracle_id: Option<String>,
     pub cmc: Option<f32>,
     pub type_line: Option<String>,
     pub oracle_text: Option<String>,
-    pub flavor_text: Option<String>,
     pub color_indicator: Option<Vec<String>>,
     pub colors: Option<Vec<String>>,
     /// Empty string "" means explicitly no mana cost
@@ -75,5 +71,4 @@ pub struct Card {
     pub preview: Option<Preview>,
 
     pub card_faces: Option<Vec<CardFace>>,
-    pub prints: Vec<Print>,
 }
