@@ -8,6 +8,7 @@ use arrow_convert::serialize::TryIntoArrow;
 use chrono::Utc;
 use object_store::{path::Path as ObjectPath, ObjectStore};
 use parquet::arrow::arrow_writer::ArrowWriter;
+use parquet::file::properties::{EnabledStatistics, WriterProperties};
 use scryfall_rust_bindings::types::{card::ScryfallCard, ruling::ScryfallRuling, set::ScryfallSet};
 use std::{collections::HashMap, sync::Arc};
 
@@ -29,7 +30,14 @@ pub async fn write_parquets(
         sets.into_iter().map(Into::into).collect()
     };
     println!("Writing sets...");
-    let sets_parquet = write_parquet_chunked(sets)?;
+    let props = WriterProperties::builder()
+        // .set_statistics_enabled(EnabledStatistics::Page)
+        // .set_bloom_filter_enabled(false)
+        // .set_column_bloom_filter_enabled("code".into(), true)
+        // .set_column_bloom_filter_ndv("code".into(), 40_000)
+        // .set_column_bloom_filter_fpp("code".into(), 0.01)
+        .build();
+    let sets_parquet = write_parquet_chunked(sets, Some(props))?;
     let sets_parquet_path = ObjectPath::from(format!("sets/{}.parquet", timestamp));
     parquet_store
         .put(&sets_parquet_path, sets_parquet.into())
@@ -46,7 +54,14 @@ pub async fn write_parquets(
         rulings.into_iter().map(Into::into).collect()
     };
     println!("Writing rulings...");
-    let rulings_parquet = write_parquet_chunked(rulings)?;
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::Page)
+        .set_bloom_filter_enabled(false)
+        .set_column_bloom_filter_enabled("oracle_id".into(), true)
+        .set_column_bloom_filter_ndv("oracle_id".into(), 40_000)
+        .set_column_bloom_filter_fpp("oracle_id".into(), 0.01)
+        .build();
+    let rulings_parquet = write_parquet_chunked(rulings, Some(props))?;
     let rulings_parquet_path = ObjectPath::from(format!("rulings/{}.parquet", timestamp));
     parquet_store
         .put(&rulings_parquet_path, rulings_parquet.into())
@@ -88,7 +103,14 @@ pub async fn write_parquets(
     };
 
     println!("Writing cards...");
-    let cards_parquet = write_parquet_chunked(transformed_cards)?;
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::Page)
+        .set_bloom_filter_enabled(false)
+        .set_column_bloom_filter_enabled("oracle_id".into(), true)
+        .set_column_bloom_filter_ndv("oracle_id".into(), 40_000)
+        .set_column_bloom_filter_fpp("oracle_id".into(), 0.01)
+        .build();
+    let cards_parquet = write_parquet_chunked(transformed_cards, Some(props))?;
     let cards_parquet_path = ObjectPath::from(format!("cards/{}.parquet", timestamp));
     parquet_store
         .put(&cards_parquet_path, cards_parquet.into())
@@ -113,7 +135,14 @@ pub async fn write_parquets(
     });
 
     println!("Writing {} prints...", prints.len());
-    let prints_parquet = write_parquet_chunked(prints)?;
+    let props = WriterProperties::builder()
+        .set_statistics_enabled(EnabledStatistics::Page)
+        .set_bloom_filter_enabled(false)
+        .set_column_bloom_filter_enabled("oracle_id".into(), true)
+        .set_column_bloom_filter_ndv("oracle_id".into(), 40_000)
+        .set_column_bloom_filter_fpp("oracle_id".into(), 0.01)
+        .build();
+    let prints_parquet = write_parquet_chunked(prints, Some(props))?;
     let prints_parquet_path = ObjectPath::from(format!("prints/{}.parquet", timestamp));
     parquet_store
         .put(&prints_parquet_path, prints_parquet.into())
@@ -128,7 +157,10 @@ pub async fn write_parquets(
     })
 }
 
-fn write_parquet_chunked<T>(data: Vec<T>) -> Result<Vec<u8>, Box<dyn std::error::Error>>
+fn write_parquet_chunked<T>(
+    data: Vec<T>,
+    props: Option<WriterProperties>,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>>
 where
     T: arrow_convert::serialize::ArrowSerialize
         + arrow_convert::field::ArrowField<Type = T>
@@ -149,7 +181,8 @@ where
 
     let mut buffer = Vec::new();
     {
-        let mut writer = ArrowWriter::try_new(&mut buffer, schema, None)?;
+        let mut writer = ArrowWriter::try_new(&mut buffer, schema, props)?;
+
         // Use a chunk size of 5000 to balance memory usage and performance
         for chunk in data.chunks(5000) {
             let chunk_vec = chunk.to_vec();
