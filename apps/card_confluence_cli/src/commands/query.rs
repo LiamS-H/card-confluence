@@ -4,7 +4,10 @@ use card_confluence_db::{
     query_executor::context::{get_context, get_latest_paths},
     query_parser::parse_query,
 };
-use datafusion::prelude::{col, SessionContext};
+use datafusion::{
+    arrow::util::pretty::pretty_format_batches,
+    prelude::{col, SessionContext},
+};
 use object_store::ObjectStore;
 use rustyline::completion::{Completer, Pair};
 use rustyline::config::Configurer;
@@ -13,7 +16,9 @@ use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
 use rustyline::{Editor, Helper};
-use std::sync::Arc;
+
+use std::io::Write;
+use std::{fs::File, sync::Arc};
 use tokio::runtime::Handle;
 
 struct QueryHelper {
@@ -48,6 +53,7 @@ impl Completer for QueryHelper {
                 .collect();
             Ok((completion.start, pairs))
         } else {
+            println!("No Completions!");
             Ok((pos, vec![]))
         }
     }
@@ -95,9 +101,14 @@ pub async fn exec(parquet_store: Arc<dyn ObjectStore>) -> Result<()> {
                 match parse_query(&ctx, &line).await {
                     Ok(plan) => match ctx.execute_logical_plan(plan).await {
                         Ok(df) => {
-                            println!("schema:{:#?}", df.schema());
                             let df =
                                 df.select(vec![col("name"), col("colors"), col("mana_cost")])?;
+                            let explain_df = df.clone().explain(false, true)?;
+                            let explain_batches = explain_df.collect().await?;
+                            let formatted_string = pretty_format_batches(&explain_batches).unwrap();
+
+                            let mut file = File::create("explain_query_plan.txt").unwrap();
+                            write!(file, "{}", formatted_string).unwrap();
                             if let Err(e) = df.show().await {
                                 eprintln!("Error showing results: {:?}", e);
                             }

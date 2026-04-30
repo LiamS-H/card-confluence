@@ -1,14 +1,7 @@
-use crate::query_parser::lexer::{Op, Token, TokenKind};
-
-/// A single field comparison: `field OP value`
-#[derive(Debug, Clone, PartialEq)]
-pub struct Predicate {
-    pub field: String,
-    pub op: Op,
-    pub value: String,
-    pub start: usize,
-    pub end: usize,
-}
+use crate::query_parser::{
+    lexer::{Op, Token, TokenKind},
+    planner::predicates::Predicate,
+};
 
 /// The AST node.
 #[derive(Debug, Clone, PartialEq)]

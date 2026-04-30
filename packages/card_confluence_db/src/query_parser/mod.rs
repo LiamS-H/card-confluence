@@ -1,7 +1,6 @@
 pub mod lexer;
 pub mod parser;
 pub mod planner;
-pub mod predicates;
 
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::prelude::SessionContext;

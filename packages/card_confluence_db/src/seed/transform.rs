@@ -26,6 +26,12 @@ use crate::{
 
 impl From<ScryfallCardFace> for CardFace {
     fn from(scryfall: ScryfallCardFace) -> Self {
+        let type_line = scryfall.type_line.unwrap_or("".into());
+        let Types {
+            sub_types,
+            super_types,
+            card_types,
+        } = types_from_type_line(&type_line);
         Self {
             cmc: scryfall.cmc.map(|c| c as f32),
             color_indicator: scryfall.color_indicator,
@@ -37,39 +43,56 @@ impl From<ScryfallCardFace> for CardFace {
             oracle_text: scryfall.oracle_text,
             power: scryfall.power,
             toughness: scryfall.toughness,
-            type_line: scryfall.type_line,
+            type_line,
+            card_types,
+            sub_types,
+            super_types,
         }
     }
 }
 
+struct Types {
+    sub_types: Vec<String>,
+    super_types: Vec<String>,
+    card_types: Vec<String>,
+}
+fn types_from_type_line(type_line: &String) -> Types {
+    let mut sub_types: Vec<String> = Vec::new();
+    let mut super_types: Vec<String> = Vec::new();
+    let mut card_types: Vec<String> = Vec::new();
+
+    let parts: Vec<&str> = type_line.split(" — ").collect();
+
+    if let Some(left) = parts.first() {
+        for word in left.split_whitespace() {
+            if KNOWN_SUPERTYPES.contains(&word) {
+                super_types.push(word.to_string());
+            } else {
+                card_types.push(word.to_string());
+            }
+        }
+    }
+
+    if let Some(right) = parts.get(1) {
+        for word in right.split_whitespace() {
+            sub_types.push(word.to_string());
+        }
+    }
+    return Types {
+        sub_types,
+        super_types,
+        card_types,
+    };
+}
+
 impl From<ScryfallCard> for Card {
-    // type Error = &'static str;
-    // fn try_from(scryfall: ScryfallCard) -> Result<Self, Self::Error> {
     fn from(scryfall: ScryfallCard) -> Self {
-        let mut sub_types: Vec<String> = Vec::new();
-        let mut super_types: Vec<String> = Vec::new();
-        let mut card_types: Vec<String> = Vec::new();
-
-        if let Some(type_line) = &scryfall.type_line {
-            let parts: Vec<&str> = type_line.split(" — ").collect();
-
-            if let Some(left) = parts.first() {
-                for word in left.split_whitespace() {
-                    if KNOWN_SUPERTYPES.contains(&word) {
-                        super_types.push(word.to_string());
-                    } else {
-                        card_types.push(word.to_string());
-                    }
-                }
-            }
-
-            if let Some(right) = parts.get(1) {
-                for word in right.split_whitespace() {
-                    sub_types.push(word.to_string());
-                }
-            }
-        };
-
+        let type_line = scryfall.type_line.unwrap_or("".into());
+        let Types {
+            sub_types,
+            super_types,
+            card_types,
+        } = types_from_type_line(&type_line);
         Self {
             layout: scryfall.layout,
             oracle_id: scryfall.oracle_id.unwrap_or_else(|| {
@@ -116,7 +139,7 @@ impl From<ScryfallCard> for Card {
             produced_mana: scryfall.produced_mana,
             reserved: scryfall.reserved,
             toughness: scryfall.toughness,
-            type_line: scryfall.type_line.unwrap_or("".into()),
+            type_line,
             card_types,
             super_types,
             sub_types,

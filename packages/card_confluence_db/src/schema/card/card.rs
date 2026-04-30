@@ -18,7 +18,10 @@ pub struct CardFace {
     /// Always "card_face"
     // pub object: String,
     pub cmc: Option<f32>,
-    pub type_line: Option<String>,
+    pub type_line: String,
+    pub card_types: Vec<String>,
+    pub super_types: Vec<String>,
+    pub sub_types: Vec<String>,
     pub oracle_text: Option<String>,
     pub color_indicator: Option<Vec<String>>,
     pub colors: Option<Vec<String>>,
