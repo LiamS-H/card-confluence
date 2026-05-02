@@ -1,11 +1,18 @@
-import { query_client } from '$lib/query/client';
+import { query_client } from '$lib/query/client.svelte';
 
-// export function use_query(query: QueryRequest) {
-export function use_card(getId: () => string, key?: string) {
+export function use_card(getId: () => string, key?: string, debounce?: number) {
 	const id = $derived(getId());
 	key ??= crypto.randomUUID();
+	let timeout: NodeJS.Timeout;
+
 	$effect(() => {
-		query_client.ensure_card(id, key);
+		query_client.track_invalidations();
+		if (debounce) {
+			timeout = setTimeout(() => query_client.ensure_card(id, key), debounce);
+		} else {
+			query_client.ensure_card(id, key);
+		}
+		return () => clearTimeout(timeout);
 	});
 
 	return {

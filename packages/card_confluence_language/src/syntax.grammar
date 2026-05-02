@@ -1,0 +1,97 @@
+@top Query { expr? }
+
+// ---------------------------------------------------------------------------
+// Precedence levels (lower number = looser binding)
+// ---------------------------------------------------------------------------
+@precedence {
+  or   @left,
+  and  @left,
+  not  @right
+}
+
+// ---------------------------------------------------------------------------
+// Expression grammar
+// OR < AND (implicit & explicit) < NOT < atom
+// ---------------------------------------------------------------------------
+
+expr { orExpr }
+
+orExpr {
+  andExpr |
+  orExpr !or Or andExpr
+}
+
+// Adjacent terms are an implicit AND; explicit AND keyword also works.
+andExpr {
+  notExpr |
+  andExpr !and And notExpr |
+  andExpr !and notExpr
+}
+
+notExpr {
+  atom |
+  !not (Not | NotOp) notExpr
+}
+
+atom {
+  Predicate |
+  BareWord    |
+  Group
+}
+
+Group { "(" expr ")" }
+
+// ---------------------------------------------------------------------------
+// Leaf rules
+// ---------------------------------------------------------------------------
+
+// field OP value  —  e.g.  cmc>=3   c:blue   name:"Serra Angel"   o://
+Predicate {
+  FieldName Operator Value
+}
+
+FieldName { identifier }
+Value     { QuotedString | identifier }
+
+// A bare word with no preceding operator — treated as implicit name:<word>.
+// this collides with a field name which can be an identifier
+BareWord { identifier }
+
+Operator {
+  Colon | Eq | Ne | Lte | Lt | Gte | Gt
+}
+
+// ---------------------------------------------------------------------------
+// Tokens
+// ---------------------------------------------------------------------------
+
+@tokens {
+  // Alphanumeric words — field names AND unquoted values share the same
+  // character class.  @specialize below promotes AND / OR / NOT keywords.
+  identifier {
+    (@asciiLetter | @digit | "_" | "*" | "/" | ".")
+    (@asciiLetter | @digit | "_" | "-" | "." | "*" | "/")*
+  }
+
+  // Double-quoted string with backslash escapes, e.g. "Serra Angel"
+  QuotedString { '"' (!["\\\n] | "\\" _)* '"' }
+
+  // Operators — longest alternatives must come first.
+  Lte { "<=" }
+  Gte { ">=" }
+  Ne  { "!=" }
+  Lt  { "<" }
+  Gt  { ">" }
+  Eq  { "=" }
+  Colon { ":" }
+  
+  NotOp { "-" }
+
+}
+
+// Carve AND / OR / NOT out of the generic identifier stream.
+Or  { @specialize[@name=Or]<identifier,  "OR">  }
+And { @specialize[@name=And]<identifier, "AND"> }
+Not { @specialize[@name=Not]<identifier, "NOT"> }
+
+@skip { " " | "\t" | "\r" | "\n" }

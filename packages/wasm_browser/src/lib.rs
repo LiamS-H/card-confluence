@@ -105,9 +105,15 @@ impl CardConfluenceLocal {
 
     pub fn release_files(&self) -> Result<(), JsValue> {
         self.store.release_file(Path::from("cards.parquet"))?;
+        self.context.deregister_table("cards").map_err(error_map)?;
         self.store.release_file(Path::from("prints.parquet"))?;
+        self.context.deregister_table("prints").map_err(error_map)?;
         self.store.release_file(Path::from("rulings.parquet"))?;
-        self.store.release_file(Path::from("cards.parquet"))?;
+        self.context
+            .deregister_table("rulings")
+            .map_err(error_map)?;
+        self.store.release_file(Path::from("sets.parquet"))?;
+        self.context.deregister_table("sets").map_err(error_map)?;
         Ok(())
     }
 

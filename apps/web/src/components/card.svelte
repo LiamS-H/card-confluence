@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { use_card } from '$lib';
 
-	const { id, key }: { id: string; key?: string } = $props();
+	const { id, key, debounce }: { id: string; key?: string; debounce?: number } = $props();
 
-	let { card } = $derived(use_card(() => id, key));
+	let { card } = $derived(use_card(() => id, key, debounce));
 
 	$effect(() => {
 		if (!card.loading && !card.error) {
-			console.log(card.result);
+			// console.log(card.result);
 		}
 	});
 </script>

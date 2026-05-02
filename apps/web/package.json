@@ -48,6 +48,12 @@
 	"dependencies": {
 		"wasm-browser": "workspace:*",
 		"@uwdata/flechette": "^2.4.0",
-		"svelte-tiny-virtual-list": "^3.0.1"
+		"svelte-tiny-virtual-list": "^3.0.1",
+		"codemirror-lang-cardconfluence": "workspace:*",
+		"@codemirror/autocomplete": "^6.18.6",
+		"@codemirror/commands": "^6.10.0",
+		"@codemirror/language": "^6.11.3",
+		"@codemirror/view": "^6.36.8",
+		"codemirror": "^6.0.2"
 	}
 }

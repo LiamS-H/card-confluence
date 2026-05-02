@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": false,
+    "outDir": "./dist",
+    "exactOptionalPropertyTypes": true,
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "lib": ["ESNext", "DOM"]
+  },
+  "include": ["src/**/*.ts"]
+}

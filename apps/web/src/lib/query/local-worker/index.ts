@@ -10,7 +10,7 @@ import {
 	QUERY_CACHE_TABLE,
 	type CacheKey
 } from '../cache';
-import { type QueryRequest } from '../client';
+import { type QueryRequest } from '../client.svelte';
 
 export type QueryWorkerEvent = {
 	type: 'promotion' | 'db-sync' | 'db-sync-complete' | 'error-fatal';
@@ -69,7 +69,6 @@ async function initBrowser(
 const local_browser = initBrowser(get_local_parquet());
 
 async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
-	console.log('[worker]', event.data);
 	const request = event.data;
 	let message!: QueryWorkerResponse;
 	try {
@@ -120,10 +119,15 @@ QueryReqChannel.onmessage(handle_message);
 QueryEventsChannel.onmessage(async (event) => {
 	if (event.data.type === 'db-sync') {
 		const browser = await local_browser;
-		browser.release_files();
+		try {
+			browser.release_files();
+		} catch {
+			// files didn't need to be released
+		}
 
 		const reset = cache_clear();
 		const [handles] = await Promise.all([sync_local_parquet(), reset]);
+		// const [handles] = await Promise.all([get_local_parquet(), reset]);
 		if ('type' in handles) {
 			throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
 		}

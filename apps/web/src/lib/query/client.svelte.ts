@@ -55,8 +55,8 @@ export function query_to_string(query: QueryRequest): string {
 }
 
 class QueryClient {
+	private epoch = $state(0);
 	ready = false;
-	private isLeader = false;
 	private initialized = false;
 
 	// key is the idb key, value is the js memory result value
@@ -80,10 +80,11 @@ class QueryClient {
 	private on_self_promotion: LockGrantedCallback<unknown> = (lock) => {
 		// when called with ifAvailable, this will exit early and mark the client ready because there is already a leader
 		if (!lock) {
-			console.log('I am not the leader');
+			console.log('[client] connected as follower.');
 			this.ready = true;
 			return false;
 		}
+		console.log('[client] connected as leader.');
 
 		// TODO: this is where we can check for internet connection, and which worker to use
 		// This also locks the main db files, meaning we can't sync them from opfs, currently we kill and restart wasm to get new files
@@ -97,7 +98,6 @@ class QueryClient {
 			}
 		};
 
-		this.isLeader = true;
 		this.ready = true;
 
 		// empty promise to resolve when leader is released
@@ -201,6 +201,9 @@ class QueryClient {
 	}
 
 	private on_promotion() {
+		if (this.in_flight.size > 0) {
+			console.log(`[client] resending ${this.in_flight.size} inflight requests.`, this.in_flight);
+		}
 		for (const request of this.in_flight.values()) {
 			QueryReqChannel.postMessage(request);
 		}
@@ -223,7 +226,7 @@ class QueryClient {
 
 	private request_card_batch() {
 		if (this.cards_batch_timeout) return;
-		this.cards_batch_timeout = setTimeout(() => this.process_cards_batch(), 20);
+		this.cards_batch_timeout = setTimeout(() => this.process_cards_batch(), 100);
 	}
 
 	public ensure_card(card_id: string, tag: string): void {
@@ -270,6 +273,7 @@ class QueryClient {
 					this.on_promotion();
 					return;
 				case 'db-sync':
+					this.clear_cache();
 					return;
 			}
 		});
@@ -279,12 +283,25 @@ class QueryClient {
 		return;
 	}
 
+	private invalidate_all() {
+		this.epoch += 1;
+	}
+
+	public track_invalidations() {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		this.epoch;
+	}
+
+	private clear_cache() {
+		this.queries.clear();
+		this.queries_data_map.clear();
+		this.cards.clear();
+		this.invalidate_all();
+	}
+
 	public update_db_latest() {
 		QueryEventsChannel.postMessage({ type: 'db-sync' });
-		if (!this.isLeader) {
-			return;
-		}
-		this.queries.clear();
+		this.clear_cache();
 	}
 }
 
