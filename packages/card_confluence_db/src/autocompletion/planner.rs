@@ -1,8 +1,7 @@
 use crate::query_parser::parser::ScryfallExpr;
 use crate::query_parser::planner::predicates::Predicate;
 use crate::query_parser::planner::{
-    expr_to_df_expr, needs_prints_table, needs_sets_table, predicates::PredicateField, split_expr,
-    PlanError,
+    expr_to_df_expr, needs_prints_table, needs_sets_table, predicates::PredicateField, PlanError,
 };
 use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::logical_expr::{col, Expr as DFExpr, LogicalPlan, LogicalPlanBuilder};
@@ -13,15 +12,10 @@ pub async fn build_distinct_values_plan(
     context_expr: &ScryfallExpr,
     pred: PredicateField,
 ) -> Result<LogicalPlan, PlanError> {
-    let (oracle_expr, print_expr) = split_expr(context_expr)?;
     let needs_set = matches!(pred, PredicateField::Set | PredicateField::SetType)
         || needs_sets_table(context_expr)?;
 
     let mut builder = LogicalPlanBuilder::from(ctx.table("cards").await?.into_unoptimized_plan());
-    if let Some(ref of) = oracle_expr {
-        let schema = builder.schema().clone();
-        builder = builder.filter(expr_to_df_expr(of, &schema)?)?;
-    }
 
     let needs_print = needs_set || pred.is_print_field() || needs_prints_table(context_expr)?;
     if needs_print {
@@ -44,16 +38,13 @@ pub async fn build_distinct_values_plan(
         )?;
     };
 
-    if let Some(ref pf) = print_expr {
-        let schema = builder.schema().clone();
-        let filter = expr_to_df_expr(pf, &schema)?;
-        builder = builder.filter(filter)?;
-    }
-
+    let schema = builder.schema().clone();
+    builder = builder.filter(expr_to_df_expr(context_expr, &schema)?)?;
     let plan = builder.build()?;
 
     let expr = pred.to_unique_df_expr()?;
-    let mut builder = LogicalPlanBuilder::from(plan).project(vec![expr.alias("__completion_col__")])?;
+    let mut builder =
+        LogicalPlanBuilder::from(plan).project(vec![expr.alias("__completion_col__")])?;
 
     if pred.is_array() {
         builder = builder.unnest_column("__completion_col__")?;
@@ -176,4 +167,3 @@ impl PredicateField {
         }
     }
 }
-

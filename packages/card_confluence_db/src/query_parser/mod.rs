@@ -51,7 +51,7 @@ pub async fn parse_query(ctx: &SessionContext, input: &str) -> Result<LogicalPla
     let ast = parser::parse(tokens)?;
 
     // Stage 3 – Plan
-    let plan = planner::build_plan(ctx, &ast).await?;
+    let plan = planner::build_query_plan(ctx, &ast).await?;
 
     Ok(plan)
 }

@@ -30,6 +30,7 @@ export async function download_to_opfs(
 }
 
 export async function sync_local_parquet() {
+	console.log('[parquet] getting latest parquet files...');
 	const promises = [];
 	for (const file of files) {
 		promises.push(download_to_opfs(`${PUBLIC_PARQUET_LATEST}/${file}.parquet`, `${file}.parquet`));
@@ -49,6 +50,7 @@ export async function sync_local_parquet() {
 		FileSystemFileHandle
 	];
 
+	console.log('[parquet] latest files downloaded.');
 	return { cards, prints, sets, rulings };
 }
 

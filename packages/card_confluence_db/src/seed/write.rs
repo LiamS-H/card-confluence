@@ -44,7 +44,7 @@ pub async fn write_parquets(
         .await?;
 
     println!("Packaging rulings...");
-    let rulings: Vec<Ruling> = {
+    let mut rulings: Vec<Ruling> = {
         let rulings_json = json_store
             .get(&seed_result.rulings_path)
             .await?
@@ -53,6 +53,7 @@ pub async fn write_parquets(
         let rulings: Vec<ScryfallRuling> = serde_json::from_slice(&rulings_json)?;
         rulings.into_iter().map(Into::into).collect()
     };
+    rulings.sort_by(|a, b| a.oracle_id.cmp(&b.oracle_id));
     println!("Writing rulings...");
     let props = WriterProperties::builder()
         .set_statistics_enabled(EnabledStatistics::Page)
@@ -84,7 +85,13 @@ pub async fn write_parquets(
             .await?
             .bytes()
             .await?;
-        let cards: Vec<ScryfallCard> = serde_json::from_slice(&cards_json)?;
+        let mut cards: Vec<ScryfallCard> = serde_json::from_slice(&cards_json)?;
+        // cards.sort_by(|a, b| a.oracle_id.cmp(&b.oracle_id));
+        cards.sort_by(|a, b| {
+            a.cmc
+                .unwrap_or_default()
+                .total_cmp(&b.cmc.unwrap_or_default())
+        });
         println!("Packaging cards...");
         cards
             .into_iter()

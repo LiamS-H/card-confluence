@@ -4,8 +4,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use dotenvy::dotenv;
 use object_store::{
-    aws::AmazonS3Builder, local::LocalFileSystem, prefix::PrefixStore,
-    ObjectStore,
+    aws::AmazonS3Builder, local::LocalFileSystem, prefix::PrefixStore, ObjectStore,
 };
 use std::sync::Arc;
 
@@ -28,7 +27,7 @@ enum Commands {
         mode: Option<String>,
     },
     /// Query the latest parquet data via interactive TUI
-    Query,
+    Query { text: Option<String> },
     /// Move latest local parquet files to R2
     UploadLatest,
 }
@@ -74,8 +73,12 @@ async fn main() -> Result<()> {
         Commands::Seed { mode } => {
             commands::seed::exec(mode, json_store, parquet_store).await?;
         }
-        Commands::Query => {
-            commands::query::exec(parquet_store).await?;
+        Commands::Query { text } => {
+            if let Some(text) = text {
+                commands::query::exec(parquet_store, text).await?;
+            } else {
+                commands::query::rustyline_exec(parquet_store).await?;
+            };
         }
         Commands::UploadLatest => {
             let latest_store = get_r2_from_env_prefix("LATEST")?;

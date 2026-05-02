@@ -4,10 +4,11 @@ use datafusion::{
     error::DataFusionError,
     prelude::{ParquetReadOptions, SessionContext},
 };
-use object_store::{path::Path as ObjectPath, prefix::PrefixStore, ObjectStore};
+use object_store::{path::Path as ObjectPath, ObjectStore};
 
 #[cfg(not(target_arch = "wasm32"))]
 use object_store::local::LocalFileSystem;
+use object_store::prefix::PrefixStore;
 
 use url::Url;
 
@@ -20,19 +21,11 @@ pub struct TablePaths {
     pub sets: String,
 }
 
-pub async fn get_context<T: ObjectStore>(
-    object_store: T,
+pub async fn register_paths(
+    base_url: Url,
+    ctx: &SessionContext,
     paths: TablePaths,
-) -> Result<SessionContext, DataFusionError> {
-    // Note: The base URL must end in a trailing slash for join()
-    // to treat it as a directory/base rather than a filename.
-    let base_url = Url::parse("db://data/").unwrap();
-
-    let ctx = SessionContext::new();
-    ctx.runtime_env()
-        .register_object_store(&base_url, Arc::new(object_store));
-
-    // join() handles the relative paths safely
+) -> Result<(), DataFusionError> {
     let cards_url = base_url
         .join(&paths.cards)
         .map_err(|e| DataFusionError::External(Box::new(e)))?;
@@ -61,6 +54,23 @@ pub async fn get_context<T: ObjectStore>(
 
     ctx.register_parquet("sets", sets_url.as_str(), ParquetReadOptions::default())
         .await?;
+    Ok(())
+}
+
+pub async fn get_context<T: ObjectStore>(
+    object_store: T,
+    paths: TablePaths,
+) -> Result<SessionContext, DataFusionError> {
+    // Note: The base URL must end in a trailing slash for join()
+    // to treat it as a directory/base rather than a filename.
+
+    let ctx = SessionContext::new();
+
+    let base_url = Url::parse("db://data/").unwrap();
+    ctx.runtime_env()
+        .register_object_store(&base_url, Arc::new(object_store));
+
+    register_paths(base_url, &ctx, paths).await?;
 
     Ok(ctx)
 }

@@ -7,9 +7,10 @@ import {
 	cache_store_get,
 	cache_store_insert,
 	local_cache,
-	QUERY_CACHE_TABLE
+	QUERY_CACHE_TABLE,
+	type CacheKey
 } from '../cache';
-import { query_to_string, type QueryRequest } from '../client';
+import { type QueryRequest } from '../client';
 
 export type QueryWorkerEvent = {
 	type: 'promotion' | 'db-sync' | 'db-sync-complete' | 'error-fatal';
@@ -17,90 +18,116 @@ export type QueryWorkerEvent = {
 
 export type QueryWorkerResponse =
 	| {
-			tag: string;
+			req_id: string;
 			type: 'error';
-			error: string;
+			message: string;
 	  }
 	| {
-			tag: string;
+			req_id: string;
 			type: 'result';
-			index: Uint8Array<ArrayBuffer>;
+			index: CacheKey;
 	  };
 
-async function initBrowser(files: ReturnType<typeof get_local_parquet>) {
+export type QueryWorkerRequest =
+	| {
+			req_id: string;
+			type: 'query';
+			query: QueryRequest;
+	  }
+	| {
+			req_id: string;
+			type: 'cards';
+			ids: string[];
+	  }
+	| {
+			req_id: string;
+			type: 'sets';
+			ids: string[];
+	  }
+	| {
+			req_id: string;
+			type: 'rulings';
+			ids: string[];
+	  };
+
+async function initBrowser(
+	files: ReturnType<typeof get_local_parquet>
+): Promise<CardConfluenceLocal> {
 	await init();
 	const handles = await files;
 	if ('type' in handles) {
 		throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
 	}
 
-	// const sync_handles = {
-	// 	cards: handles.cards.createSyncAccessHandle(),
-	// 	sets: handles.sets.createSyncAccessHandle(),
-	// 	rulings: handles.rulings.createSyncAccessHandle()
-	// };
+	const browser = new CardConfluenceLocal();
 
-	const browser = await CardConfluenceLocal.fromFiles(handles);
+	await browser.attach_files(handles);
+
 	return browser;
 }
 
-let local_browser = initBrowser(get_local_parquet());
+const local_browser = initBrowser(get_local_parquet());
 
-async function handle_message(event: MessageEvent<QueryRequest>) {
-	console.log('[worker]', event.data); // why isn't this firing
+async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
+	console.log('[worker]', event.data);
+	const request = event.data;
 	let message!: QueryWorkerResponse;
-	const tag = query_to_string(event.data);
 	try {
-		let time = Date.now();
 		const browser = await local_browser;
 		const cache = await local_cache;
-		// cast to declare not shared array buffer
-		console.log('fetch browser and cache', Date.now() - time);
-		time = Date.now();
-		const plan = (await browser.plan_index(event.data.query)) as Uint8Array<ArrayBuffer>;
-		console.log('await plan', Date.now() - time);
-		time = Date.now();
+		let plan!: Uint8Array<ArrayBuffer>;
+		switch (request.type) {
+			case 'query': {
+				plan = (await browser.query_plan_from_query(
+					request.query.query
+				)) as Uint8Array<ArrayBuffer>;
+				break;
+			}
+			case 'cards': {
+				plan = (await browser.cards_plan_from_card_ids(request.ids)) as Uint8Array<ArrayBuffer>;
+				break;
+				break;
+			}
+			// case 'sets':
+			// case 'rulings':
+		}
 
 		const transaction = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
 		const store = transaction.objectStore(QUERY_CACHE_TABLE);
 		let data = await cache_store_get(plan, store);
-		console.log('indexdb cache get', Date.now() - time);
-		time = Date.now();
 		if (data === null) {
-			data = (await browser.query(plan)) as Uint8Array<ArrayBuffer>;
-			console.log('query', Date.now() - time);
-			time = Date.now();
+			data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
 			await cache_store_insert(plan, data, store);
-			console.log('indexdb cache write', Date.now() - time);
 		}
 		message = {
-			tag,
+			req_id: request.req_id,
 			type: 'result',
 			index: plan
 		};
 	} catch (error) {
 		message = {
-			tag,
+			req_id: request.req_id,
 			type: 'error',
-			error: String(error)
+			message: String(error)
 		};
 	}
 
 	QueryResChannel.postMessage(message);
 }
 
-// self.onmessage = handle_message;
-
 QueryReqChannel.onmessage(handle_message);
 
 QueryEventsChannel.onmessage(async (event) => {
 	if (event.data.type === 'db-sync') {
 		const browser = await local_browser;
-		browser.free();
+		browser.release_files();
 
-		local_browser = initBrowser(sync_local_parquet());
 		const reset = cache_clear();
-		await Promise.all([local_browser, reset]);
+		const [handles] = await Promise.all([sync_local_parquet(), reset]);
+		if ('type' in handles) {
+			throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
+		}
+		await browser.attach_files(handles);
 		QueryEventsChannel.postMessage({ type: 'db-sync-complete' });
 	}
 });

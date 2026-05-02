@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     collections::HashMap,
     fmt,
     future::Future,
@@ -58,14 +59,14 @@ pub struct OpfsReadonlyStore {
     /// `FileSystemFileHandle` is `!Send`, which is fine — we only ever access
     /// this map on the one WASM thread, and `SendWrapper` silences the
     /// compiler.
-    files: HashMap<Path, SendWrapper<FileSystemSyncAccessHandle>>,
+    files: SendWrapper<RefCell<HashMap<Path, FileSystemSyncAccessHandle>>>,
 }
 
 impl OpfsReadonlyStore {
     /// Creates an empty store with no registered files.
     pub fn new() -> Self {
         Self {
-            files: HashMap::new(),
+            files: SendWrapper(RefCell::new(HashMap::new())),
         }
     }
 
@@ -75,7 +76,7 @@ impl OpfsReadonlyStore {
     /// `{ create: true }`). Registering the same path twice overwrites the
     /// previous handle.
     pub async fn register_file(
-        &mut self,
+        &self,
         path: Path,
         handle: FileSystemFileHandle,
     ) -> Result<(), JsValue> {
@@ -83,14 +84,23 @@ impl OpfsReadonlyStore {
         let js_val = JsFuture::from(promise).await?;
         let sync_handle: FileSystemSyncAccessHandle = js_val.unchecked_into();
 
-        self.files.insert(path, SendWrapper(sync_handle));
+        self.files.0.borrow_mut().insert(path, sync_handle);
 
         Ok(())
     }
 
+    pub fn release_file(&self, path: Path) -> Result<(), JsValue> {
+        if let Some(handle) = self.files.0.borrow_mut().remove(&path) {
+            handle.close();
+            Ok(())
+        } else {
+            Err(JsValue::from("Failed to release file. File not found."))
+        }
+    }
+
     /// Returns the set of all currently registered paths.
-    pub fn registered_paths(&self) -> impl Iterator<Item = &Path> {
-        self.files.keys()
+    pub fn registered_paths(&self) -> Vec<Path> {
+        self.files.0.borrow().keys().cloned().collect()
     }
 
     fn not_found(&self, path: &Path) -> Error {
@@ -170,14 +180,18 @@ impl Default for OpfsReadonlyStore {
 
 impl fmt::Display for OpfsReadonlyStore {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "OpfsReadonlyStore({} files)", self.files.len())
+        write!(
+            f,
+            "OpfsReadonlyStore({} files)",
+            self.files.0.borrow().len()
+        )
     }
 }
 
 impl fmt::Debug for OpfsReadonlyStore {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("OpfsReadonlyStore")
-            .field("files", &self.files.keys().collect::<Vec<_>>())
+            .field("files", &self.files.0.borrow().keys().collect::<Vec<_>>())
             .finish()
     }
 }
@@ -193,36 +207,35 @@ impl ObjectStore for OpfsReadonlyStore {
         'life0: 'async_trait,
         'life1: 'async_trait,
     {
-        let result = self
-            .files
-            .get(location)
-            .ok_or_else(|| self.not_found(location));
+        // Scope the borrow so it doesn't cross the await point or future creation
+        let handle_ptr_res = {
+            let map = self.files.0.borrow();
+            map.get(location)
+                .map(|h| h as *const FileSystemSyncAccessHandle)
+                .ok_or_else(|| self.not_found(location))
+        };
 
         let location = location.clone();
 
-        match result {
+        match handle_ptr_res {
             Err(e) => Box::pin(async move { Err(e) }),
-            Ok(handle) => {
-                let handle_ptr = &handle.0 as *const FileSystemSyncAccessHandle;
+            Ok(handle_ptr) => send_future(async move {
+                let handle = unsafe { &*handle_ptr };
 
-                send_future(async move {
-                    let handle = unsafe { &*handle_ptr };
+                let meta = Self::file_meta(location.clone(), handle)?;
 
-                    let meta = Self::file_meta(location.clone(), handle)?;
+                let (sliced, byte_range) =
+                    Self::read_file_bytes_range(handle, options.range.as_ref())?;
 
-                    let (sliced, byte_range) =
-                        Self::read_file_bytes_range(handle, options.range.as_ref())?;
-
-                    Ok(GetResult {
-                        payload: GetResultPayload::Stream(Box::pin(stream::once(async move {
-                            Ok(sliced)
-                        }))),
-                        meta,
-                        range: byte_range,
-                        attributes: Default::default(),
-                    })
+                Ok(GetResult {
+                    payload: GetResultPayload::Stream(Box::pin(stream::once(
+                        async move { Ok(sliced) },
+                    ))),
+                    meta,
+                    range: byte_range,
+                    attributes: Default::default(),
                 })
-            }
+            }),
         }
     }
 
@@ -235,46 +248,44 @@ impl ObjectStore for OpfsReadonlyStore {
         'life0: 'async_trait,
         'life1: 'async_trait,
     {
-        let result = self
-            .files
-            .get(location)
-            .ok_or_else(|| self.not_found(location));
+        let handle_ptr_res = {
+            let map = self.files.0.borrow();
+            map.get(location)
+                .map(|h| h as *const FileSystemSyncAccessHandle)
+                .ok_or_else(|| self.not_found(location))
+        };
 
         let location = location.clone();
 
-        match result {
+        match handle_ptr_res {
             Err(e) => Box::pin(async move { Err(e) }),
-            Ok(handle) => {
-                let handle_ptr = &handle.0 as *const FileSystemSyncAccessHandle;
-                send_future(async move {
-                    let handle = unsafe { &*handle_ptr };
-                    Self::file_meta(location, handle)
-                })
-            }
+            Ok(handle_ptr) => send_future(async move {
+                let handle = unsafe { &*handle_ptr };
+                Self::file_meta(location, handle)
+            }),
         }
     }
 
     fn list(&self, prefix: Option<&Path>) -> BoxStream<'static, Result<ObjectMeta>> {
-        // Wrap the raw pointer in SendWrapper so the vector items are Send (just to make compiler happy)
-        let entries: Vec<(Path, SendWrapper<*const FileSystemSyncAccessHandle>)> = self
-            .files
-            .iter()
-            .filter(|(p, _)| match &prefix {
-                None => true,
-                Some(pfx) => p.as_ref().starts_with(pfx.as_ref()),
-            })
-            // Wrap the pointer here
-            .map(|(p, h)| {
-                (
-                    p.clone(),
-                    SendWrapper(&h.0 as *const FileSystemSyncAccessHandle),
-                )
-            })
-            .collect();
+        // Collect pointers to safely yield items outside the RefCell borrow scope
+        let entries: Vec<(Path, SendWrapper<*const FileSystemSyncAccessHandle>)> = {
+            let map = self.files.0.borrow();
+            map.iter()
+                .filter(|(p, _)| match &prefix {
+                    None => true,
+                    Some(pfx) => p.as_ref().starts_with(pfx.as_ref()),
+                })
+                .map(|(p, h)| {
+                    (
+                        p.clone(),
+                        SendWrapper(h as *const FileSystemSyncAccessHandle),
+                    )
+                })
+                .collect()
+        };
 
         let stream = stream::iter(entries).then(|(path, ptr)| {
             send_future(async move {
-                // Unwrap it inside the future
                 let handle = unsafe { &*ptr.0 };
                 Self::file_meta(path, handle)
             })

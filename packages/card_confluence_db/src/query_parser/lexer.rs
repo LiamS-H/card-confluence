@@ -375,4 +375,29 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn test_regex_prefix() {
+        let tokens = tokenize("o://").unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                Token {
+                    kind: TokenKind::Ident("o".into()),
+                    start: 0,
+                    end: 1
+                },
+                Token {
+                    kind: TokenKind::Op(Op::Colon),
+                    start: 1,
+                    end: 2
+                },
+                Token {
+                    kind: TokenKind::Value("//".into()),
+                    start: 2,
+                    end: 4
+                },
+            ]
+        );
+    }
 }

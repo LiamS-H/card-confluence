@@ -5,8 +5,7 @@ use card_confluence_db::{
     query_parser::parse_query,
 };
 use datafusion::{
-    arrow::util::pretty::pretty_format_batches,
-    prelude::{col, SessionContext},
+    arrow::util::pretty::pretty_format_batches, logical_expr::col, prelude::SessionContext,
 };
 use object_store::ObjectStore;
 use rustyline::completion::{Completer, Pair};
@@ -42,20 +41,27 @@ impl Completer for QueryHelper {
                 .block_on(async { autocomplete(&self.ctx, line, pos).await })
         });
 
-        if let Some(completion) = suggestions {
-            let pairs = completion
-                .strings
-                .into_iter()
-                .map(|s| Pair {
-                    display: s.clone(),
-                    replacement: s,
-                })
-                .collect();
-            Ok((completion.start, pairs))
-        } else {
+        let Some(completion) = suggestions else {
             println!("No Completions!");
-            Ok((pos, vec![]))
-        }
+            return Ok((pos, vec![]));
+        };
+        let matches: Vec<&String> = completion
+            .strings
+            .iter()
+            .filter(|s| {
+                s.to_lowercase()
+                    .starts_with(&line[completion.start..completion.end].to_lowercase())
+            })
+            .collect();
+
+        let pairs = matches
+            .into_iter()
+            .map(|s| Pair {
+                display: s.clone(),
+                replacement: s.clone(),
+            })
+            .collect();
+        Ok((completion.start, pairs))
     }
 }
 
@@ -67,7 +73,18 @@ impl Highlighter for QueryHelper {}
 
 impl Validator for QueryHelper {}
 
-pub async fn exec(parquet_store: Arc<dyn ObjectStore>) -> Result<()> {
+pub async fn exec(parquet_store: Arc<dyn ObjectStore>, text: String) -> Result<()> {
+    let paths = get_latest_paths(parquet_store.clone()).await?;
+    let ctx = get_context(parquet_store, paths).await?;
+    let plan = parse_query(&ctx, &text).await?;
+    let df = ctx.execute_logical_plan(plan).await?;
+    // let df = df.select(vec![col("name"), col("colors"), col("mana_cost")])?;
+    println!("Found: {} results", df.clone().count().await?);
+    df.collect().await?;
+    Ok(())
+}
+
+pub async fn rustyline_exec(parquet_store: Arc<dyn ObjectStore>) -> Result<()> {
     let paths = get_latest_paths(parquet_store.clone()).await?;
     let ctx = get_context(parquet_store, paths).await?;
     let handle = Handle::current();
@@ -98,24 +115,29 @@ pub async fn exec(parquet_store: Arc<dyn ObjectStore>) -> Result<()> {
                 }
                 rl.add_history_entry(line.as_str())?;
                 rl.save_history(history_path)?;
-                match parse_query(&ctx, &line).await {
-                    Ok(plan) => match ctx.execute_logical_plan(plan).await {
-                        Ok(df) => {
-                            let df =
-                                df.select(vec![col("name"), col("colors"), col("mana_cost")])?;
-                            let explain_df = df.clone().explain(false, true)?;
-                            let explain_batches = explain_df.collect().await?;
-                            let formatted_string = pretty_format_batches(&explain_batches).unwrap();
+                let plan = match parse_query(&ctx, &line).await {
+                    Ok(plan) => plan,
+                    Err(e) => {
+                        eprintln!("Parse error: {:?}", e);
+                        continue;
+                    }
+                };
+                let df = match ctx.execute_logical_plan(plan).await {
+                    Ok(df) => df,
+                    Err(e) => {
+                        eprintln!("Execution error: {:?}", e);
+                        continue;
+                    }
+                };
+                let df = df.select(vec![col("name"), col("mana_cost")])?;
+                let explain_df = df.clone().explain(false, true)?;
+                let explain_batches = explain_df.collect().await?;
+                let formatted_string = pretty_format_batches(&explain_batches).unwrap();
 
-                            let mut file = File::create("explain_query_plan.txt").unwrap();
-                            write!(file, "{}", formatted_string).unwrap();
-                            if let Err(e) = df.show().await {
-                                eprintln!("Error showing results: {:?}", e);
-                            }
-                        }
-                        Err(e) => eprintln!("Execution error: {:?}", e),
-                    },
-                    Err(e) => eprintln!("Parse error: {:?}", e),
+                let mut file = File::create("explain_query_plan.txt").unwrap();
+                write!(file, "{}", formatted_string).unwrap();
+                if let Err(e) = df.show().await {
+                    eprintln!("Error showing results: {:?}", e);
                 }
             }
             Err(ReadlineError::Interrupted) => {
