@@ -13,4 +13,5 @@ pub struct Set {
     pub code: String,
     /// UUID
     pub id: String,
+    pub released_at: Option<String>,
 }

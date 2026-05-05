@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use arrow_ipc::writer::StreamWriter;
 use card_confluence_db::{
+    autocompletion::{completion_from_query, Completion, CompletionResponse},
     query_executor::context::{register_paths, TablePaths},
     query_parser::{
         parse_query,
@@ -22,6 +23,17 @@ use web_sys::FileSystemFileHandle;
 use crate::opfs_binding::OpfsReadonlyStore;
 
 pub mod opfs_binding;
+
+use serde::{Deserialize, Serialize};
+use tsify::Tsify;
+#[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct CompletionPlan {
+    #[tsify(type = "Uint8Array")]
+    #[serde(with = "serde_bytes")]
+    plan: Vec<u8>,
+    completion: Completion,
+}
 
 #[wasm_bindgen]
 pub struct CardConfluenceLocal {
@@ -118,6 +130,7 @@ impl CardConfluenceLocal {
     }
 
     async fn execute_plan(&self, plan: LogicalPlan) -> Result<Vec<u8>, DataFusionError> {
+        // web_sys::console::log_1(&format!("Executing plan: {}", plan.display_indent()).into());
         let df = self.context.execute_logical_plan(plan).await?;
 
         let mut buffer = Vec::new();
@@ -158,6 +171,29 @@ impl CardConfluenceLocal {
         let plan = builder.build().map_err(error_map)?;
 
         return Ok(logical_plan_to_bytes(&plan).map_err(error_map)?.into());
+    }
+
+    pub async fn completion_plan_from_query(
+        &self,
+        query: String,
+        pos: usize,
+    ) -> Result<CompletionPlan, JsValue> {
+        let response = completion_from_query(&self.context, query.as_str(), pos)
+            .await
+            .ok_or(JsValue::from("Failed to get completion plan"))?;
+
+        match response {
+            CompletionResponse::Query(completion, logical_plan) => {
+                let plan = logical_plan_to_bytes(&logical_plan)
+                    .map_err(error_map)?
+                    .into();
+                Ok(CompletionPlan { plan, completion })
+            }
+            CompletionResponse::Completion(completion) => Ok(CompletionPlan {
+                plan: Vec::new(),
+                completion,
+            }),
+        }
     }
 
     pub async fn sets_plan_from_set_codes(&self, sets: Vec<String>) -> Result<Vec<u8>, JsValue> {

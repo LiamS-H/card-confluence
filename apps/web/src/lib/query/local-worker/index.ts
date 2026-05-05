@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import init, { CardConfluenceLocal } from 'wasm-browser';
+import init, { CardConfluenceLocal, type Completion, type CompletionPlan } from 'wasm-browser';
 import { get_local_parquet, sync_local_parquet } from './files';
 import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
 import {
@@ -26,6 +26,12 @@ export type QueryWorkerResponse =
 			req_id: string;
 			type: 'result';
 			index: CacheKey;
+	  }
+	| {
+			req_id: string;
+			type: 'completion';
+			index: CacheKey;
+			completion: Completion;
 	  };
 
 export type QueryWorkerRequest =
@@ -38,6 +44,12 @@ export type QueryWorkerRequest =
 			req_id: string;
 			type: 'cards';
 			ids: string[];
+	  }
+	| {
+			req_id: string;
+			type: 'completion';
+			query: QueryRequest;
+			pos: number;
 	  }
 	| {
 			req_id: string;
@@ -85,6 +97,27 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 			case 'cards': {
 				plan = (await browser.cards_plan_from_card_ids(request.ids)) as Uint8Array<ArrayBuffer>;
 				break;
+			}
+			case 'completion': {
+				console.log('[worker] completion');
+				const evaluation = (await browser.completion_plan_from_query(
+					request.query.query,
+					request.pos
+				)) as CompletionPlan;
+				plan = evaluation.plan as unknown as Uint8Array<ArrayBuffer>;
+				console.log('[worker] planned', plan);
+				const completion = evaluation.completion;
+				message = {
+					req_id: request.req_id,
+					type: 'completion',
+					completion,
+					index: plan
+				};
+				if (plan.length == 0) {
+					message.index = null;
+					QueryResChannel.postMessage(message);
+					return;
+				}
 				break;
 			}
 			// case 'sets':
@@ -93,12 +126,16 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 
 		const transaction = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
 		const store = transaction.objectStore(QUERY_CACHE_TABLE);
+		console.log('[worker] getting cache');
 		let data = await cache_store_get(plan, store);
 		if (data === null) {
+			console.log('[worker] cache miss');
+			console.log('[worker] evaluating plan');
 			data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
 			await cache_store_insert(plan, data, store);
 		}
-		message = {
+		console.log('[worker] cache hit!');
+		message ??= {
 			req_id: request.req_id,
 			type: 'result',
 			index: plan

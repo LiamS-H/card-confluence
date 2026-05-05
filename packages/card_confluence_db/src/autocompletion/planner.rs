@@ -3,9 +3,11 @@ use crate::query_parser::planner::predicates::Predicate;
 use crate::query_parser::planner::{
     expr_to_df_expr, needs_prints_table, needs_sets_table, predicates::PredicateField, PlanError,
 };
+use arrow_schema::DataType;
 use datafusion::functions::core::expr_ext::FieldAccessor;
-use datafusion::logical_expr::{col, Expr as DFExpr, LogicalPlan, LogicalPlanBuilder};
-use datafusion::prelude::{JoinType, SessionContext};
+use datafusion::logical_expr::{col, lit, Expr as DFExpr, LogicalPlan, LogicalPlanBuilder};
+use datafusion::prelude::{cast, JoinType, SessionContext};
+use datafusion::scalar::ScalarValue;
 
 pub async fn build_distinct_values_plan(
     ctx: &SessionContext,
@@ -40,34 +42,77 @@ pub async fn build_distinct_values_plan(
 
     let schema = builder.schema().clone();
     builder = builder.filter(expr_to_df_expr(context_expr, &schema)?)?;
-    let plan = builder.build()?;
+    let base_plan = builder.build()?;
 
-    let expr = pred.to_unique_df_expr()?;
-    let mut builder =
-        LogicalPlanBuilder::from(plan).project(vec![expr.alias("__completion_col__")])?;
-
-    if pred.is_array() {
-        builder = builder.unnest_column("__completion_col__")?;
-
-        if matches!(
-            pred,
-            PredicateField::Artist | PredicateField::FlavorText | PredicateField::Watermark
-        ) {
-            let field_name = match pred {
-                PredicateField::Artist => "artist",
-                PredicateField::FlavorText => "flavor_text",
-                PredicateField::Watermark => "watermark",
-                _ => unreachable!(),
-            };
-            builder = builder.project(vec![col("__completion_col__")
-                .field(field_name)
-                .alias("__completion_col__")])?;
+    let completion_plan = match pred {
+        PredicateField::Type => {
+            LogicalPlanBuilder::from(base_plan)
+                .project(vec![datafusion_functions_nested::expr_fn::array_concat(vec![
+                    col("cards.super_types"),
+                    col("cards.card_types"),
+                    col("cards.sub_types"),
+                ])
+                .alias("label")])?
+                .unnest_column("label")?
+                .project(vec![
+                    cast(col("label"), DataType::Utf8).alias("label"),
+                    lit(ScalarValue::Utf8(None)).alias("info"),
+                    lit(ScalarValue::Utf8(None)).alias("detail"),
+                    lit(ScalarValue::Utf8(None)).alias("group"),
+                ])?
+                .build()?
         }
-    }
+        PredicateField::Set => LogicalPlanBuilder::from(base_plan)
+            .project(vec![
+                cast(col("prints.set_code"), DataType::Utf8).alias("label"),
+                cast(col("prints.released_at"), DataType::Utf8).alias("info"),
+                cast(col("sets.name"), DataType::Utf8).alias("detail"),
+                lit(ScalarValue::Utf8(None)).alias("group"),
+            ])?
+            .build()?,
+        _ => {
+            let expr = pred.to_unique_df_expr()?;
+            let mut builder =
+                LogicalPlanBuilder::from(base_plan).project(vec![expr.alias("label")])?;
 
-    let distinct_plan = builder
+            if pred.is_array() {
+                builder = builder.unnest_column("label")?;
+
+                if matches!(
+                    pred,
+                    PredicateField::Artist | PredicateField::FlavorText | PredicateField::Watermark
+                ) {
+                    let field_name = match pred {
+                        PredicateField::Artist => "artist",
+                        PredicateField::FlavorText => "flavor_text",
+                        PredicateField::Watermark => "watermark",
+                        _ => {
+                            return Err(PlanError(format!(
+                                "Unexpected field for illustration-based completion: {:?}",
+                                pred
+                            )))
+                        }
+                    };
+                    builder =
+                        builder.project(vec![col("label").field(field_name).alias("label")])?;
+                }
+            }
+
+            builder
+                .project(vec![
+                    cast(col("label"), DataType::Utf8).alias("label"),
+                    lit(ScalarValue::Utf8(None)).alias("info"),
+                    lit(ScalarValue::Utf8(None)).alias("detail"),
+                    lit(ScalarValue::Utf8(None)).alias("group"),
+                ])?
+                .build()?
+        }
+    };
+
+    let distinct_plan = LogicalPlanBuilder::from(completion_plan)
+        .filter(col("label").is_not_null())?
         .distinct()?
-        .sort(vec![col("__completion_col__").sort(true, true)])?
+        .sort(vec![col("label").sort(true, true)])?
         .build()?;
 
     Ok(distinct_plan)
@@ -142,11 +187,7 @@ impl PredicateField {
 
     pub fn to_unique_df_expr(&self) -> Result<DFExpr, PlanError> {
         match self {
-            PredicateField::Type => Ok(datafusion_functions_nested::expr_fn::array_concat(vec![
-                col("cards.super_types"),
-                col("cards.card_types"),
-                col("cards.sub_types"),
-            ])),
+            PredicateField::Type => Err(PlanError("Type handled specially".into())),
             PredicateField::Artist | PredicateField::FlavorText | PredicateField::Watermark => {
                 Ok(col("prints.illustrations"))
             }

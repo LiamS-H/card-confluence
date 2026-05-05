@@ -46,11 +46,17 @@ impl Completer for QueryHelper {
             return Ok((pos, vec![]));
         };
         let matches: Vec<&String> = completion
-            .strings
+            .options
             .iter()
-            .filter(|s| {
-                s.to_lowercase()
-                    .starts_with(&line[completion.start..completion.end].to_lowercase())
+            .filter_map(|s| {
+                if s.label
+                    .to_lowercase()
+                    .starts_with(&line[completion.from..completion.to].to_lowercase())
+                {
+                    Some(&s.label)
+                } else {
+                    None
+                }
             })
             .collect();
 
@@ -61,7 +67,7 @@ impl Completer for QueryHelper {
                 replacement: s.clone(),
             })
             .collect();
-        Ok((completion.start, pairs))
+        Ok((completion.from, pairs))
     }
 }
 

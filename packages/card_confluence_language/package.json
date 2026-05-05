@@ -29,6 +29,7 @@
     "@codemirror/language": "^6.11.0"
   },
   "devDependencies": {
+    "wasm-browser": "workspace:*",
     "@lezer/generator": "^1.8.0",
     "mocha": "^11.7.5",
     "rollup": "^4.60.2",

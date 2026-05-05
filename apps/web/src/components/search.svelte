@@ -3,9 +3,12 @@
 	import { EditorState } from '@codemirror/state';
 	import { EditorView } from '@codemirror/view';
 	import { basicSetup } from 'codemirror';
-	import { cardconfluence } from 'codemirror-lang-cardconfluence';
+	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
+	import { query_client } from '$lib/query/client.svelte';
 
 	const { doc, onDocChange }: { doc: string; onDocChange: (doc: string) => void } = $props();
+
+	const getDoc = () => doc;
 
 	let editorContainer: HTMLDivElement;
 	let view: EditorView;
@@ -15,7 +18,19 @@
 		const state = EditorState.create({
 			doc: doc,
 			extensions: [
-				cardconfluence(),
+				cardconfluenceWithContext(
+					{
+						complete: async (pos) => {
+							return await query_client.autocomplete(
+								{
+									query: getDoc()
+								},
+								pos
+							);
+						}
+					},
+					{}
+				),
 				basicSetup,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {

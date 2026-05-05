@@ -9,7 +9,7 @@ import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '$lib/query
 import { SvelteMap } from 'svelte/reactivity';
 import { cache_get, cache_clear, type CacheKey } from './cache';
 import { tableFromIPC } from '@uwdata/flechette';
-import type { Card, Print } from 'wasm-browser';
+import type { Card, Print, CompletionOption, Completion } from 'wasm-browser';
 
 export interface QueryResultRow {
 	oracle_id: string;
@@ -133,6 +133,9 @@ class QueryClient {
 					});
 					return;
 				}
+				if (response.type === 'completion') {
+					throw new Error('completion returned for non completion request.');
+				}
 
 				if (query.loading !== true) {
 					return;
@@ -178,6 +181,9 @@ class QueryClient {
 					}
 					return;
 				}
+				if (response.type === 'completion') {
+					throw new Error('completion returned for non completion request.');
+				}
 
 				const data = await cache_get(response.index);
 				if (!data) {
@@ -194,6 +200,7 @@ class QueryClient {
 					const card = table.at(i) as DetailedCard;
 					this.cards.set(card.oracle_id, { loading: false, error: false, result: card });
 				}
+				return;
 			}
 			// case 'sets':
 			// case 'rulings':
@@ -245,6 +252,55 @@ class QueryClient {
 		const req = { req_id, type: 'query', query } as const;
 		this.in_flight.set(req_id, req);
 		QueryReqChannel.postMessage(req);
+	}
+
+	public async autocomplete(query: QueryRequest, pos: number): Promise<Completion> {
+		const controller = new AbortController();
+		const req_id = crypto.randomUUID();
+
+		const request: QueryWorkerRequest = {
+			req_id,
+			type: 'completion',
+			pos,
+			query
+		};
+
+		QueryReqChannel.postMessage(request);
+
+		const { promise, resolve, reject } = Promise.withResolvers<Completion>();
+
+		QueryResChannel.onmessage(async (e) => {
+			if (e.data.req_id !== req_id) return;
+			controller.abort();
+			if (e.data.type === 'error' || e.data.type === 'result') {
+				reject();
+				return;
+			}
+			const completion = e.data.completion;
+			console.log('[client] received completion', completion);
+			if (completion.options.length > 0) {
+				return completion;
+			}
+			const data = await cache_get(e.data.index);
+			if (!data) {
+				const message = '[client] db index returned by worker has no associated data.';
+				console.error(message);
+				this.queries.set(req_id, {
+					loading: false,
+					error: true,
+					message
+				});
+				return;
+			}
+			const options = tableFromIPC(data).toArray() as CompletionOption[];
+			console.log('[client] received options', options);
+
+			resolve({ ...completion, options });
+
+			// const rows = table.toArray() as QueryResultRow[];
+		}, controller);
+
+		return promise;
 	}
 
 	public async init(): Promise<void> {

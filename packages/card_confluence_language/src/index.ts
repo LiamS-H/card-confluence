@@ -11,13 +11,19 @@ import { styleTags, tags } from "@lezer/highlight";
 import { CardConfluenceTooltips } from "./tooltip";
 // import { completeCardConfluence } from "./autocomplete";
 
-import { cardconfluenceSettingsFacet } from "./settings";
-import { predicateFromView } from "./utils/tag-from-view";
+import {
+    cardconfluenceSettingsFacet,
+    type IEditorSettings,
+    type IEditorSettingsInput,
+} from "./settings";
+import { predicateFromView } from "./utils/predicate-from-view";
+import { completeCardConfluence } from "./autocomplete/autocomplete";
+import { queryContextFacet, type IQueryContext } from "./query-context";
 export {
-    argTypeFromString,
-    argTypeFromArg,
-    detailFromArg,
-    isArgument,
+    predicateTypeFromString,
+    predicateTypeFromKeyword as predicateTypeFromArg,
+    detailFromKeyword,
+    isKeyword,
 } from "./autocomplete/completion";
 
 export const cardconfluenceLanguage = LRLanguage.define({
@@ -46,11 +52,25 @@ export const cardconfluenceLanguage = LRLanguage.define({
 export function cardconfluence() {
     return new LanguageSupport(cardconfluenceLanguage, [
         CardConfluenceTooltips,
-        // cardconfluenceLanguage.data.of({ autocomplete: completeCardConfluence }),
+        cardconfluenceLanguage.data.of({
+            autocomplete: completeCardConfluence,
+        }),
+    ]);
+}
+export function cardconfluenceWithContext(
+    context: IQueryContext,
+    settings: IEditorSettingsInput,
+) {
+    return new LanguageSupport(cardconfluenceLanguage, [
+        CardConfluenceTooltips,
+        cardconfluenceLanguage.data.of({
+            autocomplete: completeCardConfluence,
+        }),
+        queryContextFacet.of(context),
+        cardconfluenceSettingsFacet.of(settings),
     ]);
 }
 
-// export { completeCardConfluence, CardConfluenceTooltips };
+export type { IQueryContext };
 
-export { cardconfluenceSettingsFacet };
 export { predicateFromView };

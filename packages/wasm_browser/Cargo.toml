@@ -44,6 +44,7 @@ serde_json = { workspace = true }
 
 
 serde = { workspace = true, features = ["derive"] }
+serde_bytes = "0.11"
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 tsify = { workspace = true }
@@ -60,6 +61,7 @@ web-sys = { version = "0.3", features = [
     "StorageManager",
     "File",
     "Blob",
+    "console",
 ] }
 js-sys = "0.3"
 getrandom = { version = "0.3", features = ["wasm_js"] }

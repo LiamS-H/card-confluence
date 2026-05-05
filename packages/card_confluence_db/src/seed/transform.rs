@@ -334,6 +334,7 @@ impl From<ScryfallSet> for Set {
             set_type: scryfall.set_type,
             code: scryfall.code,
             id: scryfall.id,
+            released_at: scryfall.released_at,
         }
     }
 }

@@ -1,5 +1,5 @@
 // prettier-ignore
-export const ARGUMENTS = [ // (to keep this list somewhat organized)
+export const KEYWORDS = [ // (to keep this list somewhat organized)
     'oracle', 'o', 'fo', 'fulloracle',
     'type', 't',
     'set', 's', 'st', 'e', 'edition', 'in',
@@ -23,6 +23,7 @@ export const ARGUMENTS = [ // (to keep this list somewhat organized)
     'border',
     'frame',
     'stamp',
+    'layout',
     'date', 'year',
     'atag', 'arttag', 'art', 
     'otag', 'oracletag', 'function', 
@@ -32,12 +33,12 @@ export const ARGUMENTS = [ // (to keep this list somewhat organized)
     "unique",
     "order",
     "dir", "direction",
-    "l", "lang","language"
+    "l", "lang","language",
 ] as const;
 
-export type Argument = (typeof ARGUMENTS)[number];
+export type Keyword = (typeof KEYWORDS)[number];
 
-export type ARG_TYPE =
+export type PredicatedType =
     | "oracle"
     | "type"
     | "set"
@@ -62,6 +63,7 @@ export type ARG_TYPE =
     | "border"
     | "frame"
     | "stamp"
+    | "layout"
     | "date"
     | "atag"
     | "otag"
@@ -72,7 +74,7 @@ export type ARG_TYPE =
     | "dir"
     | "lang";
 
-export const ARG_TYPE_MAP: Record<Argument, ARG_TYPE> = {
+export const PredicateTypeMap: Record<Keyword, PredicatedType> = {
     o: "oracle",
     oracle: "oracle",
     fo: "oracle",
@@ -131,6 +133,7 @@ export const ARG_TYPE_MAP: Record<Argument, ARG_TYPE> = {
     border: "border",
     frame: "frame",
     stamp: "stamp",
+    layout: "layout",
     date: "date",
     year: "number",
     art: "atag",
@@ -160,7 +163,7 @@ export interface ICompletionNode {
 }
 
 export interface ICompletionMap {
-    nodes: Record<ARG_TYPE, ICompletionNode>;
+    nodes: Record<PredicatedType, ICompletionNode>;
 }
 
 export const COMPLETION_MAP: ICompletionMap = {
@@ -195,6 +198,7 @@ export const COMPLETION_MAP: ICompletionMap = {
         border: { operator: "assert" },
         frame: { operator: "assert" },
         stamp: { operator: "assert" },
+        layout: { operator: "assert" },
         date: { operator: "all" },
         atag: { operator: "assert" },
         otag: { operator: "assert" },
@@ -339,7 +343,7 @@ const lang_Node: IDetailNode = {
     info: "Filter the language the card was printed in.",
 };
 
-export const DETAIL_MAP: Record<Argument, IDetailNode> = {
+export const DETAIL_MAP: Record<Keyword, IDetailNode> = {
     o: o_Node,
     oracle: o_Node,
     fo: fo_Node,
@@ -465,6 +469,10 @@ See m: for instruction on mana symbol formatting.`,
         detail: "Card stamp.",
         info: "Search for a card’s security stamp with stamp:oval, stamp:acorn, stamp:triangle, or stamp:arena.",
     },
+    layout: {
+        detail: "Card Layout",
+        info: "The layout of a card, eg. Adventure, Split.",
+    },
     date: {
         detail: "Date printed.",
         info: "You can use numeric expressions (>, <, =, >=, <=, and !=) to find cards that were released relative to a certain year or a yyyy-mm-dd date. You can also use any set code to stand in for the set’s release date.",
@@ -510,23 +518,23 @@ See m: for instruction on mana symbol formatting.`,
     language: lang_Node,
 };
 
-export function isArgument(string: string): string is Argument {
-    return (ARGUMENTS as unknown as string[]).includes(string);
+export function isKeyword(string: string): string is Keyword {
+    return (KEYWORDS as unknown as string[]).includes(string);
 }
 
-export function detailFromArg(arg: Argument): IDetailNode {
+export function detailFromKeyword(arg: Keyword): IDetailNode {
     return DETAIL_MAP[arg];
 }
 
-export function nodeFromArg(arg: Argument): ICompletionNode {
-    return COMPLETION_MAP.nodes[ARG_TYPE_MAP[arg]];
+export function nodeFromKeyword(arg: Keyword): ICompletionNode {
+    return COMPLETION_MAP.nodes[PredicateTypeMap[arg]];
 }
 
-export function argTypeFromArg(arg: Argument): ARG_TYPE {
-    return ARG_TYPE_MAP[arg];
+export function predicateTypeFromKeyword(arg: Keyword): PredicatedType {
+    return PredicateTypeMap[arg];
 }
 
-export function argTypeFromString(string: string): ARG_TYPE | null {
-    if (!isArgument(string)) return null;
-    return argTypeFromArg(string);
+export function predicateTypeFromString(string: string): PredicatedType | null {
+    if (!isKeyword(string)) return null;
+    return predicateTypeFromKeyword(string);
 }

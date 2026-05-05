@@ -17,16 +17,13 @@ export function predicateFromView(
 ): Predicate | null {
     const cursor = syntaxTree(view.state).cursorAt(pos, -1);
 
-    while (cursor.name !== "Tag" && cursor.parent()) {}
+    while (cursor.name !== "Predicate" && cursor.parent()) {}
 
-    if (cursor.name !== "Tag") {
+    if (cursor.name !== "Predicate") {
         return null;
     }
     const predicate_end = cursor.node.to;
     cursor.firstChild();
-    if ((cursor.name as string) === "Prefix") {
-        cursor.nextSibling();
-    }
     const argument = view.state.sliceDoc(cursor.node.from, cursor.node.to);
     const arg_start = cursor.from;
     cursor.nextSibling();

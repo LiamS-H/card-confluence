@@ -2,10 +2,12 @@
 // use std::fs::File;
 // use std::io::Write;
 // use arrow::util::pretty::pretty_format_batches;
-use arrow::util::display::array_value_to_string;
-use arrow_array::Array;
+use arrow_array::{ArrayRef, RecordBatch, StructArray};
+use arrow_convert::deserialize::TryIntoCollection;
+use arrow_schema::Schema;
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::prelude::SessionContext;
+use std::sync::Arc;
 
 use crate::autocompletion::completion::{
     // FORMATS,
@@ -13,6 +15,7 @@ use crate::autocompletion::completion::{
     IS_VALUES,
     KEYWORDS,
 };
+use crate::autocompletion::option::CompletionOption;
 use crate::autocompletion::planner::{find_predicate, replace_predicate_with_true};
 use crate::query_parser::lexer::{self, Token, TokenKind};
 use crate::query_parser::parser;
@@ -20,12 +23,17 @@ use crate::query_parser::parser;
 use crate::query_parser::planner::predicates::PredicateField;
 use crate::query_parser::planner::PlanError;
 pub mod completion;
+pub mod option;
 mod planner;
+use serde::{Deserialize, Serialize};
+use tsify::Tsify;
 
+#[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Completion {
-    pub start: usize,
-    pub end: usize,
-    pub strings: Vec<String>,
+    pub from: usize,
+    pub to: usize,
+    pub options: Vec<CompletionOption>,
 }
 
 pub enum CompletionResponse {
@@ -34,15 +42,17 @@ pub enum CompletionResponse {
 }
 
 pub async fn autocomplete(ctx: &SessionContext, input: &str, pos: usize) -> Option<Completion> {
-    match autocomplete_to_query(ctx, input, pos).await? {
+    match completion_from_query(ctx, input, pos).await? {
         CompletionResponse::Query(completion, plan) => {
-            return autocomplete_from_query(ctx, plan, completion).await.ok();
+            return autocomplete_from_completion(ctx, plan, completion)
+                .await
+                .ok();
         }
         CompletionResponse::Completion(completion) => return Some(completion),
     };
 }
 
-pub async fn autocomplete_to_query(
+pub async fn completion_from_query(
     ctx: &SessionContext,
     input: &str,
     pos: usize,
@@ -100,9 +110,9 @@ pub async fn autocomplete_to_query(
 
     let Some(idx) = current_token_idx else {
         return Some(CompletionResponse::Completion(Completion {
-            start: pos,
-            end: pos,
-            strings: KEYWORDS.iter().map(|k| k.to_string()).collect(),
+            from: pos,
+            to: pos,
+            options: KEYWORDS.iter().map(|k| (*k).into()).collect(),
         }));
     };
 
@@ -111,23 +121,23 @@ pub async fn autocomplete_to_query(
     match &token.kind {
         TokenKind::And | TokenKind::Or => {
             return Some(CompletionResponse::Completion(Completion {
-                start: token.start,
-                end: token.end,
-                strings: vec!["and".into(), "or".into()],
+                from: token.start,
+                to: token.end,
+                options: vec!["and".into(), "or".into()],
             }))
         }
         TokenKind::Ident(_) => {
             return Some(CompletionResponse::Completion(Completion {
-                start: token.start,
-                end: token.end,
-                strings: KEYWORDS.iter().map(|k| k.to_string()).collect(),
+                from: token.start,
+                to: token.end,
+                options: KEYWORDS.iter().map(|k| (*k).into()).collect(),
             }))
         }
         TokenKind::Op(_) => {
             return Some(CompletionResponse::Completion(Completion {
-                start: token.start,
-                end: token.end,
-                strings: vec![
+                from: token.start,
+                to: token.end,
+                options: vec![
                     ":".into(),
                     "=".into(),
                     "<".into(),
@@ -140,9 +150,9 @@ pub async fn autocomplete_to_query(
         TokenKind::Value(val) => {
             if idx == 0 {
                 return Some(CompletionResponse::Completion(Completion {
-                    start: token.start,
-                    end: token.end,
-                    strings: KEYWORDS.iter().map(|k| k.to_string()).collect(),
+                    from: token.start,
+                    to: token.end,
+                    options: KEYWORDS.iter().map(|k| k.to_string().into()).collect(),
                 }));
             }
             if let Some(prev) = tokens.iter().nth(idx - 1) {
@@ -150,9 +160,9 @@ pub async fn autocomplete_to_query(
                     let keywords: Vec<_> = KEYWORDS.iter().map(|k| k.to_string()).collect();
                     if keywords.contains(val) {
                         return Some(CompletionResponse::Completion(Completion {
-                            start: token.start,
-                            end: token.end,
-                            strings: keywords,
+                            from: token.start,
+                            to: token.end,
+                            options: keywords.iter().map(|u| u.to_string().into()).collect(),
                         }));
                     }
                 }
@@ -162,8 +172,8 @@ pub async fn autocomplete_to_query(
         _ => return None,
     };
 
-    let start = token.start;
-    let end = token.end;
+    let from = token.start;
+    let to = token.end;
 
     let ast = parser::parse(tokens.clone()).ok()?;
     let (pred, _path) = find_predicate(&ast, pos)?;
@@ -172,17 +182,17 @@ pub async fn autocomplete_to_query(
     // `is:` values are static — no query needed
     if matches!(pred_type, PredicateField::Is) {
         return Some(CompletionResponse::Completion(Completion {
-            start,
-            end,
-            strings: IS_VALUES.iter().map(|k| k.to_string()).collect(),
+            from,
+            to,
+            options: IS_VALUES.iter().map(|k| (*k).into()).collect(),
         }));
     }
 
     if matches!(pred_type, PredicateField::Format) {
         return Some(CompletionResponse::Completion(Completion {
-            start,
-            end,
-            strings: FORMATS.iter().map(|k| k.to_string()).collect(),
+            from,
+            to,
+            options: FORMATS.iter().map(|k| (*k).into()).collect(),
         }));
     }
 
@@ -194,47 +204,52 @@ pub async fn autocomplete_to_query(
         .ok()?;
     Some(CompletionResponse::Query(
         Completion {
-            start,
-            end,
-            strings: Vec::new(),
+            from,
+            to,
+            options: Vec::new(),
         },
         plan,
     ))
 }
 
-pub async fn autocomplete_from_query(
+pub async fn autocomplete_from_completion(
     ctx: &SessionContext,
     plan: LogicalPlan,
     completion: Completion,
 ) -> Result<Completion, PlanError> {
     let df = ctx.execute_logical_plan(plan).await?;
 
-    // let explain_df = df.clone().explain(false, true)?;
-    // let explain_batches = explain_df.collect().await?;
-    // let formatted_string = pretty_format_batches(&explain_batches).unwrap();
-
-    // let mut file = File::create("explain_distinct_plan.txt").unwrap();
-    // write!(file, "{}", formatted_string).unwrap();
-
     let batches = df.collect().await?;
 
-    let values = batches
-        .iter()
-        .flat_map(|batch| {
-            let array = batch.column(0);
-            (0..batch.num_rows()).filter_map(move |i| {
-                if array.is_null(i) {
-                    return None;
-                }
-                array_value_to_string(array, i).ok()
+    let mut options = Vec::new();
+    for batch in batches {
+        // Manually update the schema to match CompletionOption's nullability requirements
+        let fields: Vec<_> = batch
+            .schema()
+            .fields()
+            .iter()
+            .map(|f| match f.name().as_str() {
+                "label" => f.as_ref().clone().with_nullable(false),
+                "info" | "detail" | "group" => f.as_ref().clone().with_nullable(true),
+                _ => f.as_ref().clone(),
             })
-        })
-        .collect();
+            .collect();
+        let schema = Arc::new(Schema::new(fields));
+        let batch = RecordBatch::try_new(schema, batch.columns().to_vec())
+            .map_err(|e| PlanError(e.to_string()))?;
+
+        let struct_array = StructArray::from(batch);
+        let array_ref: ArrayRef = Arc::new(struct_array);
+        let batch_options: Vec<CompletionOption> = array_ref
+            .try_into_collection()
+            .map_err(|e| PlanError(e.to_string()))?;
+        options.extend(batch_options);
+    }
 
     Ok(Completion {
-        start: completion.start,
-        end: completion.end,
-        strings: values,
+        from: completion.from,
+        to: completion.to,
+        options,
     })
 }
 
@@ -249,10 +264,8 @@ mod tests {
     async fn test_autocomplete_keywords() {
         let ctx = SessionContext::new();
         let input = "cm"; //should return from layout cmc
-        let Completion {
-            strings: suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         assert!(suggestions.contains(&"cmc".to_string()));
     }
 
@@ -260,10 +273,8 @@ mod tests {
     async fn test_autocomplete_is_values() {
         let ctx = SessionContext::new();
         let input = "is:"; // should run blanket query and return all layouts
-        let Completion {
-            strings: mut suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let mut suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         suggestions.sort();
         let mut is_vals = IS_VALUES.to_vec();
         is_vals.sort();
@@ -275,10 +286,8 @@ mod tests {
         let ctx = get_local_context().await.unwrap();
         let input = "layout:"; // should run blanket query and return all layouts
 
-        let Completion {
-            strings: suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         assert!(suggestions.contains(&"adventure".to_string()));
     }
 
@@ -286,10 +295,8 @@ mod tests {
     async fn test_autocomplete_compound_1_values() {
         let ctx = get_local_context().await.unwrap();
         let input = "format:premodern layout:"; // should run the query "format:premodern" and return all layouts
-        let Completion {
-            strings: mut suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let mut suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         suggestions.sort();
         assert!(suggestions == vec!["normal", "split"]);
     }
@@ -298,10 +305,9 @@ mod tests {
     async fn test_autocomplete_compound_2_values() {
         let ctx = get_local_context().await.unwrap();
         let input = "format:premodern layout:n"; // should run the query "format:premodern" and return all layouts
-        let Completion {
-            strings: mut suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let mut suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
+
         suggestions.sort();
         assert!(suggestions == vec!["normal", "split"]);
     }
@@ -311,7 +317,7 @@ mod tests {
         let ctx = get_local_context().await.unwrap();
         let input = "format:premodern or layout:n"; // should get the query string "", (which wont work in the planer so a custom plan will be made) and return all layouts
         let Completion {
-            strings: suggestions,
+            options: suggestions,
             ..
         } = autocomplete(&ctx, input, input.len()).await.unwrap();
         assert!(suggestions.len() > 2);
@@ -321,10 +327,8 @@ mod tests {
     async fn test_autocomplete_compound_or_2_values() {
         let ctx = get_local_context().await.unwrap();
         let input = "-layout:normal (format:premodern or layout:n)"; // should get the query string "-layout:normal",
-        let Completion {
-            strings: suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         assert!(!suggestions.contains(&"normal".into()));
     }
 
@@ -332,10 +336,8 @@ mod tests {
     async fn test_autocomplete_compound_or_3_values() {
         let ctx = get_local_context().await.unwrap();
         let input = "(-layout:normal format:premodern) or layout:n"; // should get the query string "", (which wont work in the planer so a custom plan will be made) and return all layouts
-        let Completion {
-            strings: suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         assert!(suggestions.len() > 2);
         assert!(suggestions.contains(&"normal".into()));
     }
@@ -345,10 +347,8 @@ mod tests {
         let ctx = get_local_context().await.unwrap();
         let input = "format:premodern -(format:vintage name:)";
         // should run the query "format:premodern" -(format:vintage) and return names
-        let Completion {
-            strings: mut suggestions,
-            ..
-        } = autocomplete(&ctx, input, input.len() - 1).await.unwrap();
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len() - 1).await.unwrap();
+        let mut suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         suggestions.sort();
         assert!(suggestions == vec!["Crusade", "Pradesh Gypsies"]);
     }
@@ -358,7 +358,10 @@ mod tests {
         let ctx = get_local_context().await.unwrap();
         let input = "r:r";
         let res = autocomplete(&ctx, input, input.len()).await;
-        let suggestions = res.expect("Autocomplete should return Some for r:r").strings;
+        let options = res
+            .expect("Autocomplete should return Some for r:r")
+            .options;
+        let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         assert!(suggestions.contains(&"rare".to_string()));
     }
 
@@ -367,7 +370,10 @@ mod tests {
         let ctx = get_local_context().await.unwrap();
         let input = "a:Ma";
         let res = autocomplete(&ctx, input, input.len()).await;
-        let suggestions = res.expect("Autocomplete should return Some for a:Ma").strings;
+        let options = res
+            .expect("Autocomplete should return Some for a:Ma")
+            .options;
+        let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         assert!(suggestions.contains(&"Mark Poole".to_string()));
     }
 
@@ -378,7 +384,9 @@ mod tests {
         let res = autocomplete(&ctx, input, input.len()).await;
         // Pradesh Gypsies is a creature, but might not have keywords.
         // Let's just check if it returns Some and doesn't crash.
-        let _suggestions = res.expect("Autocomplete should return Some for kw:").strings;
+        let _suggestions = res
+            .expect("Autocomplete should return Some for kw:")
+            .options;
     }
 
     #[tokio::test]
@@ -386,7 +394,27 @@ mod tests {
         let ctx = get_local_context().await.unwrap();
         let input = "t:cre";
         let res = autocomplete(&ctx, input, input.len()).await;
-        let suggestions = res.expect("Autocomplete should return Some for t:cre").strings;
+        let options = res
+            .expect("Autocomplete should return Some for t:cre")
+            .options;
+        let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
         assert!(suggestions.contains(&"Creature".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_autocomplete_set_values() {
+        let ctx = get_local_context().await.unwrap();
+        let input = "s:lea";
+        let res = autocomplete(&ctx, input, input.len()).await;
+        let options = res
+            .expect("Autocomplete should return Some for s:lea")
+            .options;
+
+        let lea = options
+            .iter()
+            .find(|o| o.label == "lea")
+            .expect("Should find lea set");
+        assert_eq!(lea.detail, Some("Limited Edition Alpha".to_string()));
+        assert!(lea.info.is_some()); // released date
     }
 }
