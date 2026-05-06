@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use datafusion::functions::core::expr_ext::FieldAccessor;
-use datafusion::logical_expr::{col, lit, not, Expr as DFExpr, ScalarUDF};
+use datafusion::logical_expr::{col, lit, not, try_cast, Expr as DFExpr, ScalarUDF};
 use datafusion::scalar::ScalarValue;
 
 use crate::query_parser::lexer::Op;
@@ -20,7 +20,7 @@ pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
     }
     match op {
         Op::Colon => Ok(col(column).ilike(lit(format!("%{value}%")))),
-        Op::Eq => Ok(col(column).eq(lit(value.to_string()))),
+        Op::Eq => Ok(col(column).eq(lit(value.to_string().to_lowercase()))),
         Op::Ne => Ok(col(column).not_eq(lit(value.to_string()))),
         other => Err(PlanError(format!(
             "Operator {other:?} is not valid for text field '{column}'"
@@ -84,10 +84,7 @@ pub fn powtou_pred(op: &Op, value: &str) -> Result<DFExpr, PlanError> {
 }
 
 pub fn cast_expr(expr: DFExpr, data_type: arrow_schema::DataType) -> DFExpr {
-    DFExpr::Cast(datafusion::logical_expr::Cast {
-        expr: Box::new(expr),
-        data_type,
-    })
+    try_cast(expr, data_type)
 }
 
 pub fn color_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {

@@ -519,7 +519,7 @@ See m: for instruction on mana symbol formatting.`,
 };
 
 export function isKeyword(string: string): string is Keyword {
-    return (KEYWORDS as unknown as string[]).includes(string);
+    return (KEYWORDS as unknown as string[]).includes(string.toLowerCase());
 }
 
 export function detailFromKeyword(arg: Keyword): IDetailNode {
@@ -527,7 +527,7 @@ export function detailFromKeyword(arg: Keyword): IDetailNode {
 }
 
 export function nodeFromKeyword(arg: Keyword): ICompletionNode {
-    return COMPLETION_MAP.nodes[PredicateTypeMap[arg]];
+    return COMPLETION_MAP.nodes[PredicateTypeMap[arg as Keyword]];
 }
 
 export function predicateTypeFromKeyword(arg: Keyword): PredicatedType {
@@ -536,5 +536,5 @@ export function predicateTypeFromKeyword(arg: Keyword): PredicatedType {
 
 export function predicateTypeFromString(string: string): PredicatedType | null {
     if (!isKeyword(string)) return null;
-    return predicateTypeFromKeyword(string);
+    return predicateTypeFromKeyword(string.toLowerCase() as Keyword);
 }

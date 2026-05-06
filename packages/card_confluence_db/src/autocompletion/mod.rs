@@ -157,12 +157,12 @@ pub async fn completion_from_query(
             }
             if let Some(prev) = tokens.iter().nth(idx - 1) {
                 if !matches!(prev.kind, TokenKind::Op(_)) {
-                    let keywords: Vec<_> = KEYWORDS.iter().map(|k| k.to_string()).collect();
-                    if keywords.contains(val) {
+                    let val_lower = val.to_lowercase();
+                    if KEYWORDS.iter().any(|&k| k == val_lower) {
                         return Some(CompletionResponse::Completion(Completion {
                             from: token.start,
                             to: token.end,
-                            options: keywords.iter().map(|u| u.to_string().into()).collect(),
+                            options: KEYWORDS.iter().map(|u| u.to_string().into()).collect(),
                         }));
                     }
                 }
@@ -416,5 +416,32 @@ mod tests {
             .expect("Should find lea set");
         assert_eq!(lea.detail, Some("Limited Edition Alpha".to_string()));
         assert!(lea.info.is_some()); // released date
+    }
+
+    #[tokio::test]
+    async fn test_power_query_execution() {
+        let ctx = get_local_context().await.unwrap();
+        let query = "power:2";
+        let tokens = crate::query_parser::lexer::tokenize(query).unwrap();
+        let ast = crate::query_parser::parser::parse(tokens).unwrap();
+        let plan = crate::query_parser::planner::build_query_plan(&ctx, &ast)
+            .await
+            .unwrap();
+        let df = ctx.execute_logical_plan(plan).await.unwrap();
+        let _results = df.collect().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_set_values_case_insensitivity() {
+        let ctx = get_local_context().await.unwrap();
+        let query = "s:LEA";
+        let tokens = crate::query_parser::lexer::tokenize(query).unwrap();
+        let ast = crate::query_parser::parser::parse(tokens).unwrap();
+        let plan = crate::query_parser::planner::build_query_plan(&ctx, &ast)
+            .await
+            .unwrap();
+        let df = ctx.execute_logical_plan(plan).await.unwrap();
+        let results = df.collect().await.unwrap();
+        assert!(results.iter().map(|b| b.num_rows()).sum::<usize>() > 0);
     }
 }

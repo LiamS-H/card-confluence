@@ -22,13 +22,13 @@ export const CardConfluenceTooltips = hoverTooltip((view, pos, side) => {
     }
 
     return {
-        pos: predicate.arg_start,
+        pos: predicate.kw_start,
         above: true,
         create(view) {
             let node = document.createElement("p");
             node.style =
                 "white-space:pre-wrap; max-width:400px; max-height:800px; overflow-y:auto;";
-            const arg = predicate.argument;
+            const arg = predicate.keyword;
             if (!isKeyword(arg)) {
                 node.textContent = `"${arg}" not recognized.`;
                 return { dom: node };

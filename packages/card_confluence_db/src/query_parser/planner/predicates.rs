@@ -285,7 +285,7 @@ impl TryFrom<&str> for PredicateField {
     type Error = PlanError;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
-        match s {
+        match s.to_lowercase().as_str() {
             "name" | "n" => Ok(Self::Name),
             "type" | "t" => Ok(Self::Type),
             "oracle" | "o" => Ok(Self::Oracle),
