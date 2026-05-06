@@ -45,23 +45,23 @@ pub async fn build_distinct_values_plan(
     let base_plan = builder.build()?;
 
     let completion_plan = match pred {
-        PredicateField::Type => {
-            LogicalPlanBuilder::from(base_plan)
-                .project(vec![datafusion_functions_nested::expr_fn::array_concat(vec![
+        PredicateField::Type => LogicalPlanBuilder::from(base_plan)
+            .project(vec![datafusion_functions_nested::expr_fn::array_concat(
+                vec![
                     col("cards.super_types"),
                     col("cards.card_types"),
                     col("cards.sub_types"),
-                ])
-                .alias("label")])?
-                .unnest_column("label")?
-                .project(vec![
-                    cast(col("label"), DataType::Utf8).alias("label"),
-                    lit(ScalarValue::Utf8(None)).alias("info"),
-                    lit(ScalarValue::Utf8(None)).alias("detail"),
-                    lit(ScalarValue::Utf8(None)).alias("group"),
-                ])?
-                .build()?
-        }
+                ],
+            )
+            .alias("label")])?
+            .unnest_column("label")?
+            .project(vec![
+                cast(col("label"), DataType::Utf8).alias("label"),
+                lit(ScalarValue::Utf8(None)).alias("info"),
+                lit(ScalarValue::Utf8(None)).alias("detail"),
+                lit(ScalarValue::Utf8(None)).alias("group"),
+            ])?
+            .build()?,
         PredicateField::Set => LogicalPlanBuilder::from(base_plan)
             .project(vec![
                 cast(col("prints.set_code"), DataType::Utf8).alias("label"),

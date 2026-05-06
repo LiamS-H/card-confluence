@@ -61,28 +61,60 @@ fn types_from_type_line(type_line: &String) -> Types {
     let mut super_types: Vec<String> = Vec::new();
     let mut card_types: Vec<String> = Vec::new();
 
-    let parts: Vec<&str> = type_line.split(" — ").collect();
+    for face_type_line in type_line.to_lowercase().split(" // ") {
+        let parts: Vec<&str> = face_type_line.split(" — ").collect();
 
-    if let Some(left) = parts.first() {
-        for word in left.split_whitespace() {
-            if KNOWN_SUPERTYPES.contains(&word) {
-                super_types.push(word.to_string());
-            } else {
-                card_types.push(word.to_string());
+        if let Some(left) = parts.first() {
+            for word in left.split_whitespace() {
+                if KNOWN_SUPERTYPES.contains(&word) {
+                    if !super_types.contains(&word.to_string()) {
+                        super_types.push(word.to_string());
+                    }
+                } else {
+                    if !card_types.contains(&word.to_string()) {
+                        card_types.push(word.to_string());
+                    }
+                }
+            }
+        }
+
+        if let Some(right) = parts.get(1) {
+            for word in right.split_whitespace() {
+                if !sub_types.contains(&word.to_string()) {
+                    sub_types.push(word.to_string());
+                }
             }
         }
     }
 
-    if let Some(right) = parts.get(1) {
-        for word in right.split_whitespace() {
-            sub_types.push(word.to_string());
-        }
-    }
     return Types {
         sub_types,
         super_types,
         card_types,
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_types_from_type_line_split() {
+        let type_line = "Instant // Sorcery".to_string();
+        let types = types_from_type_line(&type_line);
+        assert_eq!(types.card_types, vec!["Instant", "Sorcery"]);
+        assert!(types.super_types.is_empty());
+        assert!(types.sub_types.is_empty());
+    }
+
+    #[test]
+    fn test_types_from_type_line_complex() {
+        let type_line = "Legendary Creature — Elf Warrior // Instant".to_string();
+        let types = types_from_type_line(&type_line);
+        assert_eq!(types.super_types, vec!["Legendary"]);
+        assert_eq!(types.card_types, vec!["Creature", "Instant"]);
+        assert_eq!(types.sub_types, vec!["Elf", "Warrior"]);
+    }
 }
 
 impl From<ScryfallCard> for Card {
