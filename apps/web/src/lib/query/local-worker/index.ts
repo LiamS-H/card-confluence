@@ -78,7 +78,7 @@ async function initBrowser(
 	return browser;
 }
 
-const local_browser = initBrowser(get_local_parquet());
+let local_browser = initBrowser(get_local_parquet());
 
 async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 	const request = event.data;
@@ -158,17 +158,24 @@ QueryEventsChannel.onmessage(async (event) => {
 		const browser = await local_browser;
 		try {
 			browser.release_files();
-		} catch {
+		} catch (err) {
 			// files didn't need to be released
+			console.warn('[worker] failed to release files', err);
 		}
+
+		const { resolve, reject, promise } = Promise.withResolvers<CardConfluenceLocal>();
+		local_browser = promise;
 
 		const reset = cache_clear();
 		const [handles] = await Promise.all([sync_local_parquet(), reset]);
 		// const [handles] = await Promise.all([get_local_parquet(), reset]);
 		if ('type' in handles) {
-			throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
+			const message = `Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`;
+			reject(message);
+			throw Error(message);
 		}
 		await browser.attach_files(handles);
+		resolve(browser);
 		QueryEventsChannel.postMessage({ type: 'db-sync-complete' });
 	}
 });
