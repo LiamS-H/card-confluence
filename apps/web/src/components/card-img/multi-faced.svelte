@@ -7,7 +7,6 @@
 
 	function next_face() {
 		face = (face + 1) % illustrations.length;
-		console.log('test');
 	}
 </script>
 
