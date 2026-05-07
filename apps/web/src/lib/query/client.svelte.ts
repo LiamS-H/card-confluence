@@ -281,9 +281,8 @@ class QueryClient {
 				return;
 			}
 			const completion = e.data.completion;
-			console.log('[client] received completion', completion);
 			if (e.data.index === null) {
-				return completion;
+				return resolve(completion);
 			}
 			const data = await cache_get(e.data.index);
 			if (!data) {
@@ -297,7 +296,6 @@ class QueryClient {
 				return;
 			}
 			const options = tableFromIPC(data).toArray() as CompletionOption[];
-			console.log('[client] received options', options);
 
 			resolve({ ...completion, options });
 

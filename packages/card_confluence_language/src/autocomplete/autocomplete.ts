@@ -163,8 +163,6 @@ export const completeCardConfluence: CompletionSource = async (context) => {
 
     const pred_typ = predicateTypeFromKeyword(cursor_keyword);
     const context_completion = await query_context.complete(pos);
-    console.log("[cc-codemirror] context:", context_completion);
-    console.log("[cc-codemirror] pred:", pred);
 
     const sections = new Map<string, CompletionSection>();
     const options = context_completion.options.map((option) => {
@@ -182,8 +180,6 @@ export const completeCardConfluence: CompletionSource = async (context) => {
             section: sections.getOrInsert(group, { name: group }),
         };
     });
-
-    console.log("[cc-codemirror] options:", options);
 
     if (!options) return null;
 
@@ -250,7 +246,6 @@ export const completeCardConfluence: CompletionSource = async (context) => {
             break;
     }
 
-    console.log("[cc-mirror] result", result);
     return result;
 
     // return {
