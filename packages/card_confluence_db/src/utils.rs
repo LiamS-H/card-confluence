@@ -25,13 +25,3 @@ pub async fn get_latest(
     }
     latest
 }
-
-pub const KNOWN_SUPERTYPES: [&str; 7] = [
-    "Basic",
-    "Legendary",
-    "Snow",
-    "World",
-    "Ongoing",
-    "Elite",
-    "Host",
-];

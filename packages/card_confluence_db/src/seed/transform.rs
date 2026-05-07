@@ -7,21 +7,18 @@ use scryfall_rust_bindings::types::{
     set::ScryfallSet,
 };
 
-use crate::{
-    schema::{
-        card::{
-            card::{Card, CardFace},
-            image::ImageUris,
-            legality::Legalities,
-            preview::Preview,
-            price::{Prices, PurchaseUris},
-            print::{Illustration, Print},
-            related::RelatedCard,
-        },
-        ruling::Ruling,
-        set::Set,
+use crate::schema::{
+    card::{
+        card::{Card, CardFace},
+        image::ImageUris,
+        legality::Legalities,
+        preview::Preview,
+        price::{Prices, PurchaseUris},
+        print::{Illustration, Print},
+        related::RelatedCard,
     },
-    utils::KNOWN_SUPERTYPES,
+    ruling::Ruling,
+    set::Set,
 };
 
 impl From<ScryfallCardFace> for CardFace {
@@ -56,6 +53,17 @@ struct Types {
     super_types: Vec<String>,
     card_types: Vec<String>,
 }
+
+const KNOWN_SUPERTYPES: [&str; 7] = [
+    "basic",
+    "legendary",
+    "snow",
+    "world",
+    "ongoing",
+    "elite",
+    "host",
+];
+
 fn types_from_type_line(type_line: &String) -> Types {
     let mut sub_types: Vec<String> = Vec::new();
     let mut super_types: Vec<String> = Vec::new();
@@ -102,7 +110,7 @@ mod tests {
     fn test_types_from_type_line_split() {
         let type_line = "Instant // Sorcery".to_string();
         let types = types_from_type_line(&type_line);
-        assert_eq!(types.card_types, vec!["Instant", "Sorcery"]);
+        assert_eq!(types.card_types, vec!["instant", "sorcery"]);
         assert!(types.super_types.is_empty());
         assert!(types.sub_types.is_empty());
     }
@@ -111,9 +119,9 @@ mod tests {
     fn test_types_from_type_line_complex() {
         let type_line = "Legendary Creature — Elf Warrior // Instant".to_string();
         let types = types_from_type_line(&type_line);
-        assert_eq!(types.super_types, vec!["Legendary"]);
-        assert_eq!(types.card_types, vec!["Creature", "Instant"]);
-        assert_eq!(types.sub_types, vec!["Elf", "Warrior"]);
+        assert_eq!(types.super_types, vec!["legendary"]);
+        assert_eq!(types.card_types, vec!["creature", "instant"]);
+        assert_eq!(types.sub_types, vec!["elf", "warrior"]);
     }
 }
 
@@ -181,8 +189,6 @@ impl From<ScryfallCard> for Card {
     }
 }
 
-// TODO: This loses the images for a card like Fire // Ice, since the image data resides on the main scryfall card object.
-// For these layout:split cards we should just be storing one illustration as the illustration info on such faces is duplicated and one will always be missing the illustration id anyway.
 impl From<ScryfallCardFace> for Illustration {
     fn from(face: ScryfallCardFace) -> Self {
         let mut artist_ids = Vec::new();
@@ -221,11 +227,38 @@ impl From<ScryfallCard> for Illustration {
 impl From<ScryfallCard> for Print {
     fn from(scryfall: ScryfallCard) -> Self {
         let mut illustrations = Vec::new();
-        for face in scryfall.card_faces.clone().unwrap_or(vec![]) {
-            illustrations.push(face.into());
+
+        // TODO: This is wrong, we want to check specifically for when one illustration is missing illustration_id and has the same artist as another face
+        if scryfall.image_uris.is_some() {
+            // pushing the main image_uris first and then looking for faces is the opposite to how we did it before, not sure if it still works
+            illustrations.push(scryfall.clone().into());
+        } else if let Some(faces) = &scryfall.card_faces {
+            for face in faces {
+                let mut is_duplicate = false;
+                if let Some(id) = &face.illustration_id {
+                    if illustrations
+                        .iter()
+                        .any(|i: &Illustration| i.illustration_id.as_ref() == Some(id))
+                    {
+                        is_duplicate = true;
+                    }
+                } else if let Some(artist) = &face.artist {
+                    if illustrations
+                        .iter()
+                        .any(|i| i.artist.as_ref() == Some(artist))
+                    {
+                        is_duplicate = true;
+                    }
+                }
+
+                if !is_duplicate {
+                    illustrations.push(face.clone().into());
+                }
+            }
         }
-        if illustrations.len() == 0 {
-            illustrations.push(scryfall.clone().into())
+
+        if illustrations.is_empty() {
+            illustrations.push(scryfall.clone().into());
         }
 
         let card: Card = scryfall.clone().into();
