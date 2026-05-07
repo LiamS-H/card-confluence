@@ -181,6 +181,8 @@ impl From<ScryfallCard> for Card {
     }
 }
 
+// TODO: This loses the images for a card like Fire // Ice, since the image data resides on the main scryfall card object.
+// For these layout:split cards we should just be storing one illustration as the illustration info on such faces is duplicated and one will always be missing the illustration id anyway.
 impl From<ScryfallCardFace> for Illustration {
     fn from(face: ScryfallCardFace) -> Self {
         let mut artist_ids = Vec::new();

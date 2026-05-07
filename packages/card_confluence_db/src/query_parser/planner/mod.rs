@@ -5,6 +5,7 @@ use datafusion::logical_expr::{col, lit, not, Expr as DFExpr, LogicalPlan, Logic
 use datafusion::prelude::{JoinType, SessionContext};
 use datafusion::scalar::ScalarValue;
 use datafusion_functions_aggregate::expr_fn::{array_agg, first_value};
+use datafusion_functions_nested::expr_fn::make_array;
 
 use crate::query_parser::parser::ScryfallExpr;
 use crate::query_parser::planner::predicates::PredicateField;
@@ -58,14 +59,33 @@ pub async fn build_query_plan(
     let schema = builder.schema().clone();
     builder = builder.filter(expr_to_df_expr(expr, &schema)?)?;
 
+    // this code block gets all matching prints, quite slow
+    // builder = builder.aggregate(
+    //     vec![
+    //         col("cards.oracle_id"),
+    //         col("cards.name"),
+    //         col("cards.mana_cost"),
+    //     ],
+    //     vec![array_agg(col("prints.scryfall_id")).alias("matched_prints")],
+    // )?;
+
+    // this gets the first print
     builder = builder.aggregate(
         vec![
             col("cards.oracle_id"),
             col("cards.name"),
             col("cards.mana_cost"),
         ],
-        vec![first_value(col("prints.scryfall_id"), vec![]).alias("matched_prints")],
+        vec![first_value(col("prints.scryfall_id"), vec![]).alias("first_print")],
     )?;
+
+    builder = builder.project(vec![
+        col("cards.oracle_id"),
+        col("cards.name"),
+        col("cards.mana_cost"),
+        make_array(vec![col("first_print")]).alias("matched_prints"),
+    ])?;
+    // this gets the first print
 
     Ok(builder.build()?)
 }
@@ -124,7 +144,7 @@ pub async fn build_cards_detail_plan(
 
     builder = builder.aggregate(
         schemas_as_cols("cards", &cards_schema),
-        vec![array_agg(schema_as_flat_struct("prints", &prints_schema)).alias("matched_prints")],
+        vec![array_agg(schema_as_flat_struct("prints", &prints_schema)).alias("prints")],
     )?;
 
     Ok(builder.build()?)

@@ -1,6 +1,6 @@
 import { query_client } from '$lib/query/client.svelte';
 
-export function use_card(getId: () => string, key?: string, debounce?: number) {
+export function use_card(getId: () => string, debounce?: number, key?: string) {
 	const id = $derived(getId());
 	key ??= crypto.randomUUID();
 	let timeout: NodeJS.Timeout;

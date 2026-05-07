@@ -1,0 +1,19 @@
+<script lang="ts">
+	import Error from '$components/card-img/error.svelte';
+	import Loading from '$components/card-img/loading.svelte';
+	import { use_card } from '$lib';
+	import type { QueryResultRow } from '$lib/query/client.svelte';
+	import ResultCard from './result-card.svelte';
+
+	const { result }: { result: QueryResultRow } = $props();
+
+	let { card } = $derived(use_card(() => result.oracle_id, 100));
+</script>
+
+{#if card.loading}
+	<Loading />
+{:else if card.error}
+	<Error message={card.message} />
+{:else}
+	<ResultCard card={card.result} matched_prints={result.matched_prints} />
+{/if}

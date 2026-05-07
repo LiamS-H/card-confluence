@@ -30,7 +30,7 @@ export type QueryWorkerResponse =
 	| {
 			req_id: string;
 			type: 'completion';
-			index: CacheKey;
+			index: CacheKey | null;
 			completion: Completion;
 	  };
 
@@ -99,13 +99,13 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 				break;
 			}
 			case 'completion': {
-				console.log('[worker] completion');
+				// console.log('[worker] completion');
 				const evaluation = (await browser.completion_plan_from_query(
 					request.query.query,
 					request.pos
 				)) as CompletionPlan;
 				plan = evaluation.plan as unknown as Uint8Array<ArrayBuffer>;
-				console.log('[worker] planned', plan);
+				// console.log('[worker] planned', plan);
 				const completion = evaluation.completion;
 				message = {
 					req_id: request.req_id,
@@ -126,15 +126,15 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 
 		const transaction = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
 		const store = transaction.objectStore(QUERY_CACHE_TABLE);
-		console.log('[worker] getting cache');
+		// console.log('[worker] getting cache');
 		let data = await cache_store_get(plan, store);
 		if (data === null) {
-			console.log('[worker] cache miss');
-			console.log('[worker] evaluating plan');
+			// console.log('[worker] cache miss');
+			// console.log('[worker] evaluating plan');
 			data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
 			await cache_store_insert(plan, data, store);
 		}
-		console.log('[worker] cache hit!');
+		// console.log('[worker] cache hit!');
 		message ??= {
 			req_id: request.req_id,
 			type: 'result',

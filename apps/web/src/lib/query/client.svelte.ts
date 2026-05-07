@@ -77,7 +77,7 @@ class QueryClient {
 	// a unique id given to the request in flight
 	private in_flight: Map<string, QueryWorkerRequest> = new Map();
 
-	private on_self_promotion: LockGrantedCallback<unknown> = (lock) => {
+	private on_self_promotion: LockGrantedCallback<unknown> = async (lock) => {
 		// when called with ifAvailable, this will exit early and mark the client ready because there is already a leader
 		if (!lock) {
 			console.log('[client] connected as follower.');
@@ -85,6 +85,10 @@ class QueryClient {
 			return false;
 		}
 		console.log('[client] connected as leader.');
+		if (dev) {
+			console.warn('[client] cache cleared. cache is cleared aggressively in dev.');
+			await cache_clear();
+		}
 
 		// TODO: this is where we can check for internet connection, and which worker to use
 		// This also locks the main db files, meaning we can't sync them from opfs, currently we kill and restart wasm to get new files
@@ -278,7 +282,7 @@ class QueryClient {
 			}
 			const completion = e.data.completion;
 			console.log('[client] received completion', completion);
-			if (completion.options.length > 0) {
+			if (e.data.index === null) {
 				return completion;
 			}
 			const data = await cache_get(e.data.index);
@@ -306,9 +310,6 @@ class QueryClient {
 	public async init(): Promise<void> {
 		if (this.initialized) return;
 		this.initialized = true;
-		if (dev) {
-			await cache_clear();
-		}
 		// register the resolver
 		QueryResChannel.onmessage((e) => this.on_worker_response(e));
 

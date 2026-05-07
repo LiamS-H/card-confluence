@@ -53,5 +53,5 @@
 
 <div
 	bind:this={editorContainer}
-	class="h-96 w-full overflow-hidden rounded-md border border-gray-300 text-base"
+	class="h-30 w-full overflow-hidden rounded-md border border-gray-300 text-base"
 ></div>

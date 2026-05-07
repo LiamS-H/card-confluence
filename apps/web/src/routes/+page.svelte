@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { use_query } from '$lib';
-	import { query_client } from '$lib/query/client.svelte';
-	import Card from '$components/card.svelte';
+	import { query_client, type QueryResultRow } from '$lib/query/client.svelte';
 	import VirtualList from 'svelte-tiny-virtual-list';
-	import Search from '$components/search.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import Result from '$components/query/row-result.svelte';
+	import Search from '$components/query/search.svelte';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
 
@@ -55,7 +55,7 @@
 			overscanCount={10}
 		>
 			<div slot="item" let:index let:style {style}>
-				<Card id={response.result.rows[index].oracle_id} debounce={50} />
+				<Result result={response.result.rows[index] as QueryResultRow} />
 			</div>
 		</VirtualList>
 	</div>
