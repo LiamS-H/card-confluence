@@ -26,6 +26,7 @@ pub mod opfs_binding;
 
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
+
 #[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct CompletionPlan {
@@ -58,7 +59,6 @@ extern "C" {
 
     #[wasm_bindgen(method, getter)]
     pub fn sets(this: &DBFileHandles) -> FileSystemFileHandle;
-
 }
 
 fn error_map<E: std::fmt::Debug>(u: E) -> JsValue {
@@ -129,8 +129,15 @@ impl CardConfluenceLocal {
         Ok(())
     }
 
+    /// Optimize a logical plan using the session's optimizer and serialize it to bytes.
+    fn optimize_plan(&self, plan: LogicalPlan) -> Result<Vec<u8>, DataFusionError> {
+        let optimized = self.context.state().optimize(&plan)?;
+        let bytes = logical_plan_to_bytes(&optimized)?;
+        Ok(bytes.into())
+    }
+
+    /// Deserialize, optimize, and execute a plan, returning Arrow IPC bytes.
     async fn execute_plan(&self, plan: LogicalPlan) -> Result<Vec<u8>, DataFusionError> {
-        // web_sys::console::log_1(&format!("Executing plan: {}", plan.display_indent()).into());
         let df = self.context.execute_logical_plan(plan).await?;
 
         let mut buffer = Vec::new();
@@ -156,7 +163,7 @@ impl CardConfluenceLocal {
         let plan: LogicalPlan =
             logical_plan_from_bytes(&plan, &self.context.task_ctx()).map_err(error_map)?;
 
-        return self.execute_plan(plan).await.map_err(error_map);
+        self.execute_plan(plan).await.map_err(error_map)
     }
 
     pub async fn query_plan_from_query(&self, query: String) -> Result<Vec<u8>, JsValue> {
@@ -164,13 +171,13 @@ impl CardConfluenceLocal {
             .await
             .map_err(error_map)?;
 
-        let builder = LogicalPlanBuilder::from(plan)
+        let plan = LogicalPlanBuilder::from(plan)
             .project(vec![col("cards.oracle_id"), col("matched_prints")])
+            .map_err(error_map)?
+            .build()
             .map_err(error_map)?;
 
-        let plan = builder.build().map_err(error_map)?;
-
-        return Ok(logical_plan_to_bytes(&plan).map_err(error_map)?.into());
+        self.optimize_plan(plan).map_err(error_map)
     }
 
     pub async fn completion_plan_from_query(
@@ -184,9 +191,7 @@ impl CardConfluenceLocal {
 
         match response {
             CompletionResponse::Query(completion, logical_plan) => {
-                let plan = logical_plan_to_bytes(&logical_plan)
-                    .map_err(error_map)?
-                    .into();
+                let plan = self.optimize_plan(logical_plan).map_err(error_map)?;
                 Ok(CompletionPlan { plan, completion })
             }
             CompletionResponse::Completion(completion) => Ok(CompletionPlan {
@@ -201,7 +206,7 @@ impl CardConfluenceLocal {
             .await
             .map_err(error_map)?;
 
-        return Ok(logical_plan_to_bytes(&plan).map_err(error_map)?.into());
+        self.optimize_plan(plan).map_err(error_map)
     }
 
     pub async fn cards_plan_from_card_ids(&self, card_id: Vec<String>) -> Result<Vec<u8>, JsValue> {
@@ -209,7 +214,7 @@ impl CardConfluenceLocal {
             .await
             .map_err(error_map)?;
 
-        return Ok(logical_plan_to_bytes(&plan).map_err(error_map)?.into());
+        self.optimize_plan(plan).map_err(error_map)
     }
 
     pub async fn rulings_plan_from_card_ids(
@@ -220,6 +225,6 @@ impl CardConfluenceLocal {
             .await
             .map_err(error_map)?;
 
-        return Ok(logical_plan_to_bytes(&plan).map_err(error_map)?.into());
+        self.optimize_plan(plan).map_err(error_map)
     }
 }
