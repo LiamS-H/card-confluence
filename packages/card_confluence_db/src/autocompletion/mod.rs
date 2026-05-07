@@ -354,6 +354,28 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_autocomplete_not_2_values() {
+        let ctx = get_local_context().await.unwrap();
+        let input = "format:premodern -format:vintage -(name:)";
+        // should run the query "format:premodern" -(format:vintage) and return names
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len() - 1).await.unwrap();
+        let mut suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
+        suggestions.sort();
+        assert!(suggestions == vec!["Crusade", "Pradesh Gypsies"]);
+    }
+
+    #[tokio::test]
+    async fn test_autocomplete_not_3_values() {
+        let ctx = get_local_context().await.unwrap();
+        let input = "format:premodern -format:vintage -name:";
+        // should run the query "format:premodern" -(format:vintage) and return names
+        let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
+        let mut suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
+        suggestions.sort();
+        assert!(suggestions == vec!["Crusade", "Pradesh Gypsies"]);
+    }
+
+    #[tokio::test]
     async fn test_autocomplete_rarity_values() {
         let ctx = get_local_context().await.unwrap();
         let input = "r:r";
@@ -398,7 +420,7 @@ mod tests {
             .expect("Autocomplete should return Some for t:cre")
             .options;
         let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
-        assert!(suggestions.contains(&"Creature".to_string()));
+        assert!(suggestions.contains(&"creature".to_string()));
     }
 
     #[tokio::test]

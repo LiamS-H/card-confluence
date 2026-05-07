@@ -251,6 +251,15 @@ mod tests {
         let expr = p("-t:land");
         assert!(matches!(expr, ScryfallExpr::Not(_)));
     }
+    #[test]
+    fn test_bare_parentheses() {
+        let expr = p("(t:creature) c:blue");
+        let ScryfallExpr::And(arg1, arg2) = expr else {
+            panic!()
+        };
+        assert!(matches!(*arg1, ScryfallExpr::Predicate(_)));
+        assert!(matches!(*arg2, ScryfallExpr::Predicate(_)));
+    }
 
     #[test]
     fn test_parentheses() {

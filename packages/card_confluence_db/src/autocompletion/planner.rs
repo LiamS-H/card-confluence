@@ -136,7 +136,13 @@ pub fn replace_predicate_with_true(expr: &ScryfallExpr, target: &Predicate) -> S
             Box::new(replace_predicate_with_true(r, target)),
         ),
         ScryfallExpr::Not(inner) => {
-            ScryfallExpr::Not(Box::new(replace_predicate_with_true(inner, target)))
+            let resolved_inner = replace_predicate_with_true(inner, target);
+            // we do this to handle the case of -kw: autocompletion, which would otherwise return not results because -True
+            if matches!(resolved_inner, ScryfallExpr::True) {
+                ScryfallExpr::True
+            } else {
+                ScryfallExpr::Not(Box::new(resolved_inner))
+            }
         }
         ScryfallExpr::True => ScryfallExpr::True,
     }
