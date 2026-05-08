@@ -50,7 +50,7 @@ Predicate {
   FieldName Operator Value
 }
 
-FieldName { identifier }
+FieldName { GlobalField | identifier }
 Value     { QuotedString | identifier }
 
 // A bare word with no preceding operator — treated as implicit name:<word>.
@@ -93,5 +93,14 @@ Operator {
 Or  { @specialize[@name=Or]<identifier,  "OR">  }
 And { @specialize[@name=And]<identifier, "AND"> }
 Not { @specialize[@name=Not]<identifier, "NOT"> }
+
+GlobalField {
+  @specialize[@name=GlobalField]<identifier,
+    "order" | "sort" |
+    "dir" | "direction" |
+    "unique" |
+    "prefer"
+  >
+}
 
 @skip { " " | "\t" | "\r" | "\n" }

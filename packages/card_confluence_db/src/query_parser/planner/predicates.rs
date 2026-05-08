@@ -105,6 +105,8 @@ impl Predicate {
 
             // Mixed / special
             PredicateField::Is => is_pred(&pred.value),
+
+            PredicateField::Order | PredicateField::Dir | PredicateField::Unique | PredicateField::Prefer => Ok(lit(true)),
         }
     }
 }
@@ -147,6 +149,10 @@ pub enum PredicateField {
     Keyword,
     Set,
     Year,
+    Order,
+    Dir,
+    Unique,
+    Prefer,
 }
 
 impl PredicateField {
@@ -277,6 +283,8 @@ impl PredicateField {
             PredicateField::ScryfallId => Some("scryfall_id"),
             PredicateField::Set => None, // references set and set name
             PredicateField::Year => Some("released_at"),
+
+            PredicateField::Order | PredicateField::Dir | PredicateField::Unique | PredicateField::Prefer => None,
         }
     }
 }
@@ -322,6 +330,10 @@ impl TryFrom<&str> for PredicateField {
             "kw" | "keyword" => Ok(Self::Keyword),
             "s" | "set" | "e" | "edition" => Ok(Self::Set),
             "year" | "date" => Ok(Self::Year),
+            "order" | "sort" => Ok(Self::Order),
+            "dir" | "direction" => Ok(Self::Dir),
+            "unique" => Ok(Self::Unique),
+            "prefer" => Ok(Self::Prefer),
             other => Err(PlanError(format!("Unknown Scryfall field: '{other}'"))),
         }
     }
