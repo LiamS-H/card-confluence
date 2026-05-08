@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Print, Card } from 'wasm-browser/dist full matches';
+	import type { Print, Card } from 'wasm-browser/dist';
 	import Illustration from './illustration.svelte';
 	import Error from './error.svelte';
 	import MultiFaced from './multi-faced.svelte';
@@ -21,10 +21,14 @@
 		}
 		return ['width', width] as const;
 	});
+
+	const rounding = $derived(
+		print.set_code === 'lea' ? 'rounded-[8.5%/5.2%]' : 'rounded-[4.75%/3.5%]'
+	);
 </script>
 
 <div
-	class="relative flex aspect-5/7 items-center justify-center overflow-clip rounded-[4.75%/3.5%] bg-[#17150f]"
+	class={`relative flex aspect-5/7 items-center justify-center overflow-clip ${rounding} bg-[#17150f]`}
 	style={`${dim}:${size}px`}
 >
 	{#if print.illustrations.length === 0}
