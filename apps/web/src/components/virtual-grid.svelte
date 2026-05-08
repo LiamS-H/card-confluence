@@ -70,7 +70,7 @@
 
 				out.push({
 					index,
-					row,
+					row: row - startRow,
 					col,
 					x: col * itemWidth,
 					y: row * itemHeight,

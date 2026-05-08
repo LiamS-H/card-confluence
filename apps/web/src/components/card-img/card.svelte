@@ -3,34 +3,12 @@
 	import Illustration from './illustration.svelte';
 	import Error from './error.svelte';
 	import MultiFaced from './multi-faced.svelte';
+	import CardWrapper, { type CardSizeProps } from './card-wrapper.svelte';
 
-	export type CardSizeProps =
-		| {
-				width: string | number;
-				height?: undefined;
-		  }
-		| {
-				width?: undefined;
-				height: string | number;
-		  };
-
-	const { card, print, width, height }: { card: Card; print: Print } & CardSizeProps = $props();
-	const [dim, size] = $derived.by(() => {
-		if (height !== undefined) {
-			return ['height', height] as const;
-		}
-		return ['width', width] as const;
-	});
-
-	const rounding = $derived(
-		print.set_code === 'lea' ? 'rounded-[8.5%/5.2%]' : 'rounded-[4.75%/3.5%]'
-	);
+	const { card, print, ...size }: { card: Card; print: Print } & CardSizeProps = $props();
 </script>
 
-<div
-	class={`relative flex aspect-5/7 items-center justify-center overflow-clip ${rounding} bg-[#17150f]`}
-	style={`${dim}:${size}px`}
->
+<CardWrapper alpha={print.set_code === 'lea'} {...size}>
 	{#if print.illustrations.length === 0}
 		<Error message={`${card.name}, ${print.scryfall_id} Couldn't find illustration`} />
 	{:else if print.illustrations.length === 1}
@@ -38,4 +16,4 @@
 	{:else}
 		<MultiFaced illustrations={print.illustrations} alt={card.name} />
 	{/if}
-</div>
+</CardWrapper>

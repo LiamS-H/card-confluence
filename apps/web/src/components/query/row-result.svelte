@@ -11,9 +11,9 @@
 </script>
 
 {#if card.loading}
-	<Loading />
+	<Loading width={200} />
 {:else if card.error}
 	<Error message={card.message} />
 {:else}
-	<ResultCard card={card.result} matched_prints={result.matched_prints} />
+	<ResultCard width={200} card={card.result} matched_prints={result.matched_prints} />
 {/if}

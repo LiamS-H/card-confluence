@@ -237,7 +237,7 @@ class QueryClient {
 
 	private request_card_batch() {
 		if (this.cards_batch_timeout) return;
-		this.cards_batch_timeout = setTimeout(() => this.process_cards_batch(), 100);
+		this.cards_batch_timeout = setTimeout(() => this.process_cards_batch(), 200);
 	}
 
 	public ensure_card(card_id: string, tag: string): void {
