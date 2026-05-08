@@ -258,11 +258,10 @@ mod tests {
     use crate::query_executor::context::get_local_context;
 
     use super::*;
-    use datafusion::prelude::SessionContext;
 
     #[tokio::test]
     async fn test_autocomplete_keywords() {
-        let ctx = SessionContext::new();
+        let ctx = get_local_context().await.unwrap();
         let input = "cm"; //should return from layout cmc
         let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
         let suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();
@@ -271,7 +270,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_autocomplete_is_values() {
-        let ctx = SessionContext::new();
+        let ctx = get_local_context().await.unwrap();
         let input = "is:"; // should run blanket query and return all layouts
         let Completion { options, .. } = autocomplete(&ctx, input, input.len()).await.unwrap();
         let mut suggestions: Vec<String> = options.iter().map(|u| u.clone().into()).collect();

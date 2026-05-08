@@ -139,7 +139,7 @@ impl Parser {
             Some(t) if matches!(t.kind, TokenKind::Ident(_)) => {
                 let (field, start) = match self.advance() {
                     Some(t) => match &t.kind {
-                        TokenKind::Ident(f) => (f.clone(), t.start),
+                        TokenKind::Ident(f) => (f.to_lowercase(), t.start),
                         _ => unreachable!(),
                     },
                     _ => unreachable!(),
@@ -161,7 +161,11 @@ impl Parser {
                     }
                 };
 
-                let (value, _, end) = self.expect_value()?;
+                let (mut value, _, end) = self.expect_value()?;
+                if !(value.starts_with('/') && value.ends_with('/') && value.len() >= 2) {
+                    value = value.to_lowercase();
+                }
+
                 Ok(ScryfallExpr::Predicate(Predicate {
                     field,
                     op,
@@ -175,7 +179,7 @@ impl Parser {
             Some(t) if matches!(t.kind, TokenKind::Value(_)) => {
                 let (value, start, end) = match self.advance() {
                     Some(t) => match &t.kind {
-                        TokenKind::Value(v) => (v.clone(), t.start, t.end),
+                        TokenKind::Value(v) => (v.to_lowercase(), t.start, t.end),
                         _ => unreachable!(),
                     },
                     _ => unreachable!(),
@@ -218,6 +222,34 @@ mod tests {
     fn p(input: &str) -> ScryfallExpr {
         let tokens = tokenize(input).expect("lex");
         parse(tokens).expect("parse")
+    }
+
+    #[test]
+    fn test_case_insensitivity() {
+        assert_eq!(
+            p("C:Blue"),
+            ScryfallExpr::Predicate(Predicate {
+                field: "c".into(),
+                op: Op::Colon,
+                value: "blue".into(),
+                start: 0,
+                end: 6,
+            })
+        );
+    }
+
+    #[test]
+    fn test_regex_preserves_case() {
+        assert_eq!(
+            p("n:/Lightning/"),
+            ScryfallExpr::Predicate(Predicate {
+                field: "n".into(),
+                op: Op::Colon,
+                value: "/Lightning/".into(),
+                start: 0,
+                end: 13,
+            })
+        );
     }
 
     #[test]

@@ -65,10 +65,10 @@ fn extract_options_recursive(
                         )));
                     }
                     match field {
-                        PredicateField::Order => options.order = Some(p.value.to_lowercase()),
-                        PredicateField::Dir => options.dir = Some(p.value.to_lowercase()),
-                        PredicateField::Unique => options.unique = Some(p.value.to_lowercase()),
-                        PredicateField::Prefer => options.prefer = Some(p.value.to_lowercase()),
+                        PredicateField::Order => options.order = Some(p.value.clone()),
+                        PredicateField::Dir => options.dir = Some(p.value.clone()),
+                        PredicateField::Unique => options.unique = Some(p.value.clone()),
+                        PredicateField::Prefer => options.prefer = Some(p.value.clone()),
                         _ => unreachable!(),
                     }
                     Ok(ScryfallExpr::True)
@@ -132,15 +132,17 @@ pub async fn build_query_plan(
     let unique = options.unique.as_deref().unwrap_or("cards");
     match unique {
         "cards" => {
-            if let Some(prefer) = options.prefer {
+            let prefer_expr = if let Some(prefer) = options.prefer {
                 let sort_expr = match prefer.as_str() {
                     "oldest" => col("prints.released_at").sort(true, true),
                     "newest" => col("prints.released_at").sort(false, true),
                     "cheapest" => col("prints.prices").field("usd").sort(true, true),
                     other => return Err(PlanError(format!("Unknown prefer mode: {other}"))),
                 };
-                builder = builder.sort(vec![sort_expr])?;
-            }
+                vec![sort_expr]
+            } else {
+                vec![]
+            };
 
             builder = builder.aggregate(
                 vec![
@@ -149,7 +151,7 @@ pub async fn build_query_plan(
                     col("cards.mana_cost"),
                     col("cards.cmc"),
                 ],
-                vec![first_value(col("prints.scryfall_id"), vec![]).alias("first_print")],
+                vec![first_value(col("prints.scryfall_id"), prefer_expr).alias("first_print")],
             )?;
 
             builder = builder.project(vec![

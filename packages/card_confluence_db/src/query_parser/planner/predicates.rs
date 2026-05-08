@@ -1,4 +1,4 @@
-use datafusion::logical_expr::{col, lit, Expr as DFExpr};
+use datafusion::logical_expr::{lit, Expr as DFExpr};
 
 use crate::query_parser::{
     lexer::Op,
@@ -54,9 +54,9 @@ impl Predicate {
                 color_pred(&column_name?, &pred.op, &pred.value)
             }
             PredicateField::OracleId => exact_pred("cards.oracle_id", &pred.value),
-            PredicateField::Produces | PredicateField::OracleTag | PredicateField::Keyword => Ok(
-                array_contains_expr(&column_name?, lit(pred.value.to_lowercase())),
-            ),
+            PredicateField::Produces | PredicateField::OracleTag | PredicateField::Keyword => {
+                Ok(array_contains_expr(&column_name?, lit(pred.value.clone())))
+            }
             PredicateField::Format => format_pred(&pred.value),
 
             // Print-side (prints.*)
@@ -73,28 +73,27 @@ impl Predicate {
             | PredicateField::Lang
             | PredicateField::ScryfallId => exact_pred(&column_name?, &pred.value),
 
-            PredicateField::Game => Ok(array_contains_expr(
-                "prints.games",
-                lit(pred.value.to_lowercase()),
-            )),
+            PredicateField::Game => {
+                Ok(array_contains_expr("prints.games", lit(pred.value.clone())))
+            }
 
             PredicateField::Set => {
                 if pred.value.len() <= 4 && pred.value.chars().all(|c| c.is_alphanumeric()) {
-                    Ok(col("prints.set_code").eq(lit(pred.value.to_lowercase())))
+                    exact_pred("prints.set_code", &pred.value)
                 } else {
                     text_pred("sets.name", &pred.op, &pred.value)
                 }
             }
 
             PredicateField::In => {
-                let val = pred.value.to_lowercase();
+                let val = &pred.value;
                 if matches!(
                     val.as_str(),
                     "common" | "uncommon" | "rare" | "mythic" | "special" | "bonus"
                 ) {
                     exact_pred("prints.rarity", &pred.value)
                 } else if matches!(val.as_str(), "paper" | "arena" | "mtgo") {
-                    Ok(array_contains_expr("prints.games", lit(val)))
+                    Ok(array_contains_expr("prints.games", lit(val.clone())))
                 } else {
                     exact_pred("prints.set_code", &pred.value)
                 }
@@ -106,7 +105,10 @@ impl Predicate {
             // Mixed / special
             PredicateField::Is => is_pred(&pred.value),
 
-            PredicateField::Order | PredicateField::Dir | PredicateField::Unique | PredicateField::Prefer => Ok(lit(true)),
+            PredicateField::Order
+            | PredicateField::Dir
+            | PredicateField::Unique
+            | PredicateField::Prefer => Ok(lit(true)),
         }
     }
 }
@@ -284,7 +286,10 @@ impl PredicateField {
             PredicateField::Set => None, // references set and set name
             PredicateField::Year => Some("released_at"),
 
-            PredicateField::Order | PredicateField::Dir | PredicateField::Unique | PredicateField::Prefer => None,
+            PredicateField::Order
+            | PredicateField::Dir
+            | PredicateField::Unique
+            | PredicateField::Prefer => None,
         }
     }
 }

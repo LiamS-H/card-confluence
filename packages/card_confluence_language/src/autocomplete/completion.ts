@@ -31,8 +31,9 @@ export const KEYWORDS = [ // (to keep this list somewhat organized)
     'scryfallid','oracleid',
     'cah',
     "unique",
-    "order",
+    "order", "sort",
     "dir", "direction",
+    "prefer",
     "l", "lang","language",
 ] as const;
 
@@ -71,6 +72,7 @@ export type PredicatedType =
     | "uuid"
     | "unique"
     | "order"
+    | "prefer"
     | "dir"
     | "lang";
 
@@ -148,6 +150,8 @@ export const PredicateTypeMap: Record<Keyword, PredicatedType> = {
     dir: "dir",
     direction: "dir",
     order: "order",
+    sort: "order",
+    prefer: "prefer",
     unique: "unique",
     l: "lang",
     lang: "lang",
@@ -158,7 +162,7 @@ export type OPERATOR_TYPE = "assign" | "assert" | "all";
 
 export interface ICompletionNode {
     operator: OPERATOR_TYPE;
-    setting?: "order" | "dir" | "unique";
+    setting?: "order" | "dir" | "unique" | "prefer";
     // arg_type: ARG_TYPE;
 }
 
@@ -205,6 +209,7 @@ export const COMPLETION_MAP: ICompletionMap = {
         game: { operator: "assert" },
         uuid: { operator: "assert" },
         order: { operator: "assign", setting: "order" },
+        prefer: { operator: "assign", setting: "prefer" },
         dir: { operator: "assign", setting: "dir" },
         unique: { operator: "assign", setting: "unique" },
         lang: { operator: "assert" },
@@ -336,6 +341,11 @@ const otag_Node: IDetailNode = { detail: "Community function tags.", info: "" };
 const direction_Node: IDetailNode = {
     detail: "Sort direction",
     info: "Compatible with asc (ascending) or desc (descending). Note cards are sorted alphabetically by default",
+};
+
+const order_node: IDetailNode = {
+    detail: "Sorting method",
+    info: `The order parameter determines how Scryfall should sort the returned cards.`,
 };
 
 const lang_Node: IDetailNode = {
@@ -505,9 +515,11 @@ See m: for instruction on mana symbol formatting.`,
     },
     dir: direction_Node,
     direction: direction_Node,
-    order: {
-        detail: "Sorting method",
-        info: `The order parameter determines how Scryfall should sort the returned cards.\n\nDefault alphabetical by name.`,
+    order: order_node,
+    sort: order_node,
+    prefer: {
+        detail: "Preferred printing",
+        info: "Which printing is displayed during results Newest, Oldest, or Cheapest",
     },
     unique: {
         detail: "Duplicate handling",

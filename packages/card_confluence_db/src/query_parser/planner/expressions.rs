@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
 use datafusion::functions::core::expr_ext::FieldAccessor;
+use datafusion::functions::string::expr_fn::lower; // use this "lower(col(1))"
 use datafusion::logical_expr::{col, lit, not, try_cast, Expr as DFExpr, ScalarUDF};
 use datafusion::scalar::ScalarValue;
 
 use crate::query_parser::lexer::Op;
 use crate::query_parser::planner::PlanError;
+
+pub fn text_col(column: &str) -> DFExpr {
+    lower(col(column))
+}
 
 pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
@@ -19,9 +24,9 @@ pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
         };
     }
     match op {
-        Op::Colon => Ok(col(column).ilike(lit(format!("%{value}%")))),
-        Op::Eq => Ok(col(column).eq(lit(value.to_string().to_lowercase()))),
-        Op::Ne => Ok(col(column).not_eq(lit(value.to_string()))),
+        Op::Colon => Ok(text_col(column).ilike(lit(format!("%{value}%")))),
+        Op::Eq => Ok(text_col(column).eq(lit(value.to_string()))),
+        Op::Ne => Ok(text_col(column).not_eq(lit(value.to_string()))),
         other => Err(PlanError(format!(
             "Operator {other:?} is not valid for text field '{column}'"
         ))),
@@ -29,7 +34,7 @@ pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
 }
 
 pub fn exact_pred(column: &str, value: &str) -> Result<DFExpr, PlanError> {
-    Ok(col(column).eq(lit(value.to_lowercase())))
+    Ok(text_col(column).eq(lit(value.to_string())))
 }
 
 pub fn numeric_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
@@ -132,15 +137,14 @@ pub fn color_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanErro
 }
 
 pub fn format_pred(value: &str) -> Result<DFExpr, PlanError> {
-    let format = value.to_lowercase();
     Ok(col("cards.legalities")
-        .field(&format)
+        .field(value)
         .not_eq(lit("not_legal"))
-        .and(col("cards.legalities").field(format).not_eq(lit("banned"))))
+        .and(col("cards.legalities").field(value).not_eq(lit("banned"))))
 }
 
 pub fn is_pred(value: &str) -> Result<DFExpr, PlanError> {
-    match value.to_lowercase().as_str() {
+    match value {
         // Oracle-side type checks
         "legendary" => Ok(array_contains_expr("cards.super_types", lit("Legendary"))),
         "nonlegendary" => Ok(not(array_contains_expr(
@@ -207,7 +211,7 @@ pub fn lit_array(vec: Vec<String>) -> DFExpr {
 }
 
 pub fn normalize_colors(value: &str) -> String {
-    let colors = match value.to_lowercase().as_str() {
+    let colors = match value {
         "white" => "W".into(),
         "blue" => "U".into(),
         "black" => "B".into(),
