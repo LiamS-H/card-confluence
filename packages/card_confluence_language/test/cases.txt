@@ -1,0 +1,7 @@
+# Simple
+
+name:serra
+
+==>
+
+Query(Predicate(FieldName, Operator(Colon), Value))
