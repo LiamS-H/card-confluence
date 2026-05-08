@@ -5,9 +5,9 @@
 	import type { QueryResultRow } from '$lib/query/client.svelte';
 	import ResultCard from './result-card.svelte';
 
-	const { result }: { result: QueryResultRow } = $props();
+	const { result, key }: { result: QueryResultRow; key: string } = $props();
 
-	let { card } = $derived(use_card(() => result.oracle_id, 100));
+	let { card } = $derived(use_card(() => result.oracle_id, 100, key));
 </script>
 
 {#if card.loading}

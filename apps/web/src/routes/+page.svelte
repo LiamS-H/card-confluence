@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { use_query } from '$lib';
 	import { query_client, type QueryResultRow } from '$lib/query/client.svelte';
-	import VirtualList from 'svelte-tiny-virtual-list';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Result from '$components/query/row-result.svelte';
 	import Search from '$components/query/search.svelte';
+	import VirtualGrid from '$components/virtual-grid.svelte';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
 
@@ -47,16 +47,19 @@
 {:else}
 	<p>{response.result.rows.length}</p>
 	<div>
-		<VirtualList
+		<VirtualGrid
+			items={response.result.rows}
 			height={600}
 			width="100%"
-			itemCount={response.result.rows.length}
-			itemSize={120}
-			overscanCount={10}
+			itemHeight={280 + 8}
+			itemWidth={200 + 8}
+			overscan={10}
 		>
-			<div slot="item" let:index let:style {style}>
-				<Result result={response.result.rows[index] as QueryResultRow} />
-			</div>
-		</VirtualList>
+			{#snippet item({ index, row, col })}
+				<div class="p-1">
+					<Result result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`} />
+				</div>
+			{/snippet}
+		</VirtualGrid>
 	</div>
 {/if}
