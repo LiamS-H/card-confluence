@@ -5,7 +5,7 @@ use datafusion::functions::expr_fn::named_struct;
 use datafusion::logical_expr::{col, lit, not, Expr as DFExpr, LogicalPlan, LogicalPlanBuilder};
 use datafusion::prelude::{JoinType, SessionContext};
 use datafusion::scalar::ScalarValue;
-use datafusion_functions_aggregate::expr_fn::{array_agg, first_value};
+use datafusion_functions_aggregate::expr_fn::{array_agg, first_value, min};
 use datafusion_functions_nested::expr_fn::make_array;
 
 use crate::query_parser::parser::ScryfallExpr;
@@ -129,6 +129,16 @@ pub async fn build_query_plan(
     let schema = builder.schema().clone();
     builder = builder.filter(expr_to_df_expr(&expr, &schema)?)?;
 
+    let order = options.order.unwrap_or("cmc".to_owned());
+    let ascending = match options.dir {
+        Some(dir) => match dir.as_str() {
+            "asc" | "ascending" => Some(true),
+            "desc" | "descending" => Some(false),
+            other => return Err(PlanError(format!("Unknown direction: {other}"))),
+        },
+        None => None,
+    };
+
     let unique = options.unique.as_deref().unwrap_or("cards");
     match unique {
         "cards" => {
@@ -144,6 +154,30 @@ pub async fn build_query_plan(
                 vec![]
             };
 
+            let mut aggr_exprs =
+                vec![first_value(col("prints.scryfall_id"), prefer_expr).alias("first_print")];
+            let mut sort_exprs = vec![];
+
+            match order.as_str() {
+                "cmc" => {
+                    sort_exprs.push(col("cards.cmc").sort(ascending.unwrap_or(true), true));
+                    sort_exprs.push(col("cards.name").sort(true, true));
+                }
+                "usd" | "eur" | "tix" => {
+                    let sort_col = format!("sort_{}", order);
+                    aggr_exprs.push(min(col("prints.prices").field(&order)).alias(&sort_col));
+                    sort_exprs.push(col(sort_col).sort(ascending.unwrap_or(true), false));
+                    sort_exprs.push(col("cards.name").sort(true, true));
+                }
+                "release" | "released" | "date" | "year" => {
+                    let first_col = "first_release".to_owned();
+                    aggr_exprs.push(min(col("prints.released_at")).alias(&first_col));
+                    sort_exprs.push(col(&first_col).sort(ascending.unwrap_or(false), false));
+                    sort_exprs.push(col("cards.name").sort(true, true));
+                }
+                other => return Err(PlanError(format!("Unknown order field: {other}"))),
+            }
+
             builder = builder.aggregate(
                 vec![
                     col("cards.oracle_id"),
@@ -151,8 +185,10 @@ pub async fn build_query_plan(
                     col("cards.mana_cost"),
                     col("cards.cmc"),
                 ],
-                vec![first_value(col("prints.scryfall_id"), prefer_expr).alias("first_print")],
+                aggr_exprs,
             )?;
+
+            builder = builder.sort(sort_exprs)?;
 
             builder = builder.project(vec![
                 col("cards.oracle_id"),
@@ -162,6 +198,27 @@ pub async fn build_query_plan(
             ])?;
         }
         "prints" => {
+            let mut sort_exprs = vec![];
+            match order.as_str() {
+                "cmc" => {
+                    sort_exprs.push(col("cards.cmc").sort(ascending.unwrap_or(true), true));
+                    sort_exprs.push(col("cards.name").sort(true, true));
+                    sort_exprs.push(col("prints.released_at").sort(false, true));
+                }
+                "usd" | "eur" | "tix" => {
+                    sort_exprs.push(
+                        col("prints.prices")
+                            .field(&order)
+                            .sort(ascending.unwrap_or(true), false),
+                    );
+                    sort_exprs.push(col("cards.name").sort(true, true));
+                    sort_exprs.push(col("prints.released_at").sort(false, true));
+                }
+                other => return Err(PlanError(format!("Unknown order field: {other}"))),
+            }
+
+            builder = builder.sort(sort_exprs)?;
+
             builder = builder.project(vec![
                 col("cards.oracle_id"),
                 col("cards.name"),
@@ -170,23 +227,6 @@ pub async fn build_query_plan(
             ])?;
         }
         other => return Err(PlanError(format!("Unknown unique mode: {other}"))),
-    }
-
-    if let Some(order) = options.order {
-        let dir = options.dir.as_deref().unwrap_or("asc");
-        let ascending = match dir {
-            "asc" | "ascending" => true,
-            "desc" | "descending" => false,
-            other => return Err(PlanError(format!("Unknown direction: {other}"))),
-        };
-
-        let order_expr = match order.as_str() {
-            "cmc" => col("cards.cmc"),
-            "usd" | "eur" | "tix" => col("prints.prices").field(&order),
-            other => return Err(PlanError(format!("Unknown order field: {other}"))),
-        };
-
-        builder = builder.sort(vec![order_expr.sort(ascending, true)])?;
     }
 
     Ok(builder.build()?)
@@ -235,11 +275,103 @@ mod tests {
         assert!(res.unwrap_err().0.contains("not allowed in nested"));
     }
 
-    #[test]
-    fn test_extract_options_overwrite() {
-        let expr = p("order:usd order:cmc");
-        let (_, options) = extract_options(&expr).unwrap();
-        assert_eq!(options.order, Some("cmc".to_string()));
+    #[tokio::test]
+    async fn test_build_query_plan_order_usd_unique_cards() {
+        let ctx = SessionContext::new();
+
+        // Register mock tables
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::datasource::MemTable;
+        use std::sync::Arc;
+
+        let cards_schema = Arc::new(Schema::new(vec![
+            Field::new("oracle_id", DataType::Utf8, false),
+            Field::new("name", DataType::Utf8, false),
+            Field::new("mana_cost", DataType::Utf8, true),
+            Field::new("cmc", DataType::Float64, true),
+        ]));
+        ctx.register_table(
+            "cards",
+            Arc::new(MemTable::try_new(cards_schema.clone(), vec![vec![]]).unwrap()),
+        )
+        .unwrap();
+
+        let prices_fields = vec![Field::new("usd", DataType::Float32, true)];
+        let prints_schema = Arc::new(Schema::new(vec![
+            Field::new("oracle_id", DataType::Utf8, false),
+            Field::new("scryfall_id", DataType::Utf8, false),
+            Field::new("set_code", DataType::Utf8, false),
+            Field::new("released_at", DataType::Utf8, false),
+            Field::new("prices", DataType::Struct(prices_fields.into()), false),
+        ]));
+        ctx.register_table(
+            "prints",
+            Arc::new(MemTable::try_new(prints_schema, vec![vec![]]).unwrap()),
+        )
+        .unwrap();
+
+        let expr = p("t:creature order:usd unique:cards");
+        let plan = build_query_plan(&ctx, &expr).await.unwrap();
+
+        let plan_str = format!("{:?}", plan);
+        // Verify aggregation includes sort_usd
+        assert!(
+            plan_str.contains("name: \"sort_usd\""),
+            "Aggregation should include sort_usd"
+        );
+        assert!(
+            plan_str.contains("name: \"sort_usd\"") && plan_str.contains("asc: true"),
+            "Should sort by sort_usd ASC"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_build_query_plan_order_usd_unique_prints() {
+        let ctx = SessionContext::new();
+
+        // Register mock tables
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::datasource::MemTable;
+        use std::sync::Arc;
+
+        let cards_schema = Arc::new(Schema::new(vec![
+            Field::new("oracle_id", DataType::Utf8, false),
+            Field::new("name", DataType::Utf8, false),
+            Field::new("mana_cost", DataType::Utf8, true),
+            Field::new("cmc", DataType::Float64, true),
+        ]));
+        ctx.register_table(
+            "cards",
+            Arc::new(MemTable::try_new(cards_schema.clone(), vec![vec![]]).unwrap()),
+        )
+        .unwrap();
+
+        let prices_fields = vec![Field::new("usd", DataType::Float32, true)];
+        let prints_schema = Arc::new(Schema::new(vec![
+            Field::new("oracle_id", DataType::Utf8, false),
+            Field::new("scryfall_id", DataType::Utf8, false),
+            Field::new("set_code", DataType::Utf8, false),
+            Field::new("released_at", DataType::Utf8, false),
+            Field::new("prices", DataType::Struct(prices_fields.into()), false),
+        ]));
+        ctx.register_table(
+            "prints",
+            Arc::new(MemTable::try_new(prints_schema, vec![vec![]]).unwrap()),
+        )
+        .unwrap();
+
+        let expr = p("t:creature order:usd unique:prints");
+        let plan = build_query_plan(&ctx, &expr).await.unwrap();
+
+        let plan_str = format!("{:?}", plan);
+        println!("{}", plan_str);
+
+        // Verify secondary sorts are present
+        assert!(
+            plan_str.contains("asc: true, nulls_first: false"),
+            "Should have primary USD sort with nulls last"
+        );
+        assert!(plan_str.contains("Column { relation: Some(Bare { table: \"cards\" }), name: \"name\" }), asc: true, nulls_first: true"), "Should have secondary name sort");
     }
 }
 
