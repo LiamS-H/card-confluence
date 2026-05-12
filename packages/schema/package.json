@@ -1,0 +1,23 @@
+{
+  "name": "@card-confluence/schema",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45",
+    "pg": "^8.13.1",
+    "@neondatabase/serverless": "1.1.0"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31",
+    "@types/pg": "^8.11.10",
+    "@types/node": "25.7.0"
+  }
+}

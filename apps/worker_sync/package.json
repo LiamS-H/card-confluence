@@ -1,0 +1,21 @@
+{
+  "name": "worker-sync",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@card-confluence/schema": "workspace:*",
+    "@card-confluence/schema-sync": "workspace:*",
+    "yjs": "^13.6.22",
+    "y-protocols": "^1.0.6",
+    "lib0": "^0.2.99"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250417.0",
+    "wrangler": "^4.38.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "worker-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-04-17",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "DECK_DOCS",
+        "class_name": "DeckDocDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["DeckDocDO"]
+    }
+  ]
+}

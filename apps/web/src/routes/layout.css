@@ -1,2 +1,9 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
+
+@layer base {
+	body {
+		@apply bg-black;
+		@apply text-white;
+	}
+}

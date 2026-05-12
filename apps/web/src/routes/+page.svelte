@@ -30,16 +30,13 @@
 	const { response } = $derived(data);
 </script>
 
+<Search doc={query} {onDocChange} />
 <button
+	class="border-2 bg-white p-1 text-black hover:border-white hover:bg-black hover:text-white"
 	onclick={() => {
 		query_client.update_db_latest();
-	}}>RefetchDB</button
+	}}>Re-fetch DB</button
 >
-
-<h1>CC</h1>
-
-<Search doc={query} {onDocChange} />
-
 {#if response.loading}
 	<p>Loading...</p>
 {:else if response.error}

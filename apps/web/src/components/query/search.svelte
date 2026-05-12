@@ -51,7 +51,4 @@
 	});
 </script>
 
-<div
-	bind:this={editorContainer}
-	class="h-30 w-full overflow-hidden rounded-md border border-gray-300 text-base"
-></div>
+<div bind:this={editorContainer} class="h-30 w-full overflow-hidden text-base"></div>

@@ -46,13 +46,16 @@
 		"wrangler": "^4.63.0"
 	},
 	"dependencies": {
-		"wasm-browser": "workspace:*",
-		"@uwdata/flechette": "^2.4.0",
-		"codemirror-lang-cardconfluence": "workspace:*",
+		"@card-confluence/auth": "workspace:*",
+		"@card-confluence/schema": "workspace:*",
 		"@codemirror/autocomplete": "^6.18.6",
 		"@codemirror/commands": "^6.10.0",
 		"@codemirror/language": "^6.11.3",
 		"@codemirror/view": "^6.36.8",
-		"codemirror": "^6.0.2"
+		"@uwdata/flechette": "^2.4.0",
+		"better-auth": "^1.6.10",
+		"codemirror": "^6.0.2",
+		"codemirror-lang-cardconfluence": "workspace:*",
+		"wasm-browser": "workspace:*"
 	}
 }

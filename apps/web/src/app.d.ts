@@ -1,7 +1,14 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts
-// for information about these interfaces
+import type { Auth } from "@card-confluence/auth";
+import { db } from "$lib/server/db";
+
 declare global {
 	namespace App {
+		interface Locals {
+			auth: Auth;
+			db: typeof db;
+			user: Auth["$InferServer"]["session"]["user"] | null;
+			session: Auth["$InferServer"]["session"]["session"] | null;
+		}
 		interface Platform {
 			env: Env;
 			ctx: ExecutionContext;
@@ -10,7 +17,6 @@ declare global {
 		}
 
 		// interface Error {}
-		// interface Locals {}
 		// interface PageData {}
 		// interface PageState {}
 	}
