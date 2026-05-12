@@ -1,4 +1,4 @@
-import type { Auth } from '@card-confluence/auth';
+import type { Auth } from '@repo/auth';
 import { db } from '$lib/server/db';
 
 declare global {

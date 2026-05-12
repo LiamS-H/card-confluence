@@ -1,6 +1,6 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import * as schema from "@card-confluence/schema";
+import * as schema from "@repo/schema";
 
 export const getAuth = (db: any, options?: Partial<BetterAuthOptions>) =>
     betterAuth({

@@ -1,5 +1,5 @@
 {
-  "name": "@card-confluence/schema-sync",
+  "name": "@repo/schema-sync",
   "version": "0.0.0",
   "private": true,
   "main": "./src/index.ts",

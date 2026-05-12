@@ -1,5 +1,5 @@
 {
-  "name": "wasm-browser",
+  "name": "@repo/wasm-browser",
   "scripts": {
     "build:parallel": "RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' wasm-pack build --target web --out-dir dist --out-name wasm_browser",
     "build": "RUSTFLAGS='-C target-feature=+bulk-memory' wasm-pack build --target web --out-dir dist --out-name wasm_browser",

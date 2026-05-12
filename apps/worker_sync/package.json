@@ -8,8 +8,8 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
-    "@card-confluence/schema": "workspace:*",
-    "@card-confluence/schema-sync": "workspace:*",
+    "@repo/schema": "workspace:*",
+    "@repo/schema-sync": "workspace:*",
     "yjs": "^13.6.22",
     "y-protocols": "^1.0.6",
     "lib0": "^0.2.99"

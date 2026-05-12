@@ -1,5 +1,5 @@
 {
-  "name": "@card-confluence/auth",
+  "name": "@repo/auth",
   "version": "0.0.0",
   "private": true,
   "main": "./src/index.ts",
@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "better-auth": "^1.1.20",
-    "@card-confluence/schema": "workspace:*",
+    "@repo/schema": "workspace:*",
     "drizzle-orm": "^0.39.0",
     "pg": "^8.13.1"
   },
