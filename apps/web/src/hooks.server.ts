@@ -1,7 +1,7 @@
-import { auth } from "$lib/server/auth";
-import { db } from "$lib/server/db";
-import { svelteKitHandler } from "better-auth/svelte-kit";
-import { building } from "$app/environment";
+import { auth } from '$lib/server/auth';
+import { db } from '$lib/server/db';
+import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { building } from '$app/environment';
 
 export const handle = async ({ event, resolve }) => {
 	event.locals.auth = auth;

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { authClient } from '$lib/auth-client';
+	import { authClient } from '$lib';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 

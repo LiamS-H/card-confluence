@@ -1,6 +1,6 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
-	import { authClient } from '$lib/auth-client';
+	import { authClient } from '$lib';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import './layout.css';
