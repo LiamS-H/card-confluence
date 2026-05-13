@@ -2,6 +2,7 @@
 	import { authClient } from '$lib';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import Button from '$components/button.svelte';
 
 	let email = $state('');
 	let password = $state('');
@@ -45,14 +46,14 @@
 			class="space-y-4"
 		>
 			<div>
-				<label for="name" class="block text-sm font-medium">Name</label>
+				<label for="name" class="block text-sm font-medium">Username</label>
 				<input
 					type="text"
 					id="username"
 					bind:value={name}
 					required
 					autocomplete="username"
-					class="mt-1 w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
+					class="w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
 				/>
 			</div>
 			<div>
@@ -63,7 +64,7 @@
 					bind:value={email}
 					required
 					autocomplete="email"
-					class="mt-1 w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
+					class="w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
 				/>
 			</div>
 			<div>
@@ -74,20 +75,16 @@
 					bind:value={password}
 					required
 					autocomplete="new-password"
-					class="mt-1 w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
+					class="w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
 				/>
 			</div>
-			<button
-				type="submit"
-				disabled={loading}
-				class="w-full border-2 bg-white p-1 text-black hover:border-white hover:bg-black hover:text-white disabled:opacity-50"
-			>
+			<Button size="full" variant="full" type="submit" intent="primary" disabled={loading}>
 				{loading ? 'Creating account...' : 'Sign Up'}
-			</button>
+			</Button>
 		</form>
 		<p class="text-center text-sm text-gray-400">
-			Already have an account? <a href={resolve('/signin')} class="text-white hover:underline"
-				>Sign In</a
+			Already have an account? <a href={resolve('/login')} class="text-white hover:underline"
+				>Log In</a
 			>
 		</p>
 	</div>

@@ -7,6 +7,7 @@
 	import Result from '$components/query/row-result.svelte';
 	import Search from '$components/query/search.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
+	import Button from '$components/button.svelte';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
 
@@ -31,11 +32,11 @@
 </script>
 
 <Search doc={query} {onDocChange} />
-<button
-	class="border-2 bg-white p-1 text-black hover:border-white hover:bg-black hover:text-white"
+<Button
+	variant="full"
 	onclick={() => {
 		query_client.update_db_latest();
-	}}>Re-fetch DB</button
+	}}>update_db</Button
 >
 {#if response.loading}
 	<p>Loading...</p>

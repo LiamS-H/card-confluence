@@ -1,14 +1,15 @@
 <script lang="ts">
-	import { yjs_client } from '$lib/decks/client';
-	import { useDecks } from '$lib/decks/use-decks.svelte';
+	import Button from '$components/button.svelte';
+	import { sync_client } from '$lib/sync/client';
+	import { useDecks } from '$lib/sync/use-decks.svelte';
 
 	const decks = useDecks();
 </script>
 
-<button
+<Button
 	onclick={() => {
-		yjs_client.create_deck();
-	}}>New</button
+		sync_client.create_deck();
+	}}>New</Button
 >
 
 {#each decks.ids as id (id)}

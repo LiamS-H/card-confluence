@@ -2,6 +2,7 @@
 	import { authClient } from '$lib';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import Button from '$components/button.svelte';
 
 	let email = $state('');
 	let password = $state('');
@@ -27,7 +28,7 @@
 
 <div class="flex items-center justify-center">
 	<div class="w-full max-w-md space-y-4 border-2 border-white p-8">
-		<h1 class="text-center text-2xl font-bold">Sign In</h1>
+		<h1 class="text-center text-2xl font-bold">Existing Account</h1>
 		{#if error}
 			<div class="rounded border border-red-800 bg-red-900/30 p-3 text-sm text-red-400">
 				{error}
@@ -49,7 +50,7 @@
 					bind:value={email}
 					required
 					autocomplete="email"
-					class="mt-1 w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
+					class="w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
 				/>
 			</div>
 			<div>
@@ -60,20 +61,17 @@
 					bind:value={password}
 					required
 					autocomplete="current-password"
-					class="mt-1 w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
+					class="w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
 				/>
 			</div>
-			<button
-				type="submit"
-				disabled={loading}
-				class="w-full border-2 bg-white p-1 text-black hover:border-white hover:bg-black hover:text-white disabled:opacity-50"
-			>
-				{loading ? 'Signing in...' : 'Sign In'}
-			</button>
+			<Button type="submit" size="full" variant="full" disabled={loading}>
+				{loading ? 'Loading' : 'Log In'}
+			</Button>
 		</form>
 		<p class="text-center text-sm text-gray-400">
-			Don't have an account? <a href={resolve('/signup')} class="text-white hover:underline"
-				>Sign Up</a
+			Don't have an account? <a
+				href={resolve('/signup')}
+				class="text-white hover:text-primary hover:underline">Sign Up</a
 			>
 		</p>
 	</div>

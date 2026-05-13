@@ -1,9 +1,29 @@
+@import url('https://fonts.googleapis.com/css2?family=Sulphur+Point:wght@300;400;700&display=swap');
 @import 'tailwindcss';
 @plugin '@tailwindcss/forms';
 
 @layer base {
 	body {
-		@apply bg-black;
-		@apply text-white;
+		@apply bg-background;
+		@apply text-foreground;
 	}
+}
+
+@theme {
+	--font-sans: 'Sulphur Point', sans-serif;
+
+	--color-background: #020100;
+	--color-foreground: #fdfffc;
+
+	--color-default: var(--color-background);
+	--color-default-foreground: var(--color-foreground);
+
+	--color-primary: #f1d302;
+	--color-primary-foreground: var(--color-background);
+
+	--color-secondary: #327dc3;
+	--color-secondary-foreground: var(--color-foreground);
+
+	--color-destructive: #ed1c24;
+	--color-destructive-foreground: var(--color-foreground);
 }
