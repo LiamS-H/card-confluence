@@ -1,4 +1,8 @@
-import { query_client, query_to_string, type QueryRequest } from '$lib/query/client.svelte';
+import {
+	query_client,
+	query_to_string,
+	type QueryRequest
+} from '$lib/card-confluence/client.svelte';
 
 export function use_query(getQuery: () => QueryRequest, debounce: number) {
 	let timeout: NodeJS.Timeout;

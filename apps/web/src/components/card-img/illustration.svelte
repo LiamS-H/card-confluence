@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Illustration } from 'wasm-browser';
+	import type { Illustration } from '@card-confluence/wasm-browser';
 	import Error from './error.svelte';
 
 	export type IllustrationProps = {

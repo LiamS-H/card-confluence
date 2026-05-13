@@ -2,7 +2,7 @@
 	import Error from '$components/card-img/error.svelte';
 	import Loading from '$components/card-img/loading.svelte';
 	import { use_card } from '$lib';
-	import type { QueryResultRow } from '$lib/query/client.svelte';
+	import type { QueryResultRow } from '$lib/card-confluence/client.svelte';
 	import ResultCard from './result-card.svelte';
 
 	const { result, key }: { result: QueryResultRow; key: string } = $props();

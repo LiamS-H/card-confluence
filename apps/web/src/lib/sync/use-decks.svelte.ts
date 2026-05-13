@@ -1,9 +1,9 @@
 import type { DeckStruct } from '@repo/schema-sync';
-import { yjs_client } from './client';
+import { sync_client } from './client';
 import * as Y from 'yjs';
 
 export function useDecks() {
-	const root = yjs_client.get_root();
+	const root = sync_client.get_root();
 	let decks = $state(Array.from(root.keys()));
 
 	$effect(() => {

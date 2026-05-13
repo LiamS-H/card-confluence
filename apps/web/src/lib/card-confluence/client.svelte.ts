@@ -1,15 +1,19 @@
 import { browser, dev } from '$app/environment';
-import LocalQueryWorker from '$lib/query/local-worker?worker';
+import LocalQueryWorker from '$lib/card-confluence/local-worker?worker';
 import type {
 	LocalWorkerStatus,
 	QueryWorkerRequest,
 	QueryWorkerResponse
-} from '$lib/query/local-worker';
-import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '$lib/query/channels';
+} from '$lib/card-confluence/local-worker';
+import {
+	QueryEventsChannel,
+	QueryReqChannel,
+	QueryResChannel
+} from '$lib/card-confluence/channels';
 import { SvelteMap } from 'svelte/reactivity';
 import { cache_get, cache_clear, type CacheKey } from './cache';
 import { tableFromIPC } from '@uwdata/flechette';
-import type { Card, Print, CompletionOption, Completion } from 'wasm-browser';
+import type { Card, Print, CompletionOption, Completion } from '@card-confluence/wasm-browser';
 
 export interface QueryResultRow {
 	oracle_id: string;

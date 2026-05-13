@@ -1,5 +1,5 @@
 {
-  "name": "card-confluence",
+  "name": "karoo",
   "private": true,
   "scripts": {
     "build": "turbo run build",

@@ -1,4 +1,4 @@
-import { query_client } from '$lib/query/client.svelte';
+import { query_client } from '$lib/card-confluence/client.svelte';
 
 export function use_card(getId: () => string, debounce?: number, key?: string) {
 	const id = $derived(getId());

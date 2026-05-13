@@ -1,5 +1,9 @@
 /// <reference lib="webworker" />
-import init, { CardConfluenceLocal, type Completion, type CompletionPlan } from 'wasm-browser';
+import init, {
+	CardConfluenceLocal,
+	type Completion,
+	type CompletionPlan
+} from '@card-confluence/wasm-browser';
 import { get_local_parquet, sync_local_parquet } from './files';
 import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
 import {

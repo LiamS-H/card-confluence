@@ -13,6 +13,7 @@
       "name": "web",
       "version": "0.0.1",
       "dependencies": {
+        "@card-confluence/wasm-browser": "workspace:*",
         "@codemirror/autocomplete": "^6.18.6",
         "@codemirror/commands": "^6.10.0",
         "@codemirror/language": "^6.11.3",
@@ -20,7 +21,6 @@
         "@repo/auth": "workspace:*",
         "@repo/schema": "workspace:*",
         "@repo/schema-sync": "workspace:*",
-        "@repo/wasm-browser": "workspace:*",
         "@uwdata/flechette": "^2.4.0",
         "better-auth": "^1.6.10",
         "codemirror": "^6.0.2",
@@ -110,8 +110,8 @@
         "@lezer/lr": "^1.4.2",
       },
       "devDependencies": {
+        "@card-confluence/wasm-browser": "workspace:*",
         "@lezer/generator": "^1.8.0",
-        "@repo/wasm-browser": "workspace:*",
         "@rollup/plugin-typescript": "^12.3.0",
         "@types/node": "25.0.0",
         "mocha": "^11.7.5",
@@ -122,6 +122,9 @@
       "peerDependencies": {
         "@codemirror/language": "^6.11.0",
       },
+    },
+    "packages/card_confluence_wasm_browser": {
+      "name": "@card-confluence/wasm-browser",
     },
     "packages/schema": {
       "name": "@repo/schema",
@@ -149,9 +152,6 @@
       "devDependencies": {
         "@scryfall/api-types": "^1.0.0-alpha.4",
       },
-    },
-    "packages/wasm_browser": {
-      "name": "@repo/wasm-browser",
     },
     "packages/wasm_workflow_seed": {
       "name": "wasm-workflow-seed",
@@ -181,6 +181,8 @@
     "@better-fetch/fetch": ["@better-fetch/fetch@1.1.21", "", {}, "sha512-/ImESw0sskqlVR94jB+5+Pxjf+xBwDZF/N5+y2/q4EqD7IARUTSpPfIo8uf39SYpCxyOCtbyYpUrZ3F/k0zT4A=="],
 
     "@blazediff/core": ["@blazediff/core@1.9.1", "", {}, "sha512-ehg3jIkYKulZh+8om/O25vkvSsXXwC+skXmyA87FFx6A/45eqOkZsBltMw/TVteb0mloiGT8oGRTcjRAz66zaA=="],
+
+    "@card-confluence/wasm-browser": ["@card-confluence/wasm-browser@workspace:packages/card_confluence_wasm_browser"],
 
     "@cloudflare/kv-asset-handler": ["@cloudflare/kv-asset-handler@0.5.0", "", {}, "sha512-jxQYkj8dSIzc0cD6cMMNdOc1UVjqSqu8BZdor5s8cGjW2I8BjODt/kWPVdY+u9zj3ms75Q5qaZgnxUad83+eAg=="],
 
@@ -397,8 +399,6 @@
     "@repo/schema": ["@repo/schema@workspace:packages/schema"],
 
     "@repo/schema-sync": ["@repo/schema-sync@workspace:packages/schema_sync"],
-
-    "@repo/wasm-browser": ["@repo/wasm-browser@workspace:packages/wasm_browser"],
 
     "@rollup/plugin-typescript": ["@rollup/plugin-typescript@12.3.0", "", { "dependencies": { "@rollup/pluginutils": "^5.1.0", "resolve": "^1.22.1" }, "peerDependencies": { "rollup": "^2.14.0||^3.0.0||^4.0.0", "tslib": "*", "typescript": ">=3.7.0" }, "optionalPeers": ["rollup", "tslib"] }, "sha512-7DP0/p7y3t67+NabT9f8oTBFE6gGkto4SA6Np2oudYmZE/m1dt8RB0SjL1msMxFpLo631qjRCcBlAbq1ml/Big=="],
 

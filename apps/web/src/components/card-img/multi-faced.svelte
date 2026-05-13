@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Illustration as IIllustration } from 'wasm-browser';
+	import type { Illustration as IIllustration } from '@card-confluence/wasm-browser';
 	import Illustration from './illustration.svelte';
 
 	const { illustrations, alt }: { illustrations: IIllustration[]; alt: string } = $props();

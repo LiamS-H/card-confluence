@@ -4,7 +4,7 @@
 	import { EditorView } from '@codemirror/view';
 	import { basicSetup } from 'codemirror';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
-	import { query_client } from '$lib/query/client.svelte';
+	import { query_client } from '$lib/card-confluence/client.svelte';
 
 	const { doc, onDocChange }: { doc: string; onDocChange: (doc: string) => void } = $props();
 

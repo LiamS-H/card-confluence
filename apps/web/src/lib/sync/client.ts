@@ -12,7 +12,7 @@ export interface YjsEvent {
 
 export const YjsEventChannel = new Channel<YjsEvent>('yjs-event');
 
-class YjsClient {
+class SyncClient {
 	private doc = new Y.Doc();
 	private root: DecksRootMap;
 	private idb!: IndexeddbPersistence;
@@ -63,20 +63,20 @@ class YjsClient {
 
 declare global {
 	interface Window {
-		__deck_client?: YjsClient;
+		__deck_client?: SyncClient;
 	}
 }
 
-function get_or_create_client(): YjsClient {
+function get_or_create_client(): SyncClient {
 	if (!browser) {
-		return new YjsClient();
+		return new SyncClient();
 	}
 	if (typeof window === 'undefined') {
-		return new YjsClient();
+		return new SyncClient();
 	}
 
 	if (!window.__deck_client) {
-		const client = new YjsClient();
+		const client = new SyncClient();
 		window.__deck_client = client;
 		client.init();
 	}
@@ -84,4 +84,4 @@ function get_or_create_client(): YjsClient {
 	return window.__deck_client;
 }
 
-export const yjs_client = get_or_create_client();
+export const sync_client = get_or_create_client();

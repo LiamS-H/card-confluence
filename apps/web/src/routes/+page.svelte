@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { use_query } from '$lib';
-	import { query_client, type QueryResultRow } from '$lib/query/client.svelte';
+	import { query_client, type QueryResultRow } from '$lib/card-confluence/client.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';

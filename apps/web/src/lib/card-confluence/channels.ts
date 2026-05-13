@@ -3,7 +3,7 @@ import type {
 	QueryWorkerEvent,
 	QueryWorkerRequest,
 	QueryWorkerResponse
-} from '$lib/query/local-worker';
+} from '$lib/card-confluence/local-worker';
 
 export const QueryReqChannel = new Channel<QueryWorkerRequest>('cc-query-req');
 export const QueryResChannel = new Channel<QueryWorkerResponse>('cc-query-res');
