@@ -4,6 +4,11 @@ import { user } from "./auth";
 export const deck = pgTable("deck", {
     id: uuid("id").defaultRandom().primaryKey(),
     doc: text("doc").notNull().default(""),
+    visibility: text("visibility", {
+        enum: ["unlisted", "public", "private"],
+    })
+        .notNull()
+        .default("unlisted"),
     ownerId: text("owner_id")
         .notNull()
         .references(() => user.id),

@@ -52,8 +52,10 @@ class SyncClient {
 		// run only when follower
 	}
 
-	public create_deck() {
-		return createDeck(this.root, crypto.randomUUID());
+	public create_deck(): string {
+		const id = crypto.randomUUID();
+		setTimeout(() => createDeck(this.root, id), 0);
+		return id;
 	}
 
 	public get_root() {

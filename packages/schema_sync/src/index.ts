@@ -2,6 +2,7 @@ import * as Y from "yjs";
 
 export const DECKS_ROOT_KEY = "decks";
 
+// need type safe accessors for doc, title, etc.
 export type DeckStruct = Y.Map<Y.Text>;
 
 export type DecksRootMap = Y.Map<DeckStruct>;

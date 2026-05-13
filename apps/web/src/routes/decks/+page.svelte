@@ -1,21 +1,26 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import Button from '$components/button.svelte';
+	import DeckCard from '$components/deck-card.svelte';
 	import { sync_client } from '$lib/sync/client';
-	import { useDecks } from '$lib/sync/use-decks.svelte';
+	import { use_decks } from '$lib/sync/use-decks.svelte';
 
-	const decks = useDecks();
+	const decks = use_decks();
 </script>
 
 <Button
 	onclick={() => {
-		sync_client.create_deck();
+		const id = sync_client.create_deck();
+		goto(resolve(`/decks/guest/${id}/edit`));
+		// redirect to new_deck
 	}}>New</Button
 >
 
 {#each decks.ids as id (id)}
 	<ul>
 		<li>
-			<p>{id}</p>
+			<DeckCard {id} edit />
 		</li>
 	</ul>
 {/each}

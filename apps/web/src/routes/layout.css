@@ -7,6 +7,9 @@
 		@apply bg-background;
 		@apply text-foreground;
 	}
+	a {
+		@apply cursor-pointer;
+	}
 }
 
 @theme {
