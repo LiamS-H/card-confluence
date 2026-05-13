@@ -3,7 +3,7 @@ import { user } from "./auth";
 
 export const deck = pgTable("deck", {
     id: uuid("id").defaultRandom().primaryKey(),
-    name: text("name").notNull(),
+    doc: text("doc").notNull().default(""),
     ownerId: text("owner_id")
         .notNull()
         .references(() => user.id),

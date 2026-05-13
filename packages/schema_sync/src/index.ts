@@ -1,11 +1,21 @@
 import * as Y from "yjs";
 
-export const DECK_DOC_KEY = "doc";
+export const DECKS_ROOT_KEY = "decks";
 
-export function createDeckDoc() {
-	const doc = new Y.Doc();
-	doc.getText(DECK_DOC_KEY);
-	return doc;
+export type DeckStruct = Y.Map<Y.Text>;
+
+export type DecksRootMap = Y.Map<DeckStruct>;
+
+export function getDecksRoot(doc: Y.Doc): DecksRootMap {
+    return doc.getMap<DeckStruct>(DECKS_ROOT_KEY);
 }
 
-export type DeckDoc = Y.Doc;
+export function createDeck(decksRoot: DecksRootMap, id: string): DeckStruct {
+    const deckStruct = new Y.Map<Y.Text>();
+    const textContent = new Y.Text();
+
+    deckStruct.set("doc", textContent);
+    decksRoot.set(id, deckStruct);
+
+    return deckStruct;
+}

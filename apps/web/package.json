@@ -46,17 +46,19 @@
 		"wrangler": "^4.63.0"
 	},
 	"dependencies": {
-		"@repo/auth": "workspace:*",
-		"@repo/schema": "workspace:*",
-		"@repo/schema-sync": "workspace:*",
-		"@repo/wasm-browser": "workspace:*",
 		"@codemirror/autocomplete": "^6.18.6",
 		"@codemirror/commands": "^6.10.0",
 		"@codemirror/language": "^6.11.3",
 		"@codemirror/view": "^6.36.8",
+		"@repo/auth": "workspace:*",
+		"@repo/schema": "workspace:*",
+		"@repo/schema-sync": "workspace:*",
+		"@repo/wasm-browser": "workspace:*",
 		"@uwdata/flechette": "^2.4.0",
 		"better-auth": "^1.6.10",
 		"codemirror": "^6.0.2",
-		"codemirror-lang-cardconfluence": "workspace:*"
+		"codemirror-lang-cardconfluence": "workspace:*",
+		"y-indexeddb": "^9.0.12",
+		"y-websocket": "^3.0.0"
 	}
 }
