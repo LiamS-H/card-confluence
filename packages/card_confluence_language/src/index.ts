@@ -9,13 +9,7 @@ import {
 } from "@codemirror/language";
 import { styleTags, tags } from "@lezer/highlight";
 import { CardConfluenceTooltips } from "./tooltip";
-// import { completeCardConfluence } from "./autocomplete";
 
-import {
-    cardconfluenceSettingsFacet,
-    type IEditorSettings,
-    type IEditorSettingsInput,
-} from "./settings";
 import { predicateFromView } from "./utils/predicate-from-view";
 import { completeCardConfluence } from "./autocomplete/autocomplete";
 import { queryContextFacet, type IQueryContext } from "./query-context";
@@ -58,17 +52,13 @@ export function cardconfluence() {
         }),
     ]);
 }
-export function cardconfluenceWithContext(
-    context: IQueryContext,
-    settings: IEditorSettingsInput,
-) {
+export function cardconfluenceWithContext(context: IQueryContext) {
     return new LanguageSupport(cardconfluenceLanguage, [
         CardConfluenceTooltips,
         cardconfluenceLanguage.data.of({
             autocomplete: completeCardConfluence,
         }),
         queryContextFacet.of(context),
-        cardconfluenceSettingsFacet.of(settings),
     ]);
 }
 

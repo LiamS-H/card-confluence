@@ -1,5 +1,5 @@
 import { Facet } from "@codemirror/state";
-import type { Completion } from "wasm-browser";
+import type { Completion } from "@card-confluence/wasm-browser";
 
 export interface IQueryContext {
     complete: (pos: number) => Promise<Completion>;

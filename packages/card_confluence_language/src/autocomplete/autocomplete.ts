@@ -9,7 +9,6 @@ import { predicateFromView } from "../utils/predicate-from-view";
 import { syntaxTree } from "@codemirror/language";
 import { EditorSelection } from "@codemirror/state";
 
-import { cardconfluenceSettingsFacet } from "../settings";
 import { queryContextFacet } from "../query-context";
 import {
     detailFromKeyword,
@@ -36,7 +35,6 @@ export const completeCardConfluence: CompletionSource = async (context) => {
     const pred = predicateFromView(view, pos);
 
     const query_context = context.state.facet(queryContextFacet);
-    const settings = context.state.facet(cardconfluenceSettingsFacet);
 
     if (!pred) {
         const cursor = syntaxTree(view.state).cursorAt(pos, -1);
@@ -57,8 +55,8 @@ export const completeCardConfluence: CompletionSource = async (context) => {
                     return {
                         label: kw,
                         boost,
-                        detail: settings.autoDetail ? detail : undefined,
-                        info: settings.autoInfo ? info : undefined,
+                        detail,
+                        info,
                     };
                 }),
                 commitCharacters: BEGIN_OPERATORS,
@@ -102,8 +100,8 @@ export const completeCardConfluence: CompletionSource = async (context) => {
                 return {
                     label: kw,
                     boost,
-                    detail: settings.autoDetail ? detail : undefined,
-                    info: settings.autoInfo ? info : undefined,
+                    detail,
+                    info,
                 };
             }),
         };

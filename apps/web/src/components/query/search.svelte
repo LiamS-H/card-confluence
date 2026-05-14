@@ -18,19 +18,16 @@
 		const state = EditorState.create({
 			doc: doc,
 			extensions: [
-				cardconfluenceWithContext(
-					{
-						complete: async (pos) => {
-							return await query_client.autocomplete(
-								{
-									query: getDoc()
-								},
-								pos
-							);
-						}
-					},
-					{}
-				),
+				cardconfluenceWithContext({
+					complete: async (pos) => {
+						return await query_client.autocomplete(
+							{
+								query: getDoc()
+							},
+							pos
+						);
+					}
+				}),
 				basicSetup,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {

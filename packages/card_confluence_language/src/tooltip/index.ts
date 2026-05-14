@@ -3,6 +3,7 @@ import { hoverTooltip } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { predicateFromView } from "../utils/predicate-from-view";
 import { detailFromKeyword, isKeyword } from "../autocomplete/completion";
+// TODO: Make this pretty
 
 export const CardConfluenceTooltips = hoverTooltip((view, pos, side) => {
     const predicate = predicateFromView(view, pos + 1);
