@@ -1,0 +1,38 @@
+@top Program { (Statement)* }
+
+@skip { space | LineComment }
+
+Statement { TagDefinition | ViewDefinition }
+
+TagDefinition {
+  TagKeyword Identifier "[" Query "]"
+}
+
+ViewDefinition {
+  ViewKeyword Identifier "{" (ViewItem ("," ViewItem)*)? ","? "}"
+}
+
+ViewItem {
+  TagDefinition | MatchDefinition
+}
+
+MatchDefinition {
+  MatchKeyword TagBlob
+}
+
+Query { queryContent }
+
+@external tokens scanQueryContent from "./tokens" { queryContent }
+
+@tokens {
+  identifier { $[a-zA-Z_] $[a-zA-Z0-9_]* }
+  TagBlob { $[a-zA-Z0-9_*?]+ }
+  "[" "]" "{" "}" ","
+  space { $[ \t\n\r]+ }
+  LineComment { "//" ![\n]* }
+}
+
+TagKeyword { @specialize<identifier, "tag"> }
+ViewKeyword { @specialize<identifier, "view"> }
+MatchKeyword { @specialize<identifier, "match"> }
+Identifier { identifier }

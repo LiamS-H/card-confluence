@@ -1,0 +1,18 @@
+# Simple Tag
+
+tag mytag [ o:draw ]
+
+==>
+
+Program(Statement(TagDefinition(TagKeyword, Identifier, Query(Predicate(FieldName, Operator(Colon), Value)))))
+
+# View with nested tag and match
+
+view myview {
+  tag local [ c:white ],
+  match draw*
+}
+
+==>
+
+Program(Statement(ViewDefinition(ViewKeyword, Identifier, ViewItem(TagDefinition(TagKeyword, Identifier, Query(Predicate(FieldName, Operator(Colon), Value)))), ViewItem(MatchDefinition(MatchKeyword, TagBlob)))))
