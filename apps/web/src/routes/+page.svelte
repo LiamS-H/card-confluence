@@ -34,9 +34,10 @@
 <Search doc={query} {onDocChange} />
 <Button
 	variant="full"
+	disabled={query_client.db_status !== 'synced'}
 	onclick={() => {
 		query_client.update_db_latest();
-	}}>update_db</Button
+	}}>{query_client.db_status === 'synced' ? 'sync_db' : query_client.db_status}</Button
 >
 {#if response.loading}
 	<p>Loading...</p>

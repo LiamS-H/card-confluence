@@ -1,6 +1,7 @@
 import { browser, dev } from '$app/environment';
 import LocalQueryWorker from '$lib/card-confluence/local-worker?worker';
 import type {
+	DBStatus,
 	LocalWorkerStatus,
 	QueryWorkerRequest,
 	QueryWorkerResponse
@@ -60,6 +61,7 @@ export function query_to_string(query: QueryRequest): string {
 
 class QueryClient {
 	private epoch = $state(0);
+	db_status = $state<DBStatus>('loading');
 	ready = false;
 	private initialized = false;
 
@@ -84,13 +86,13 @@ class QueryClient {
 	private on_self_promotion: LockGrantedCallback<unknown> = async (lock) => {
 		// when called with ifAvailable, this will exit early and mark the client ready because there is already a leader
 		if (!lock) {
-			console.log('[client] connected as follower.');
+			console.log('[cc-client] connected as follower.');
 			this.ready = true;
 			return false;
 		}
-		console.log('[client] connected as leader.');
+		console.log('[cc-client] connected as leader.');
 		if (dev) {
-			console.warn('[client] cache cleared. cache is cleared aggressively in dev.');
+			console.warn('[cc-client] cache cleared. cache is cleared aggressively in dev.');
 			await cache_clear();
 		}
 
@@ -128,7 +130,7 @@ class QueryClient {
 				const query = this.queries.get(query_str);
 				if (!query) {
 					console.error(
-						'[client] A query was responded to without being in the queries Map.\
+						'[cc-client] A query was responded to without being in the queries Map.\
                         All queries should get an entry in the map went first requested'
 					);
 					return;
@@ -162,7 +164,7 @@ class QueryClient {
 
 				const data = await cache_get(index);
 				if (!data) {
-					const message = '[client] db index returned by worker has no associated data.';
+					const message = '[cc-client] db index returned by worker has no associated data.';
 					console.error(message);
 					this.queries.set(req_id, {
 						loading: false,
@@ -195,7 +197,7 @@ class QueryClient {
 
 				const data = await cache_get(response.index);
 				if (!data) {
-					const message = '[client] db index returned by worker has no associated data.';
+					const message = '[cc-client] db index returned by worker has no associated data.';
 					for (const id of request.ids) {
 						this.cards.set(id, { error: true, loading: false, message });
 					}
@@ -217,7 +219,10 @@ class QueryClient {
 
 	private on_promotion() {
 		if (this.in_flight.size > 0) {
-			console.log(`[client] resending ${this.in_flight.size} inflight requests.`, this.in_flight);
+			console.log(
+				`[cc-client] resending ${this.in_flight.size} inflight requests.`,
+				this.in_flight
+			);
 		}
 		for (const request of this.in_flight.values()) {
 			QueryReqChannel.postMessage(request);
@@ -290,7 +295,7 @@ class QueryClient {
 			}
 			const data = await cache_get(e.data.index);
 			if (!data) {
-				const message = '[client] db index returned by worker has no associated data.';
+				const message = '[cc-client] db index returned by worker has no associated data.';
 				console.error(message);
 				this.queries.set(req_id, {
 					loading: false,
@@ -315,6 +320,21 @@ class QueryClient {
 		// register the resolver
 		QueryResChannel.onmessage((e) => this.on_worker_response(e));
 
+		QueryEventsChannel.onmessage((event) => {
+			switch (event.data.type) {
+				case 'db-status':
+					this.db_status = event.data.status;
+					if (event.data.status === 'synced') {
+						this.on_promotion();
+					}
+					return;
+				case 'db-sync':
+					this.db_status = 'loading';
+					this.clear_cache();
+					return;
+			}
+		});
+
 		await navigator.locks.request(
 			'db-leader-lock',
 			{ ifAvailable: true }, // exit early when not free so that initiation can proceed. this will never resolve when lock succeeds.
@@ -327,12 +347,6 @@ class QueryClient {
 			switch (event.data.type) {
 				case 'promotion':
 					this.on_promotion();
-					return;
-				case 'db-sync-complete':
-					this.on_promotion();
-					return;
-				case 'db-sync':
-					this.clear_cache();
 					return;
 			}
 		});

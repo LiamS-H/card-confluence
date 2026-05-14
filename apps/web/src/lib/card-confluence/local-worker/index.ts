@@ -16,9 +16,23 @@ import {
 } from '../cache';
 import { type QueryRequest } from '../client.svelte';
 
-export type QueryWorkerEvent = {
-	type: 'promotion' | 'db-sync' | 'db-sync-complete' | 'error-fatal';
-};
+export type DBStatus = 'loading' | 'downloading' | 'syncing' | 'synced';
+
+export type QueryWorkerEvent =
+	| {
+			type: 'promotion';
+	  }
+	| {
+			type: 'db-sync';
+	  }
+	| {
+			type: 'db-status';
+			status: DBStatus;
+	  }
+	| {
+			type: 'error-fatal';
+			message: string;
+	  };
 
 export type QueryWorkerResponse =
 	| {
@@ -66,23 +80,24 @@ export type QueryWorkerRequest =
 			ids: string[];
 	  };
 
-async function initBrowser(
-	files: ReturnType<typeof get_local_parquet>
-): Promise<CardConfluenceLocal> {
+async function initBrowser(files: typeof get_local_parquet): Promise<CardConfluenceLocal> {
+	QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
 	await init();
-	const handles = await files;
+	const handles = await files();
 	if ('type' in handles) {
 		throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
 	}
 
 	const browser = new CardConfluenceLocal();
 
+	QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
 	await browser.attach_files(handles);
+	QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
 
 	return browser;
 }
 
-let local_browser = initBrowser(get_local_parquet());
+let local_browser = initBrowser(get_local_parquet);
 
 async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 	const request = event.data;
@@ -159,6 +174,7 @@ QueryReqChannel.onmessage(handle_message);
 
 QueryEventsChannel.onmessage(async (event) => {
 	if (event.data.type === 'db-sync') {
+		QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
 		const browser = await local_browser;
 		try {
 			browser.release_files();
@@ -171,16 +187,19 @@ QueryEventsChannel.onmessage(async (event) => {
 		local_browser = promise;
 
 		const reset = cache_clear();
+
 		const [handles] = await Promise.all([sync_local_parquet(), reset]);
 		// const [handles] = await Promise.all([get_local_parquet(), reset]);
 		if ('type' in handles) {
 			const message = `Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`;
 			reject(message);
+			QueryEventsChannel.postMessage({ type: 'error-fatal', message: 'failed to get file handle' });
 			throw Error(message);
 		}
+		QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
 		await browser.attach_files(handles);
 		resolve(browser);
-		QueryEventsChannel.postMessage({ type: 'db-sync-complete' });
+		QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
 	}
 });
 
