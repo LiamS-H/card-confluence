@@ -1,35 +1,39 @@
-import type { DeckStruct } from '@repo/schema-sync';
+import type { DeckStruct, DeckSerialized } from '@repo/schema-sync';
 import { sync_client } from './client';
 import * as Y from 'yjs';
 
-export interface DeckMeta {
-	doc: string;
-}
-
 export function use_deck_meta(id: () => string) {
 	const root = sync_client.get_root();
-	let deck = root.get(id());
-	const out = $derived<{ error: string } | { error: null; deck: DeckMeta }>(
-		deck ? { deck: deck.toJSON() as DeckMeta, error: null } : { error: 'Deck not found' }
+	let deck = $state<DeckStruct | undefined>(root.get(id()));
+
+	const out = $derived<{ error: string } | { error: null; deck: DeckSerialized }>(
+		deck ? { deck: deck.toJSON(), error: null } : { error: 'Deck not found' }
 	);
 
 	$effect(() => {
-		function observer(e: Y.YMapEvent<DeckStruct>) {
-			if (e.keysChanged.has(id())) {
-				deck = root.get(id());
+		const currentId = id();
+		deck = root.get(currentId);
+
+		function rootObserver(e: Y.YMapEvent<DeckStruct>) {
+			if (e.keysChanged.has(currentId)) {
+				deck = root.get(currentId);
 			}
 		}
-		root.observe(observer);
-		return () => root.unobserve(observer);
+		root.observe(rootObserver);
+
+		return () => root.unobserve(rootObserver);
 	});
 
 	$effect(() => {
-		function observer(_e: Y.YMapEvent<Y.Text>) {
-			// eslint-disable-next-line no-self-assign -- to trigger derived to update the json deck
+		if (!deck) return;
+
+		const deckObserver = () => {
+			// eslint-disable-next-line no-self-assign
 			deck = deck;
-		}
-		deck?.observe(observer);
-		return () => deck?.unobserve(observer);
+		};
+
+		deck.observe(deckObserver);
+		return () => deck?.unobserve(deckObserver);
 	});
 
 	function delete_deck() {
@@ -44,21 +48,27 @@ export function use_deck_meta(id: () => string) {
 	};
 }
 
-export function use_deck(id: () => string) {
+export function use_deck_yjs(id: () => string) {
 	const root = sync_client.get_root();
-	let deck = root.get(id());
+	let deck = $state<DeckStruct | undefined>(undefined);
+
 	const out = $derived<{ error: string } | { error: null; deck: DeckStruct }>(
 		deck ? { deck, error: null } : { error: 'Deck not found' }
 	);
+
 	$effect(() => {
+		const currentId = id();
+		deck = root.get(currentId);
+
 		function observer(e: Y.YMapEvent<DeckStruct>) {
-			if (e.keysChanged.has(id())) {
-				deck = root.get(id());
+			if (e.keysChanged.has(currentId)) {
+				deck = root.get(currentId);
 			}
 		}
 		root.observe(observer);
-		return () => root?.unobserve(observer);
+		return () => root.unobserve(observer);
 	});
+
 	return {
 		get deck() {
 			return out;

@@ -8,14 +8,14 @@
 	const { deck, delete_deck } = use_deck_meta(() => id);
 </script>
 
-{#if deck.error}
+{#if deck.error !== null}
 	<div>
 		<span> Deck not found. </span>
 	</div>
 {:else}
 	<div>
 		<a href={resolve(`/decks/guest/${id}${edit ? '/edit' : ''}`)}>
-			{id}
+			{deck.deck.title || 'Untitled Deck'}
 		</a>
 		<Button intent="destructive" onclick={delete_deck}>delete</Button>
 	</div>

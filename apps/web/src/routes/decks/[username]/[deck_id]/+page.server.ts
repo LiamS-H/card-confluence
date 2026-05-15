@@ -1,5 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
+import { page } from '$app/state';
 
 export const load: PageLoad = ({ params }) => {
 	// TODO
@@ -10,11 +11,11 @@ export const load: PageLoad = ({ params }) => {
 	const deck_view = null;
 
 	if (!params.deck_id) {
-		throw error(404, 'Not found');
+		throw error(404, 'Not found 1');
 	}
 
 	if (deck_view === null) {
-		throw error(404, 'Not found');
+		throw error(404, 'Not found 2');
 	}
 
 	return {

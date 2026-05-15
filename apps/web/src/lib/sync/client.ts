@@ -58,6 +58,9 @@ class SyncClient {
 		return id;
 	}
 
+	public get_doc() {
+		return this.doc;
+	}
 	public get_root() {
 		return this.root;
 	}
