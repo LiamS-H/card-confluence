@@ -4,7 +4,7 @@
 	import { cva, type VariantProps } from 'class-variance-authority';
 
 	const buttonVariants = cva(
-		'group relative overflow-hidden border outline px-4 py-1 transition-colors disabled:opacity-50 disabled:pointer-events-none',
+		'group relative overflow-hidden border outline transition-colors disabled:opacity-50 disabled:pointer-events-none',
 		{
 			variants: {
 				intent: {
@@ -19,16 +19,22 @@
 					fixed: ''
 				},
 				size: {
-					small: 'text-xl',
-					default: 'text-2xl w-auto',
-					full: 'text-2xl w-full'
+					xs: 'text-sm px-2 py-0.5',
+					sm: 'text-base px-3 py-1',
+					md: 'text-xl px-3 py-1',
+					lg: 'text-2xl px-3 py-1'
+				},
+				width: {
+					auto: 'w-auto',
+					full: 'w-full'
 				}
 			},
 
 			defaultVariants: {
 				intent: 'default',
 				variant: 'outline',
-				size: 'default'
+				size: 'md',
+				width: 'auto'
 			}
 		}
 	);
@@ -40,10 +46,20 @@
 		intent?: ButtonVariants['intent'];
 		variant?: ButtonVariants['variant'];
 		size?: ButtonVariants['size'];
+		width?: ButtonVariants['width'];
 		class?: string;
 	}
 
-	let { children, intent, variant, size, class: className, disabled, ...rest }: Props = $props();
+	let {
+		children,
+		intent,
+		variant,
+		width,
+		size,
+		class: className,
+		disabled,
+		...rest
+	}: Props = $props();
 
 	const bgMap: Record<string, string> = {
 		default: 'bg-foreground',
@@ -69,7 +85,11 @@
 	// );
 </script>
 
-<button {disabled} class={buttonVariants({ intent, variant, size, class: className })} {...rest}>
+<button
+	{disabled}
+	class={buttonVariants({ intent, variant, size, width, class: className })}
+	{...rest}
+>
 	<span
 		class="absolute inset-y-0 left-[-10%] z-0 w-[120%] skew-x-12 transition-transform duration-300
            {bgMap[intent ?? 'default']} {spanTranslate}"

@@ -7,7 +7,7 @@
 		card,
 		matched_prints,
 		width
-	}: { card: DetailedCard; matched_prints: string[]; width: number } = $props();
+	}: { card: DetailedCard; matched_prints: string[]; width: string | number } = $props();
 
 	let print = $derived(card.prints.find((p) => matched_prints.includes(p.scryfall_id)));
 </script>

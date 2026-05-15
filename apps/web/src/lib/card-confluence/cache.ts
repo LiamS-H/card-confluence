@@ -15,7 +15,7 @@ async function initCacheDB(): Promise<IDBDatabase> {
 	const db_req = indexedDB.open(QUERY_CACHE_DB, 1);
 
 	db_req.onerror = () => {
-		QueryEventsChannel.postMessage({ type: 'error-fatal' });
+		QueryEventsChannel.postMessage({ type: 'error-fatal', message: 'failed to open indexedDB' });
 		reject();
 	};
 

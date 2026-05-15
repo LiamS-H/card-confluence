@@ -1,8 +1,7 @@
 import { error } from '@sveltejs/kit';
-import type { PageLoad } from './$types';
-import { page } from '$app/state';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = ({ params }) => {
+export const load: PageServerLoad = ({ params }) => {
 	// TODO
 	// deck was opened in non edit, this should fetch the view from postgres
 	// deck for visibility / permissions

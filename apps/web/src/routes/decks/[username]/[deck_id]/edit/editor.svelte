@@ -2,7 +2,6 @@
 	import { onMount } from 'svelte';
 	import { EditorState } from '@codemirror/state';
 	import { EditorView } from '@codemirror/view';
-	import { basicSetup } from 'codemirror';
 	import { karooDeck } from 'codemirror-lang-karoo-deck';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 	import { query_client } from '$lib/card-confluence/client.svelte';
@@ -10,6 +9,8 @@
 	import * as Y from 'yjs';
 	import type { DeckStruct } from '@repo/schema-sync';
 	import { sync_client } from '$lib/sync/client';
+	import Input from '$components/input.svelte';
+	import { karooSetup } from '$lib/codemirror';
 
 	const { deck } = $props<{ deck: DeckStruct }>();
 
@@ -22,7 +23,7 @@
 		const state = EditorState.create({
 			doc: doc.toJSON(),
 			extensions: [
-				basicSetup,
+				karooSetup,
 				karooDeck(),
 				cardconfluenceWithContext({
 					complete: async (pos: number) => {
@@ -65,9 +66,8 @@
 
 <div class="flex flex-col gap-2">
 	<div class="flex items-center justify-between">
-		<input
+		<Input
 			placeholder="Unnamed Deck"
-			class="border-x-0 border-t-0 border-b-2 border-foreground bg-transparent p-0 text-2xl focus:border-primary focus:text-primary focus:ring-0 focus:outline-none"
 			type="text"
 			value={title_string}
 			oninput={(event) => {
@@ -79,11 +79,5 @@
 			}}
 		/>
 	</div>
-	<div bind:this={editorContainer} class="h-full w-full border"></div>
+	<div bind:this={editorContainer} class="h-full w-full"></div>
 </div>
-
-<!-- <style>
-	:global(.cm-editor) {
-		height: 100%;
-	}
-</style> -->

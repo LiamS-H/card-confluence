@@ -78,7 +78,14 @@
 					class="w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
 				/>
 			</div>
-			<Button size="full" variant="full" type="submit" intent="primary" disabled={loading}>
+			<Button
+				width="full"
+				size="lg"
+				variant="full"
+				type="submit"
+				intent="primary"
+				disabled={loading}
+			>
 				{loading ? 'Creating account...' : 'Sign Up'}
 			</Button>
 		</form>

@@ -2,9 +2,9 @@
 	import { onMount } from 'svelte';
 	import { EditorState } from '@codemirror/state';
 	import { EditorView } from '@codemirror/view';
-	import { basicSetup } from 'codemirror';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 	import { query_client } from '$lib/card-confluence/client.svelte';
+	import { karooSetup } from '$lib/codemirror';
 
 	const { doc, onDocChange }: { doc: string; onDocChange: (doc: string) => void } = $props();
 
@@ -17,6 +17,7 @@
 		// 1. Create the state
 		const state = EditorState.create({
 			doc: doc,
+			selection: { anchor: doc.length },
 			extensions: [
 				cardconfluenceWithContext({
 					complete: async (pos) => {
@@ -28,7 +29,7 @@
 						);
 					}
 				}),
-				basicSetup,
+				karooSetup,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {
 						onDocChange(update.state.doc.toString());
@@ -42,10 +43,12 @@
 			parent: editorContainer
 		});
 
+		view.focus();
+
 		return () => {
 			view.destroy();
 		};
 	});
 </script>
 
-<div bind:this={editorContainer} class="h-30 w-full overflow-hidden text-base"></div>
+<div bind:this={editorContainer}></div>

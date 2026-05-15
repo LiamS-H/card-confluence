@@ -4,12 +4,12 @@
 	import { type Pathname } from '$app/types';
 	import Button from '$components/button.svelte';
 
-	import { authClient } from '$lib';
-	const session = authClient.useSession();
+	// import { authClient } from '$lib';
+	// const session = authClient.useSession();
 
-	async function signOut() {
-		await authClient.signOut();
-	}
+	// async function signOut() {
+	// 	await authClient.signOut();
+	// }
 
 	function match(path: string, path2: Pathname) {
 		if (path2 === '/') {
@@ -34,9 +34,10 @@
 	intent?: 'default' | 'primary' | 'secondary' | 'destructive';
 	path: Pathname;
 })}
+	{@const active = match(page.url.pathname, path)}
 	<li>
 		<a href={resolve(path)}>
-			<Button {intent} size="small" variant={match(page.url.pathname, path) ? 'fixed' : 'outline'}>
+			<Button size="md" intent={active ? 'primary' : intent} variant={active ? 'fixed' : 'outline'}>
 				{label}
 			</Button>
 		</a>
@@ -46,18 +47,18 @@
 <nav class="sticky top-0 flex h-10 w-full items-center justify-between pr-px">
 	<a href={resolve('/')} class="ml-1 text-2xl font-bold">karoo.to</a>
 	<ul class="flex">
-		{#each [{ label: 'decks', path: '/decks' }] as const as route (route)}
+		{#each [{ label: 'cards', path: '/' }, { label: 'decks', path: '/decks' }] as const as route (route)}
 			{@render navItem(route)}
 		{/each}
-		{#if $session.data}
+		<!-- {#if $session.data}
 			{@render navItem({ label: $session.data.user.name, path: '/account', intent: 'secondary' })}
 			<li>
-				<Button size="small" intent="destructive" onclick={signOut}>logout</Button>
+				<Button size="md" intent="destructive" onclick={signOut}>logout</Button>
 			</li>
 		{:else if !$session.isPending}
 			{#each [{ label: 'login', path: '/login' }, { label: 'signup', path: '/signup', intent: 'primary' }] as const as route (route)}
 				{@render navItem(route)}
 			{/each}
-		{/if}
+		{/if} -->
 	</ul>
 </nav>

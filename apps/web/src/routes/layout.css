@@ -3,10 +3,6 @@
 @plugin '@tailwindcss/forms';
 
 @layer base {
-	body {
-		@apply bg-background;
-		@apply text-foreground;
-	}
 	a {
 		@apply cursor-pointer;
 	}

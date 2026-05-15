@@ -3,106 +3,67 @@
 
 	type Props<T> = {
 		items: T[];
-		height: number | string;
-		width?: number | string;
-		itemWidth: number;
-		itemHeight: number;
+		columns: number;
+		aspectRatio?: number; // width / height, default 5/7
 		overscan?: number;
-		// Define the snippet prop and the arguments it will pass back to the parent
-		item?: Snippet<[{ index: number; item: T; row: number; col: number; x: number; y: number }]>;
+		item?: Snippet<[{ index: number; item: T; row: number; col: number }]>;
 	};
 
-	let {
-		items,
-		height,
-		width = '100%',
-		itemWidth,
-		itemHeight,
-		overscan = 4,
-		item
-	}: Props<T> = $props();
+	let { items, columns, aspectRatio = 5 / 7, overscan = 2, item }: Props<T> = $props();
 
-	let container: HTMLDivElement;
-
+	let scroller: HTMLDivElement;
 	let scrollTop = $state(0);
 	let viewportWidth = $state(0);
 	let viewportHeight = $state(0);
 
-	function updateViewport() {
-		if (!container) return;
-
-		viewportWidth = container.clientWidth;
-		viewportHeight = container.clientHeight;
-	}
-
 	onMount(() => {
-		updateViewport();
-
-		const resize = new ResizeObserver(updateViewport);
-		resize.observe(container);
-
-		return () => resize.disconnect();
+		const ro = new ResizeObserver(() => {
+			viewportWidth = scroller.clientWidth;
+			viewportHeight = scroller.clientHeight;
+		});
+		ro.observe(scroller);
+		return () => ro.disconnect();
 	});
 
-	const columns = $derived(Math.max(1, Math.floor(viewportWidth / itemWidth)));
+	const itemWidth = $derived(viewportWidth / columns);
+	const itemHeight = $derived(itemWidth / aspectRatio);
 	const totalRows = $derived(Math.ceil(items.length / columns));
 	const totalHeight = $derived(totalRows * itemHeight);
-	const startRow = $derived(Math.max(0, Math.floor(scrollTop / itemHeight) - overscan));
-	const endRow = $derived(
-		Math.min(totalRows, Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan)
-	);
 
 	const visible = $derived.by(() => {
-		const out: {
-			index: number;
-			row: number;
-			col: number;
-			x: number;
-			y: number;
-			item: T;
-		}[] = [];
-
-		for (let row = startRow; row < endRow; row++) {
+		if (!itemWidth || !itemHeight) return [];
+		const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
+		const end = Math.min(
+			totalRows,
+			Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan
+		);
+		const out = [];
+		for (let row = start; row < end; row++) {
 			for (let col = 0; col < columns; col++) {
 				const index = row * columns + col;
-
 				if (index >= items.length) break;
-
-				out.push({
-					index,
-					row: row - startRow,
-					col,
-					x: col * itemWidth,
-					y: row * itemHeight,
-					item: items[index]
-				});
+				out.push({ index, item: items[index], row, col, x: col * itemWidth, y: row * itemHeight });
 			}
 		}
-
 		return out;
 	});
 </script>
 
-<div
-	bind:this={container}
-	class="virtual-grid"
-	style:height={typeof height === 'number' ? `${height}px` : height}
-	style:width={typeof width === 'number' ? `${width}px` : width}
-	onscroll={() => {
-		scrollTop = container.scrollTop;
-	}}
->
-	<div class="spacer" style:height={`${totalHeight}px`}>
+<!--
+  The outer wrapper must be a positioned element so this component
+  can use position:absolute to fill it regardless of parent sizing.
+  If your parent isn't already position:relative/absolute, add that.
+-->
+<div class="virtual-grid" bind:this={scroller} onscroll={() => (scrollTop = scroller.scrollTop)}>
+	<div style:height="{totalHeight}px">
 		{#each visible as v (v.index)}
 			<div
-				class="item"
-				style:width={`${itemWidth}px`}
-				style:height={`${itemHeight}px`}
-				style:transform={`translate(${v.x}px, ${v.y}px)`}
+				class="virtual-grid-item"
+				style:width="{itemWidth}px"
+				style:height="{itemHeight}px"
+				style:transform="translate({v.x}px, {v.y}px)"
 			>
-				{#if item}
-					{@render item({ index: v.index, item: v.item, row: v.row, col: v.col, x: v.x, y: v.y })}
-				{/if}
+				{@render item?.({ index: v.index, item: v.item, row: v.row, col: v.col })}
 			</div>
 		{/each}
 	</div>
@@ -110,16 +71,18 @@
 
 <style>
 	.virtual-grid {
-		overflow: auto;
-		position: relative;
+		/* Fill whatever positioned ancestor wraps this component */
+		position: absolute;
+		inset: 0;
+		overflow-y: auto;
 	}
 
-	.spacer {
+	.virtual-grid > div {
 		position: relative;
 		width: 100%;
 	}
 
-	.item {
+	.virtual-grid-item {
 		position: absolute;
 		top: 0;
 		left: 0;

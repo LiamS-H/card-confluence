@@ -8,10 +8,12 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<header>
-	<Navbar />
-</header>
+<div class="grid min-h-dvh grid-rows-[auto_1fr] bg-background text-foreground">
+	<header>
+		<Navbar />
+	</header>
 
-<main>
-	{@render children()}
-</main>
+	<main>
+		{@render children()}
+	</main>
+</div>

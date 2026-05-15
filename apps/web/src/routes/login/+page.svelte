@@ -64,7 +64,7 @@
 					class="w-full border border-white bg-black px-3 py-2 focus:ring-2 focus:ring-white focus:outline-none"
 				/>
 			</div>
-			<Button type="submit" size="full" variant="full" disabled={loading}>
+			<Button type="submit" size="lg" width="full" variant="full" disabled={loading}>
 				{loading ? 'Loading' : 'Log In'}
 			</Button>
 		</form>

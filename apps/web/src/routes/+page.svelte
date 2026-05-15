@@ -5,7 +5,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Result from '$components/query/row-result.svelte';
-	import Search from '$components/query/search.svelte';
+	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import Button from '$components/button.svelte';
 
@@ -29,36 +29,56 @@
 	}
 	let data = use_query(() => ({ query }), 500);
 	const { response } = $derived(data);
+
+	let card_columns = $state(4);
 </script>
 
-<Search doc={query} {onDocChange} />
-<Button
-	variant="full"
-	disabled={query_client.db_status !== 'synced'}
-	onclick={() => {
-		query_client.update_db_latest();
-	}}>{query_client.db_status === 'synced' ? 'sync_db' : query_client.db_status}</Button
->
-{#if response.loading}
-	<p>Loading...</p>
-{:else if response.error}
-	<p>Error: {response.message}</p>
-{:else}
-	<p>{response.result.rows.length}</p>
-	<div>
-		<VirtualGrid
-			items={response.result.rows}
-			height={600}
-			width="100%"
-			itemHeight={280 + 8}
-			itemWidth={200 + 8}
-			overscan={10}
-		>
-			{#snippet item({ index, row, col })}
-				<div class="p-1">
-					<Result result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`} />
-				</div>
-			{/snippet}
-		</VirtualGrid>
+<div class="flex h-full flex-col gap-2 pt-2">
+	<Search doc={query} {onDocChange} />
+	<div class="sticky flex justify-between">
+		<div class="flex items-center px-2">
+			{#if response.loading}
+				<p>Loading...</p>
+			{:else if response.error}
+				<p>Error: {response.message}</p>
+			{:else}
+				<p>{response.result.rows.length} cards</p>
+			{/if}
+		</div>
+		<div class="flex flex-1 items-center px-2">
+			<input
+				class="w-full"
+				id="native-slider"
+				type="range"
+				min="1"
+				max="10"
+				bind:value={card_columns}
+			/>
+		</div>
+		<div class="flex w-fit items-center border-2 border-secondary text-secondary *:-m-px">
+			<span class="px-2">local data</span>
+			<Button
+				size="sm"
+				variant="full"
+				intent="secondary"
+				disabled={query_client.db_status !== 'synced'}
+				onclick={() => {
+					query_client.update_db_latest();
+				}}>{query_client.db_status === 'synced' ? 'update' : query_client.db_status}</Button
+			>
+		</div>
+
+		{#if !response.loading && !response.error}{/if}
 	</div>
-{/if}
+	{#if !response.loading && !response.error}
+		<div class="relative h-full flex-1">
+			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
+				{#snippet item({ index, row, col })}
+					<div class="p-1">
+						<Result result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`} />
+					</div>
+				{/snippet}
+			</VirtualGrid>
+		</div>
+	{/if}
+</div>
