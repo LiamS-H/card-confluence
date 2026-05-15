@@ -21,9 +21,10 @@
 			extensions: [
 				cardconfluenceWithContext({
 					complete: async (pos) => {
+						const query = getDoc();
 						return await query_client.autocomplete(
 							{
-								query: getDoc()
+								query
 							},
 							pos
 						);

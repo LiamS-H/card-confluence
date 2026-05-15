@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { EditorState } from '@codemirror/state';
 	import { EditorView } from '@codemirror/view';
-	import { karooDeck } from 'codemirror-lang-karoo-deck';
+	import { karooDeck, tagAtCursor } from 'codemirror-lang-karoo-deck';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 	import { query_client } from '$lib/card-confluence/client.svelte';
 	import { yCollab } from 'y-codemirror.next';
@@ -27,12 +27,19 @@
 				karooDeck(),
 				cardconfluenceWithContext({
 					complete: async (pos: number) => {
-						return await query_client.autocomplete(
+						const tag = tagAtCursor(view.state, pos);
+						if (tag === null || tag.queryPos === null) {
+							return { from: pos, to: pos, options: [] };
+						}
+
+						const { from, to, options } = await query_client.autocomplete(
 							{
-								query: view.state.doc.toString()
+								query: tag.query
 							},
-							pos
+							tag.queryPos
 						);
+
+						return { options, from: pos, to: pos + (to - from) };
 					}
 				}),
 				yCollab(doc, null, { undoManager }),

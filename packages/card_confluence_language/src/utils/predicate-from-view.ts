@@ -22,19 +22,20 @@ export function predicateFromView(
     if (cursor.name !== "Predicate") {
         return null;
     }
-    const predicate_end = cursor.node.to;
     cursor.firstChild();
     const argument = view.state.sliceDoc(cursor.node.from, cursor.node.to);
-    const arg_start = cursor.from;
+    const kw_start = cursor.from;
     cursor.nextSibling();
     const operator = view.state.sliceDoc(cursor.node.from, cursor.node.to);
     const op_start = cursor.from;
+    const val_start = cursor.to;
     cursor.nextSibling();
     const value = view.state.sliceDoc(cursor.node.from, cursor.node.to);
-    const val_start = cursor.from;
+    const predicate_end = cursor.node.to;
+
     return {
         keyword: argument,
-        kw_start: arg_start,
+        kw_start,
         operator,
         op_start,
         value,

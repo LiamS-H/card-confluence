@@ -8,7 +8,6 @@ export function use_decks() {
 
 	$effect(() => {
 		function observer(e: Y.YMapEvent<DeckStruct>) {
-			console.log('test');
 			if (e.keysChanged.size > 0) {
 				decks = Array.from(root.keys());
 			}

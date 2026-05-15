@@ -39,6 +39,22 @@ export const completeCardConfluence: CompletionSource = async (context) => {
     if (!pred) {
         const cursor = syntaxTree(view.state).cursorAt(pos, -1);
 
+        if (cursor.name === "Query") {
+            const result: CompletionResult = {
+                from: cursor.node.from,
+                options: KEYWORDS.map((kw): Completion => {
+                    const { detail, info } = detailFromKeyword(kw);
+                    return {
+                        label: kw,
+                        detail,
+                        info,
+                    };
+                }),
+                commitCharacters: BEGIN_OPERATORS,
+            };
+            return result;
+        }
+
         if (cursor.name === "BareWord") {
             const word = view.state.sliceDoc(cursor.node.from, cursor.node.to);
             const matches = KEYWORDS.filter((kw) => kw.includes(word));
@@ -182,18 +198,15 @@ export const completeCardConfluence: CompletionSource = async (context) => {
     if (!options) return null;
 
     let val;
-    let to: number;
-    let from: number;
+    let { from, to } = context_completion;
     let commitCharacters: string[] = [];
     let apply: Completion["apply"];
     if (value.length > 1 && value.at(0) === '"' && value.at(-1) === '"') {
         val = value.substring(1, value.length - 1);
-        from = val_start + 1;
-        to = predicate_end - 1;
+        from = from + 1;
+        to = from - 1;
     } else {
         val = value;
-        from = val_start;
-        to = predicate_end;
         commitCharacters = [" "];
         apply = (view, completion) => {
             if (completion.label.includes(" ")) {
@@ -245,10 +258,4 @@ export const completeCardConfluence: CompletionSource = async (context) => {
     }
 
     return result;
-
-    // return {
-    //     form: val_start,
-    //     to: tag_end,
-    //     options: [],
-    // };
 };
