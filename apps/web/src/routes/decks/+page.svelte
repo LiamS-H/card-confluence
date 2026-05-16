@@ -4,7 +4,7 @@
 	import Button from '$components/button.svelte';
 	import DeckCard from '$components/deck-card.svelte';
 	import { sync_client } from '$lib/sync/client';
-	import { use_decks } from '$lib/sync/use-decks.svelte';
+	import { use_decks } from '$lib';
 
 	const decks = use_decks();
 </script>

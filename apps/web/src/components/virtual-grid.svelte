@@ -75,6 +75,7 @@
 		position: absolute;
 		inset: 0;
 		overflow-y: auto;
+		overflow-x: hidden;
 	}
 
 	.virtual-grid > div {

@@ -2,7 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import * as Y from "yjs";
 import * as sync from "y-protocols/sync";
 import * as awareness from "y-protocols/awareness";
-import { createDeckDoc } from "@repo/schema-sync";
+import { createDecksDoc } from "@repo/schema-sync";
 import * as decoding from "lib0/decoding";
 import * as encoding from "lib0/encoding";
 
@@ -16,7 +16,7 @@ export class DeckDocDO extends DurableObject {
 
     constructor(state: DurableObjectState, env: Env) {
         super(state, env);
-        this.doc = createDeckDoc();
+        this.doc = createDecksDoc();
 
         // Load state from storage
         this.ctx.blockConcurrencyWhile(async () => {

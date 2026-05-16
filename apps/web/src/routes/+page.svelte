@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { use_query } from '$lib';
-	import { query_client, type QueryResultRow } from '$lib/card-confluence/client.svelte';
+	import { query_client, type QueryResultRow } from '$lib';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Result from '$components/query/row-result.svelte';
+	import RowResult from '$components/query/row-result.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import Button from '$components/button.svelte';
@@ -75,7 +75,10 @@
 			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
 				{#snippet item({ index, row, col })}
 					<div class="p-1">
-						<Result result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`} />
+						<RowResult
+							result={response.result.rows[index] as QueryResultRow}
+							key={`${row}-${col}`}
+						/>
 					</div>
 				{/snippet}
 			</VirtualGrid>

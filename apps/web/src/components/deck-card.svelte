@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { use_deck_meta } from '$lib/sync/use-deck.svelte';
+	import { use_deck_meta } from '$lib';
 	import Button from './button.svelte';
 
 	const { id, edit }: { id: string; edit: boolean } = $props();

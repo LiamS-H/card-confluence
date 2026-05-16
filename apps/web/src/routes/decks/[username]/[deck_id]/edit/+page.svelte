@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { use_deck_yjs } from '$lib/sync/use-deck.svelte';
+	import { use_deck_yjs } from '$lib';
 	import { error } from '@sveltejs/kit';
 	import { page } from '$app/state';
-	import Editor from './editor.svelte';
+	import Editor from '$components/editor/editor.svelte';
 
 	const id = page.params.deck_id;
 	if (!id) {

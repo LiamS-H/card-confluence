@@ -3,7 +3,7 @@
 	import { EditorState } from '@codemirror/state';
 	import { EditorView } from '@codemirror/view';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
-	import { query_client } from '$lib/card-confluence/client.svelte';
+	import { query_client } from '$lib';
 	import { karooSetup } from '$lib/codemirror';
 
 	const { doc, onDocChange }: { doc: string; onDocChange: (doc: string) => void } = $props();

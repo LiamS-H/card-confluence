@@ -7,6 +7,12 @@ export type DeckSerialized = {
     doc: string;
 };
 
+type DeckZone = "mainboard" | "sideboard" | "considering" | "commander";
+interface DeckCard {
+    cardId: string;
+    zone: DeckZone;
+}
+
 /**
  * DeckStruct represents the Yjs Map for a single deck.
  * It contains:
@@ -15,17 +21,18 @@ export type DeckSerialized = {
  */
 export interface DeckStruct extends Y.Map<Y.Text> {
     get(key: "title"): Y.Text;
-    get(key: "doc"): Y.Text;
     set(key: "title", value: Y.Text): this;
+    get(key: "doc"): Y.Text;
     set(key: "doc", value: Y.Text): this;
+    get(key: "cards"): Y.Map<DeckCard>;
+    set(key: "cards", value: Y.Map<DeckCard>): this;
     toJSON(): DeckSerialized;
 }
 
 export type DecksRootMap = Y.Map<DeckStruct>;
 
-export function createDeckDoc(): Y.Doc {
+export function createDecksDoc(): Y.Doc {
     const doc = new Y.Doc();
-    getDecksRoot(doc);
     return doc;
 }
 
@@ -40,14 +47,10 @@ export function createDeck(
 ): DeckStruct {
     const deckStruct = new Y.Map<Y.Text>() as DeckStruct;
 
-    deckStruct.set("doc", new Y.Text());
     deckStruct.set("title", new Y.Text(title ?? "Unnamed"));
+    deckStruct.set("doc", new Y.Text());
+    deckStruct.set("cards", new Y.Map());
     decksRoot.set(id, deckStruct);
 
     return deckStruct;
 }
-
-export function serializeDeck(deck: DeckStruct): DeckSerialized {
-    return deck.toJSON();
-}
-

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Card from '$components/card-img/card.svelte';
 	import Error from '$components/card-img/error.svelte';
-	import type { DetailedCard } from '$lib/card-confluence/client.svelte';
+	import type { DetailedCard } from '$lib';
 
 	const {
 		card,
