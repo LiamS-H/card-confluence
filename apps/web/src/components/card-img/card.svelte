@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Print, Card } from 'wasm-browser/dist';
+	import type { Print, Card } from '@card-confluence/wasm-browser';
 	import Illustration from './illustration.svelte';
 	import Error from './error.svelte';
 	import MultiFaced from './multi-faced.svelte';
