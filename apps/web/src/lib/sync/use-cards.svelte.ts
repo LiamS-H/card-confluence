@@ -20,7 +20,7 @@ export class DeckCardInterface {
 		});
 	}
 
-	move_cards(oracle_id: string, zone: DeckZone, amount: number): void {
+	move_cards(oracle_id: string, src: DeckZone, dest: DeckZone, amount: number): void {
 		const cards = this.deck.get('cards');
 		const oracle_entry = cards.get(oracle_id);
 
@@ -37,10 +37,35 @@ export class DeckCardInterface {
 			for (const [y_id, card] of instances.entries()) {
 				if (moved >= amount) break;
 
-				if (card.zone !== zone) {
-					instances.set(y_id, { ...card, zone });
+				if (card.zone === src) {
+					instances.set(y_id, { ...card, zone: dest });
 					moved++;
 				}
+			}
+		});
+	}
+	remove_cards(oracle_id: string, zone: DeckZone, amount: number): void {
+		const cards = this.deck.get('cards');
+		const oracle_entry = cards.get(oracle_id);
+		if (!oracle_entry) return;
+
+		const instances = oracle_entry.get('instances');
+		if (!instances) return;
+
+		let deleted = 0;
+
+		sync_client.get_doc().transact(() => {
+			for (const [y_id, card] of instances.entries()) {
+				if (deleted >= amount) break;
+
+				if (card.zone === zone) {
+					instances.delete(y_id);
+					deleted++;
+				}
+			}
+
+			if (instances.size === 0) {
+				cards.delete(oracle_id);
 			}
 		});
 	}
@@ -82,6 +107,34 @@ export class DeckCardInterface {
 			}
 		});
 		return result;
+	}
+	get_card_counts(oracle_id: string): Record<DeckZone | 'total', number> {
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+		this.sync_tick;
+
+		const counts: Record<DeckZone | 'total', number> = {
+			mainboard: 0,
+			sideboard: 0,
+			considering: 0,
+			commander: 0,
+			total: 0
+		};
+
+		const cards = this.deck.get('cards');
+		if (!cards) return counts;
+
+		const oracle_entry = cards.get(oracle_id);
+		if (!oracle_entry) return counts; // Card isn't in the deck at all
+
+		const instances = oracle_entry.get('instances');
+		if (instances) {
+			instances.forEach((card) => {
+				counts[card.zone]++;
+			});
+			counts['total']++;
+		}
+
+		return counts;
 	}
 
 	get main_deck() {

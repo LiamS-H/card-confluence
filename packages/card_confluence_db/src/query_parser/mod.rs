@@ -56,6 +56,23 @@ pub async fn parse_query(ctx: &SessionContext, input: &str) -> Result<LogicalPla
     Ok(plan)
 }
 
+pub async fn parse_filter_plan(
+    ctx: &SessionContext,
+    ids: Vec<String>,
+    input: &str,
+) -> Result<LogicalPlan, ScryfallError> {
+    // Stage 1 – Lex
+    let tokens = lexer::tokenize(input)?;
+
+    // Stage 2 – Parse
+    let ast = parser::parse(tokens)?;
+
+    // Stage 3 – Plan
+    let plan = planner::build_filter_plan(ctx, ids, &ast).await?;
+
+    Ok(plan)
+}
+
 pub fn parse_to_ast(input: &str) -> Result<parser::ScryfallExpr, ScryfallError> {
     let tokens = lexer::tokenize(input)?;
     let ast = parser::parse(tokens)?;

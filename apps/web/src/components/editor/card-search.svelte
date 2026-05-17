@@ -17,7 +17,9 @@
 	const { response } = $derived(data);
 
 	let card_columns = $state(4);
-	let zone: DeckZone = $state('considering');
+	const add_zones: DeckZone[] = ['considering', 'mainboard', 'sideboard'];
+	let add_zone_index = $state(0);
+	let zone: DeckZone = $derived(add_zones[add_zone_index]);
 </script>
 
 <div class="flex h-full flex-col gap-2 pt-2">
@@ -42,6 +44,13 @@
 				bind:value={card_columns}
 			/>
 		</div>
+		<Button
+			onclick={() => (add_zone_index = (add_zone_index + 1) % add_zones.length)}
+			size="sm"
+			intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
+		>
+			{zone}
+		</Button>
 		<div class="flex w-fit items-center border-2 border-secondary text-secondary *:-m-px">
 			<span class="px-2">local data</span>
 			<Button

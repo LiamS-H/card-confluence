@@ -373,6 +373,94 @@ mod tests {
         );
         assert!(plan_str.contains("Column { relation: Some(Bare { table: \"cards\" }), name: \"name\" }), asc: true, nulls_first: true"), "Should have secondary name sort");
     }
+
+    #[tokio::test]
+    async fn test_build_filter_plan() {
+        let ctx = SessionContext::new();
+
+        use datafusion::arrow::array::{BooleanArray, Float64Array, StringArray};
+        use datafusion::arrow::datatypes::{DataType, Field, Schema};
+        use datafusion::arrow::record_batch::RecordBatch;
+        use datafusion::datasource::MemTable;
+        use std::sync::Arc;
+
+        let cards_schema = Arc::new(Schema::new(vec![
+            Field::new("oracle_id", DataType::Utf8, false),
+            Field::new("name", DataType::Utf8, false),
+            Field::new("cmc", DataType::Float64, true),
+            Field::new("mana_cost", DataType::Utf8, true),
+        ]));
+
+        let cards_data = RecordBatch::try_new(
+            cards_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["id1", "id2", "id3"])),
+                Arc::new(StringArray::from(vec!["Card 1", "Card 2", "Card 3"])),
+                Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0])),
+                Arc::new(StringArray::from(vec![
+                    Some("{U}"),
+                    Some("{1}{U}"),
+                    Some("{2}{U}"),
+                ])),
+            ],
+        )
+        .unwrap();
+
+        ctx.register_table(
+            "cards",
+            Arc::new(MemTable::try_new(cards_schema, vec![vec![cards_data]]).unwrap()),
+        )
+        .unwrap();
+
+        let prints_schema = Arc::new(Schema::new(vec![
+            Field::new("oracle_id", DataType::Utf8, false),
+            Field::new("scryfall_id", DataType::Utf8, false),
+        ]));
+        let prints_data = RecordBatch::try_new(
+            prints_schema.clone(),
+            vec![
+                Arc::new(StringArray::from(vec!["id1", "id2", "id3"])),
+                Arc::new(StringArray::from(vec!["sid1", "sid2", "sid3"])),
+            ],
+        )
+        .unwrap();
+
+        ctx.register_table(
+            "prints",
+            Arc::new(MemTable::try_new(prints_schema, vec![vec![prints_data]]).unwrap()),
+        )
+        .unwrap();
+
+        let ids = vec!["id3".to_string(), "id1".to_string(), "id4".to_string()];
+        let expr = p("cmc < 2.5"); // matches id1 and id2
+                                   // id3: cmc=3 (false)
+                                   // id1: cmc=1 (true)
+                                   // id4: not in table (false)
+
+        let plan = build_filter_plan(&ctx, ids, &expr).await.unwrap();
+        let df = ctx.execute_logical_plan(plan).await.unwrap();
+        let results = df.collect().await.unwrap();
+
+        let total_rows: usize = results.iter().map(|b| b.num_rows()).sum();
+        assert_eq!(total_rows, 3);
+
+        let mut matched_values = Vec::new();
+        for batch in results {
+            let matched_col = batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<BooleanArray>()
+                .expect("matched should be a BooleanArray");
+            for i in 0..batch.num_rows() {
+                matched_values.push(matched_col.value(i));
+            }
+        }
+
+        assert_eq!(matched_values.len(), 3);
+        assert_eq!(matched_values[0], false); // id3
+        assert_eq!(matched_values[1], true); // id1
+        assert_eq!(matched_values[2], false); // id4
+    }
 }
 
 fn schema_as_flat_struct(table: &str, schema: &DFSchema) -> DFExpr {
@@ -431,6 +519,75 @@ pub async fn build_cards_detail_plan(
         schemas_as_cols("cards", &cards_schema),
         vec![array_agg(schema_as_flat_struct("prints", &prints_schema)).alias("prints")],
     )?;
+
+    Ok(builder.build()?)
+}
+
+pub async fn build_filter_plan(
+    ctx: &SessionContext,
+    ids: Vec<String>,
+    expr: &ScryfallExpr,
+) -> Result<LogicalPlan, PlanError> {
+    let (expr, _options) = extract_options(expr)?;
+
+    let values = ids
+        .into_iter()
+        .enumerate()
+        .map(|(i, id)| vec![lit(i as i64), lit(id)])
+        .collect::<Vec<_>>();
+
+    if values.is_empty() {
+        return Ok(LogicalPlanBuilder::empty(false).build()?);
+    }
+
+    let values_plan = LogicalPlanBuilder::values(values)?
+        .project(vec![
+            col("column1").alias("index"),
+            col("column2").alias("input_id"),
+        ])?
+        .build()?;
+
+    let cards_plan = ctx.table("cards").await?.into_unoptimized_plan();
+    let prints_plan = ctx.table("prints").await?.into_unoptimized_plan();
+
+    let mut query_builder = LogicalPlanBuilder::from(cards_plan);
+
+    query_builder = query_builder.join(
+        prints_plan,
+        JoinType::Inner,
+        (vec!["cards.oracle_id"], vec!["prints.oracle_id"]),
+        None,
+    )?;
+
+    if needs_sets_table(&expr)? {
+        let sets_plan = ctx.table("sets").await?.into_unoptimized_plan();
+        query_builder = query_builder.join(
+            sets_plan,
+            JoinType::Inner,
+            (vec!["prints.set_code"], vec!["sets.code"]),
+            None,
+        )?;
+    }
+
+    let schema = query_builder.schema().clone();
+    query_builder = query_builder.filter(expr_to_df_expr(&expr, &schema)?)?;
+
+    let query_plan = query_builder
+        .project(vec![col("cards.oracle_id").alias("matched_id")])?
+        .distinct()?
+        .build()?;
+
+    let mut builder = LogicalPlanBuilder::from(values_plan);
+    builder = builder.join(
+        query_plan,
+        JoinType::Left,
+        (vec!["input_id"], vec!["matched_id"]),
+        None,
+    )?;
+
+    builder = builder.sort(vec![col("index").sort(true, true)])?;
+
+    builder = builder.project(vec![col("matched_id").is_not_null().alias("matched")])?;
 
     Ok(builder.build()?)
 }
