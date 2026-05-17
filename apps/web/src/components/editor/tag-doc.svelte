@@ -14,6 +14,7 @@
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import RowResult from '$components/query/row-result.svelte';
 	import Button from '$components/button.svelte';
+	import Card from '$components/card-img';
 
 	const { doc } = $props<{ doc: Y.Text }>();
 
@@ -105,7 +106,11 @@
 											<RowResult
 												result={response.result.rows[index] as QueryResultRow}
 												key={`${row}-${col}`}
-											/>
+											>
+												{#snippet children({ card, print, width })}
+													<Card {card} {print} {width} />
+												{/snippet}
+											</RowResult>
 										</div>
 									{/snippet}
 								</VirtualGrid>

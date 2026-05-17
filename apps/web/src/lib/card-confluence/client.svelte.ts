@@ -16,6 +16,8 @@ import { cache_get, cache_clear, type CacheKey } from './cache';
 import { tableFromIPC } from '@uwdata/flechette';
 import type { Card, Print, CompletionOption, Completion } from '@card-confluence/wasm-browser';
 
+export type { Print };
+
 export interface QueryResultRow {
 	oracle_id: string;
 	matched_prints: string[];

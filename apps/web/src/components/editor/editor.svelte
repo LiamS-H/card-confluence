@@ -4,8 +4,13 @@
 	import Input from '$components/input.svelte';
 	import TagDoc from './tag-doc.svelte';
 	import Button from '$components/button.svelte';
+	import Deck from './deck.svelte';
+	import { use_deck_cards_provider } from '$lib/sync/use-cards.svelte';
+	import CardSearch from './card-search.svelte';
 
 	const { deck }: { deck: DeckStruct } = $props();
+
+	use_deck_cards_provider(() => deck);
 
 	const doc = $derived(deck.get('doc'));
 	const title = $derived(deck.get('title'));
@@ -50,7 +55,9 @@
 		{#if view === 'tags'}
 			<TagDoc {doc} />
 		{:else if view === 'deck'}
-			<div></div>
-		{:else if view === 'card +'}{/if}
+			<Deck />
+		{:else if view === 'card +'}
+			<CardSearch />
+		{/if}
 	</div>
 </div>

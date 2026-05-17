@@ -7,9 +7,20 @@ export type DeckSerialized = {
     doc: string;
 };
 
-type DeckZone = "mainboard" | "sideboard" | "considering" | "commander";
-interface DeckCard {
-    cardId: string;
+export type DeckZone = "mainboard" | "sideboard" | "considering" | "commander";
+
+// @ts-ignore
+export interface OracleCard extends Y.Map<any> {
+    get(key: "instances"): Y.Map<DeckCard>;
+    set(key: "instances", value: Y.Map<DeckCard>): this;
+    // Add future stuff here later:
+    // get(key: "custom_cost"): Y.Text;
+}
+
+export interface DeckCard {
+    y_id: string;
+    oracle_id: string;
+    scryfall_id: string;
     zone: DeckZone;
 }
 
@@ -19,13 +30,13 @@ interface DeckCard {
  * - title: Y.Text
  * - doc: Y.Text (the deck content)
  */
-export interface DeckStruct extends Y.Map<Y.Text> {
+export interface DeckStruct extends Y.Map<any> {
     get(key: "title"): Y.Text;
     set(key: "title", value: Y.Text): this;
     get(key: "doc"): Y.Text;
     set(key: "doc", value: Y.Text): this;
-    get(key: "cards"): Y.Map<DeckCard>;
-    set(key: "cards", value: Y.Map<DeckCard>): this;
+    get(key: "cards"): Y.Map<OracleCard>;
+    set(key: "cards", value: Y.Map<OracleCard>): this;
     toJSON(): DeckSerialized;
 }
 

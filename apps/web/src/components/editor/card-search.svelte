@@ -1,37 +1,23 @@
 <script lang="ts">
 	import { use_query } from '$lib';
 	import { query_client, type QueryResultRow } from '$lib';
-	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import RowResult from '$components/query/row-result.svelte';
-	import Card from '$components/card-img/card.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import Button from '$components/button.svelte';
+	import CardSearchCard from './card-search-card.svelte';
+	import type { DeckZone } from '@repo/schema-sync';
 
-	let query = $derived(page.url.searchParams.get('q') ?? '');
+	let query = $state('');
 
 	function onDocChange(new_query: string) {
-		const params = new URL(page.url).searchParams;
-
-		if (new_query) {
-			params.set('q', new_query);
-		} else {
-			params.delete('q');
-		}
-
-		// Update the URL silently
-		goto(resolve(`/?${params.toString()}`), {
-			keepFocus: true,
-			noScroll: true,
-			replaceState: true
-		});
+		query = new_query;
 	}
 	let data = use_query(() => ({ query }), 500);
 	const { response } = $derived(data);
 
 	let card_columns = $state(4);
+	let zone: DeckZone = $state('considering');
 </script>
 
 <div class="flex h-full flex-col gap-2 pt-2">
@@ -76,12 +62,9 @@
 			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
 				{#snippet item({ index, row, col })}
 					<div class="p-1">
-						<RowResult
-							result={response.result.rows[index] as QueryResultRow}
-							key={`${row}-${col}`}
-						>
+						<RowResult result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`}>
 							{#snippet children({ card, print, width })}
-								<Card {card} {print} {width} />
+								<CardSearchCard {card} {print} {width} {zone} />
 							{/snippet}
 						</RowResult>
 					</div>
