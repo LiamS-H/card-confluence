@@ -5,6 +5,7 @@
 	import DeckCard from '$components/editor/deck-card.svelte';
 
 	const deck = use_deck_cards();
+	console.log(deck);
 	const { main_deck, considering, sideboard } = $derived(deck);
 
 	const width = $state(200);
@@ -12,9 +13,12 @@
 
 <div class="flex flex-col gap-2">
 	<div class="border-2 border-foreground">
-		{#each main_deck as deck_card (deck_card.y_id)}
+		{#each main_deck as deck_card (deck_card.oracle_id)}
 			<RowResult
-				result={{ matched_prints: [deck_card.scryfall_id], oracle_id: deck_card.oracle_id }}
+				result={{
+					matched_prints: [deck_card.instances[0].scryfall_id],
+					oracle_id: deck_card.oracle_id
+				}}
 				key={deck_card.oracle_id}
 			>
 				{#snippet children({ card, print })}
@@ -25,9 +29,12 @@
 	</div>
 
 	<div class="border-2 border-foreground">
-		{#each sideboard as deck_card (deck_card.y_id)}
+		{#each sideboard as deck_card (deck_card.oracle_id)}
 			<RowResult
-				result={{ matched_prints: [deck_card.scryfall_id], oracle_id: deck_card.oracle_id }}
+				result={{
+					matched_prints: [deck_card.instances[0].scryfall_id],
+					oracle_id: deck_card.oracle_id
+				}}
 				key={deck_card.oracle_id}
 			>
 				{#snippet children({ card, print })}
@@ -37,9 +44,12 @@
 		{/each}
 	</div>
 	<div class="border-2 border-foreground">
-		{#each considering as deck_card (deck_card.y_id)}
+		{#each considering as deck_card (deck_card.oracle_id)}
 			<RowResult
-				result={{ matched_prints: [deck_card.scryfall_id], oracle_id: deck_card.oracle_id }}
+				result={{
+					matched_prints: [deck_card.instances[0].scryfall_id],
+					oracle_id: deck_card.oracle_id
+				}}
 				key={deck_card.oracle_id}
 			>
 				{#snippet children({ card, print })}

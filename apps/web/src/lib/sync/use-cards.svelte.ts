@@ -2,7 +2,13 @@ import * as Y from 'yjs';
 import { getContext, setContext } from 'svelte';
 import { sync_client } from '$lib';
 
-import type { DeckStruct, DeckCard, DeckZone, OracleCard } from '@repo/schema-sync';
+import type {
+	DeckStruct,
+	DeckCard,
+	DeckZone,
+	OracleCard,
+	OracleCardSerialized
+} from '@repo/schema-sync';
 
 const DECK_CARD_INTERFACE_KEY = Symbol('deck_card_interface');
 
@@ -90,24 +96,27 @@ export class DeckCardInterface {
 		});
 	}
 
-	private get_cards_by_zone(target_zone: DeckZone): DeckCard[] {
+	private get_cards_by_zone(target_zone: DeckZone): OracleCardSerialized[] {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions -- used for reactivity
 		this.sync_tick;
-		const result: DeckCard[] = [];
+		const result: OracleCardSerialized[] = [];
 		const cards = this.deck.get('cards');
 
 		if (!cards) return result;
 
-		cards.forEach((oracle_entry) => {
+		cards.forEach((oracle_entry, oracle_id) => {
 			const instances = oracle_entry.get('instances');
-			if (instances) {
-				instances.forEach((card) => {
-					if (card.zone === target_zone) result.push(card);
-				});
+			const cards: DeckCard[] = [];
+			instances.forEach((card) => {
+				if (card.zone === target_zone) cards.push(card);
+			});
+			if (cards.length > 0) {
+				result.push({ instances: cards, oracle_id });
 			}
 		});
 		return result;
 	}
+
 	get_card_counts(oracle_id: string): Record<DeckZone | 'total', number> {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		this.sync_tick;
