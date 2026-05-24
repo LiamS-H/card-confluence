@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import Button from '$components/button.svelte';
-	import DeckCard from '$components/deck-card.svelte';
+	import DeckMetaCard from '$components/deck-meta-card.svelte';
 	import { sync_client } from '$lib/sync/client';
 	import { use_decks } from '$lib';
 
@@ -20,7 +20,7 @@
 {#each decks.ids as id (id)}
 	<ul>
 		<li>
-			<DeckCard {id} edit />
+			<DeckMetaCard {id} edit />
 		</li>
 	</ul>
 {/each}

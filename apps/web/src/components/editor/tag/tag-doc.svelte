@@ -16,7 +16,7 @@
 	import Button from '$components/button.svelte';
 	import Card from '$components/card-img';
 
-	const { doc } = $props<{ doc: Y.Text }>();
+	const { doc, jump_to_query } = $props<{ doc: Y.Text; jump_to_query: (query: string) => void }>();
 
 	let editorContainer: HTMLDivElement;
 	let view: EditorView;
@@ -123,7 +123,12 @@
 						>
 							{tag?.name}
 						</span>
-						<Button>search +</Button>
+						<Button
+							disabled={query.trim() === ''}
+							onclick={() => {
+								jump_to_query(query.trim());
+							}}>search +</Button
+						>
 
 						<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
 					</div>

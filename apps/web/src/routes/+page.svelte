@@ -21,7 +21,6 @@
 			params.delete('q');
 		}
 
-		// Update the URL silently
 		goto(resolve(`/?${params.toString()}`), {
 			keepFocus: true,
 			noScroll: true,
@@ -76,10 +75,7 @@
 			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
 				{#snippet item({ index, row, col })}
 					<div class="p-1">
-						<RowResult
-							result={response.result.rows[index] as QueryResultRow}
-							key={`${row}-${col}`}
-						>
+						<RowResult result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`}>
 							{#snippet children({ card, print, width })}
 								<Card {card} {print} {width} />
 							{/snippet}

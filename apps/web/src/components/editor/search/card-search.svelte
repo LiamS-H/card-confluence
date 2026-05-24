@@ -5,13 +5,28 @@
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import Button from '$components/button.svelte';
-	import CardSearchCard from './card-search-card.svelte';
+	import DeckSearchCard from '$components/editor/deck-card.svelte';
 	import type { DeckZone } from '@repo/schema-sync';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 
-	let query = $state('');
+	let query = $derived(page.url.searchParams.get('q') ?? '');
 
 	function onDocChange(new_query: string) {
-		query = new_query;
+		const params = new URL(page.url).searchParams;
+
+		if (new_query) {
+			params.set('q', new_query);
+		} else {
+			params.delete('q');
+		}
+
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		goto(`${page.url.pathname}/?${params.toString()}`, {
+			keepFocus: true,
+			noScroll: true,
+			replaceState: true
+		});
 	}
 	let data = use_query(() => ({ query }), 500);
 	const { response } = $derived(data);
@@ -67,13 +82,13 @@
 		{#if !response.loading && !response.error}{/if}
 	</div>
 	{#if !response.loading && !response.error}
-		<div class="relative h-full flex-1">
+		<div class="relative flex-1">
 			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
 				{#snippet item({ index, row, col })}
 					<div class="p-1">
 						<RowResult result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`}>
 							{#snippet children({ card, print, width })}
-								<CardSearchCard {card} {print} {width} {zone} />
+								<DeckSearchCard {card} {print} {width} {zone} />
 							{/snippet}
 						</RowResult>
 					</div>
