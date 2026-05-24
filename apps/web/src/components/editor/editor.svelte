@@ -6,7 +6,7 @@
 	import Button from '$components/button.svelte';
 	import Deck from './deck/deck.svelte';
 	import { use_deck_cards_provider } from '$lib/sync/use-cards.svelte';
-	import CardSearch from './search/card-search.svelte';
+	import CardSearch from './cards/card-search.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 
@@ -49,7 +49,7 @@
 </script>
 
 <div class="flex h-full flex-col gap-2">
-	<div class="flex items-center justify-between">
+	<div class="flex items-center gap-4">
 		<Input
 			placeholder="Unnamed Deck"
 			type="text"

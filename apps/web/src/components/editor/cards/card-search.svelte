@@ -37,9 +37,9 @@
 	let zone: DeckZone = $derived(add_zones[add_zone_index]);
 </script>
 
-<div class="flex h-full flex-col gap-2 pt-2">
+<div class="flex h-full flex-col">
 	<Search doc={query} {onDocChange} />
-	<div class="sticky flex justify-between">
+	<div class="sticky flex justify-between pt-px">
 		<div class="flex items-center px-2">
 			{#if response.loading}
 				<p>Loading...</p>
@@ -59,14 +59,15 @@
 				bind:value={card_columns}
 			/>
 		</div>
-		<Button
-			onclick={() => (add_zone_index = (add_zone_index + 1) % add_zones.length)}
-			size="sm"
-			intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
-		>
-			{zone}
-		</Button>
+
 		<div class="flex w-fit items-center border-2 border-secondary text-secondary *:-m-px">
+			<Button
+				onclick={() => (add_zone_index = (add_zone_index + 1) % add_zones.length)}
+				size="sm"
+				intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
+			>
+				{zone}
+			</Button>
 			<span class="px-2">local data</span>
 			<Button
 				size="sm"
