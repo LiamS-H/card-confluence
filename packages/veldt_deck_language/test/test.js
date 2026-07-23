@@ -1,4 +1,10 @@
-import { karooDeckLanguage, karooDeck, extractKarooDeck, addTag, addView } from "../dist/index.js";
+import {
+    veldtDeckLanguage,
+    veldtDeck,
+    extractveldtDeck,
+    addTag,
+    addView,
+} from "../dist/index.js";
 import { fileTests } from "@lezer/generator/dist/test";
 import { EditorState } from "@codemirror/state";
 import * as fs from "fs";
@@ -18,12 +24,12 @@ describe("Grammar cases", () => {
                 fs.readFileSync(path.join(caseDir, file), "utf8"),
                 file,
             ))
-                it(name, () => run(karooDeckLanguage.parser));
+                it(name, () => run(veldtDeckLanguage.parser));
         });
     }
 });
 
-describe("Karoo Deck Extraction", () => {
+describe("veldt Deck Extraction", () => {
     it("should extract tags and views correctly", () => {
         const doc = `
 tag mytag [ o:draw ]
@@ -36,10 +42,10 @@ view myview {
 `;
         const state = EditorState.create({
             doc,
-            extensions: [karooDeck()]
+            extensions: [veldtDeck()],
         });
 
-        const { tags, views } = extractKarooDeck(state);
+        const { tags, views } = extractveldtDeck(state);
 
         assert.strictEqual(tags.length, 2);
         assert.strictEqual(tags[0].name, "mytag");
@@ -58,16 +64,16 @@ view myview {
     it("should add tags and views", () => {
         let state = EditorState.create({
             doc: "",
-            extensions: [karooDeck()]
+            extensions: [veldtDeck()],
         });
 
         const tagSpec = addTag(state, "newtag", "o:scry");
         state = state.update(tagSpec).state;
-        
+
         const viewSpec = addView(state, "newview");
         state = state.update(viewSpec).state;
 
-        const { tags, views } = extractKarooDeck(state);
+        const { tags, views } = extractveldtDeck(state);
         assert.strictEqual(tags.length, 1);
         assert.strictEqual(tags[0].name, "newtag");
         assert.strictEqual(views.length, 1);

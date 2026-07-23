@@ -4,7 +4,7 @@
 	import { EditorView } from '@codemirror/view';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 	import { query_client } from '$lib';
-	import { karooSetup } from '$lib/codemirror';
+	import { veldtSetup } from '$lib/codemirror';
 
 	const { doc, onDocChange }: { doc: string; onDocChange: (doc: string) => void } = $props();
 
@@ -30,7 +30,7 @@
 						);
 					}
 				}),
-				karooSetup,
+				veldtSetup,
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged) {
 						onDocChange(update.state.doc.toString());

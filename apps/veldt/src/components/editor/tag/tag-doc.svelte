@@ -4,12 +4,12 @@
 	import { onMount } from 'svelte';
 	import { EditorState } from '@codemirror/state';
 	import { EditorView } from '@codemirror/view';
-	import { karooDeck, tagAtCursor, type Tag } from 'codemirror-lang-karoo-deck';
+	import { veldtDeck, tagAtCursor, type Tag } from 'codemirror-lang-veldt-deck';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 	import { query_client, type QueryResultRow } from '$lib';
 	import { yCollab } from 'y-codemirror.next';
 	import * as Y from 'yjs';
-	import { karooSetup } from '$lib/codemirror';
+	import { veldtSetup } from '$lib/codemirror';
 	import { use_query } from '$lib';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import RowResult from '$components/query/row-result.svelte';
@@ -31,8 +31,8 @@
 		const state = EditorState.create({
 			doc: doc.toJSON(),
 			extensions: [
-				karooSetup,
-				karooDeck(),
+				veldtSetup,
+				veldtDeck(),
 				cardconfluenceWithContext({
 					complete: async (pos: number) => {
 						const tag = tagAtCursor(view.state, pos);

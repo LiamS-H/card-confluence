@@ -16,7 +16,7 @@ import {
 import type { EditorState, TransactionSpec } from "@codemirror/state";
 import { snippetCompletion } from "@codemirror/autocomplete";
 
-export const karooDeckLanguage = LRLanguage.define({
+export const veldtDeckLanguage = LRLanguage.define({
     parser: parser.configure({
         props: [
             indentNodeProp.add({
@@ -46,9 +46,9 @@ export const karooDeckLanguage = LRLanguage.define({
     }),
 });
 
-export function karooDeck() {
-    return new LanguageSupport(karooDeckLanguage, [
-        karooDeckLanguage.data.of({
+export function veldtDeck() {
+    return new LanguageSupport(veldtDeckLanguage, [
+        veldtDeckLanguage.data.of({
             autocomplete: [
                 snippetCompletion("tag ${name} [ ${query} ]", {
                     label: "tag",
@@ -88,7 +88,7 @@ export interface CursorTag extends Tag {
 }
 
 export function tagAtCursor(state: EditorState, pos: number): CursorTag | null {
-    const tree = karooDeckLanguage.parser.parse(state.doc.toString());
+    const tree = veldtDeckLanguage.parser.parse(state.doc.toString());
 
     let found: CursorTag | null = null;
     tree.iterate({
@@ -119,11 +119,11 @@ export function tagAtCursor(state: EditorState, pos: number): CursorTag | null {
     return found;
 }
 
-export function extractKarooDeck(state: EditorState) {
+export function extractveldtDeck(state: EditorState) {
     const tags: Tag[] = [];
     const views: View[] = [];
 
-    const tree = karooDeckLanguage.parser.parse(state.doc.toString());
+    const tree = veldtDeckLanguage.parser.parse(state.doc.toString());
     tree.iterate({
         enter: (node) => {
             if (

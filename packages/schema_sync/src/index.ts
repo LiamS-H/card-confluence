@@ -39,8 +39,6 @@ export interface DeckCard {
 export interface DeckStruct extends Y.Map<any> {
     get(key: "title"): Y.Text;
     set(key: "title", value: Y.Text): this;
-    get(key: "domain"): Y.Text;
-    set(key: "domain", value: Y.Text): this;
     get(key: "doc"): Y.Text;
     set(key: "doc", value: Y.Text): this;
     get(key: "cards"): Y.Map<OracleCard>;
@@ -67,7 +65,6 @@ export function createDeck(
     const deckStruct = new Y.Map<Y.Text>() as DeckStruct;
 
     deckStruct.set("title", new Y.Text(title ?? "Unnamed"));
-    deckStruct.set("domain", new Y.Text(""));
     deckStruct.set("doc", new Y.Text());
     deckStruct.set("cards", new Y.Map());
     decksRoot.set(id, deckStruct);

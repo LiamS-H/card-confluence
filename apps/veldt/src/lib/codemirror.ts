@@ -105,7 +105,7 @@ export const theme = EditorView.theme(
 	{ dark: true }
 );
 
-export const karooSetup: Extension = [
+export const veldtSetup: Extension = [
 	highlightSpecialChars(),
 	history(),
 	drawSelection(),
