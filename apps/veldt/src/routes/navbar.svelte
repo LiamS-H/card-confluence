@@ -44,8 +44,8 @@
 	</li>
 {/snippet}
 
-<nav class="sticky top-0 flex h-10 w-full items-center justify-between pr-px">
-	<a href={resolve('/')} class="ml-1 text-2xl font-bold">veldt.to</a>
+<nav class="sticky top-0 flex h-10 w-full items-center justify-between">
+	<a href={resolve('/')} class="ml-1 text-2xl font-bold">veldt.cards</a>
 	<ul class="flex">
 		{#each [{ label: 'cards', path: '/' }, { label: 'decks', path: '/decks' }] as const as route (route)}
 			{@render navItem(route)}

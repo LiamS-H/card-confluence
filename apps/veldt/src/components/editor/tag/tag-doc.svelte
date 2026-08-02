@@ -47,6 +47,8 @@
 							tag.queryPos
 						);
 
+						console.log('[completion]', from, to, options);
+
 						return { options, from: pos, to: pos + (to - from) };
 					}
 				}),

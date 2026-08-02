@@ -12,5 +12,5 @@
 <input
 	{...props}
 	use:autoFocus={focus}
-	class="border-x-0 border-t-0 border-b-2 border-foreground bg-transparent p-0 text-2xl focus:border-primary focus:text-primary focus:ring-0 focus:outline-none"
+	class="border-x-0 border-t-0 border-b-2 border-foreground bg-transparent p-0 text-2xl outline-none focus:border-primary focus:text-primary focus:ring-0"
 />

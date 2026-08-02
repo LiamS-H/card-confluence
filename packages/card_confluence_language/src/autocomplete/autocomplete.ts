@@ -194,7 +194,6 @@ export const completeCardConfluence: CompletionSource = async (context) => {
             section: sections.getOrInsert(group, { name: group }),
         };
     });
-
     if (!options) return null;
 
     let val;
@@ -234,6 +233,8 @@ export const completeCardConfluence: CompletionSource = async (context) => {
         options,
         commitCharacters,
     };
+    console.log("[cc]", result);
+    console.log(`[cc] "${view.state.doc[result.to]}"`, result.to);
 
     switch (pred_typ) {
         case "name":

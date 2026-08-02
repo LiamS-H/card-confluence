@@ -5,7 +5,13 @@ interface OpfsError {
 	message: string;
 }
 const files = ['cards', 'prints', 'sets', 'rulings'] as const;
-const root = await navigator.storage.getDirectory();
+let rootPromise: Promise<FileSystemDirectoryHandle> | null = null;
+function getRoot(): Promise<FileSystemDirectoryHandle> {
+	if (!rootPromise) {
+		rootPromise = navigator.storage.getDirectory();
+	}
+	return rootPromise;
+}
 
 export async function download_to_opfs(
 	file_uri: string,
@@ -17,6 +23,7 @@ export async function download_to_opfs(
 		return [null, { type: 'failed_to_fetch', message: response.statusText }];
 
 	try {
+		const root = await getRoot();
 		const fileHandle = await root.getFileHandle(opfs_file, { create: true });
 
 		const writableStream = await fileHandle.createWritable();
@@ -57,6 +64,7 @@ export async function sync_local_parquet() {
 export async function get_local_parquet() {
 	try {
 		// this will fail when not present
+		const root = await getRoot();
 		const handles = await Promise.all(files.map((file) => root.getFileHandle(`${file}.parquet`)));
 		const [cards, prints, sets, rulings] = handles as [
 			FileSystemFileHandle,

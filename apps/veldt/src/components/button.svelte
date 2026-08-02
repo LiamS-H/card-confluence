@@ -4,19 +4,19 @@
 	import { cva, type VariantProps } from 'class-variance-authority';
 
 	const buttonVariants = cva(
-		'group relative overflow-hidden border outline transition-colors disabled:opacity-50 disabled:pointer-events-none',
+		'group relative overflow-hidden transition-colors disabled:opacity-50 disabled:pointer-events-none',
 		{
 			variants: {
 				intent: {
-					default: 'border-foreground outline-foreground text-foreground',
-					primary: 'border-primary outline-primary text-primary',
-					secondary: 'border-secondary outline-secondary text-secondary',
-					destructive: 'border-destructive outline-destructive text-destructive'
+					default: 'border-foreground text-foreground bg-black',
+					primary: 'border-primary  text-primary bg-black',
+					secondary: 'border-secondary text-secondary bg-black',
+					destructive: 'border-destructive text-destructive bg-black'
 				},
 				variant: {
-					full: '',
-					outline: '',
-					fixed: ''
+					full: 'border-2',
+					outline: 'border-2',
+					fixed: 'border-2'
 				},
 				size: {
 					xs: 'text-sm px-2 py-0.5',

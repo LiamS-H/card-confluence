@@ -5,7 +5,6 @@
 	import DeckCard from '$components/editor/deck-card.svelte';
 
 	const deck = use_deck_cards();
-	console.log(deck);
 	const { main_deck, considering, sideboard } = $derived(deck);
 
 	const width = $state(200);

@@ -35,7 +35,7 @@ export const theme = EditorView.theme(
 		'&.cm-focused': {
 			outline: 'none',
 			borderColor: 'var(--color-primary)',
-			boxShadow: '0 0 0 2px var(--color-primary)'
+			boxShadow: '0 0 0 1px var(--color-primary)'
 		},
 
 		'.cm-scroller': {

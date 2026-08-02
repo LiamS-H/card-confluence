@@ -60,15 +60,18 @@
 			/>
 		</div>
 
-		<div class="flex w-fit items-center border-2 border-secondary text-secondary *:-m-px">
+		<div class="flex w-fit items-center">
 			<Button
 				onclick={() => (add_zone_index = (add_zone_index + 1) % add_zones.length)}
 				size="sm"
+				variant="outline"
 				intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
 			>
 				{zone}
 			</Button>
-			<span class="px-2">local data</span>
+			<span class="flex h-full items-center border-y-2 border-secondary px-2 text-secondary"
+				>local data</span
+			>
 			<Button
 				size="sm"
 				variant="full"

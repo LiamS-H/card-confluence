@@ -44,7 +44,6 @@
 			replaceState: true
 		});
 		view = 'card +';
-		console.log('test');
 	}
 </script>
 
@@ -63,7 +62,7 @@
 			}}
 		/>
 	</div>
-	<div class="h-full w-full border outline *:-my-px">
+	<div class="h-full w-full">
 		{#each views as name (name)}
 			<Button
 				intent={name === view ? 'secondary' : null}
