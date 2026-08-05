@@ -163,6 +163,9 @@ export class DeckCardInterface {
 export function use_deck_cards_provider(getDeck: () => DeckStruct): DeckCardInterface {
 	const deck_interface = $derived(new DeckCardInterface(getDeck()));
 	setContext(DECK_CARD_INTERFACE_KEY, deck_interface);
+    $effect(()=>{
+	    setContext(DECK_CARD_INTERFACE_KEY, deck_interface);
+    })
 	return deck_interface;
 }
 
