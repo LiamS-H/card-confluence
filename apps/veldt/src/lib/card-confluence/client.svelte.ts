@@ -101,9 +101,15 @@ class QueryClient {
 		// TODO: this is where we can check for internet connection, and which worker to use
 		// This also locks the main db files, meaning we can't sync them from opfs, currently we kill and restart wasm to get new files
 		const dbWorker = new LocalQueryWorker();
+		console.log('[cc-client] spawning worker.');
+
+        dbWorker.onerror = (e) => {
+            console.error('[cc-client] failed to start. can happend when env variables are missing.', e);
+        };
 
 		dbWorker.onmessage = (e: MessageEvent<LocalWorkerStatus>) => {
 			if (e.data === 'ready') {
+                console.log("[worker] started");
 				// tell others there is a new leader
 				QueryEventsChannel.postMessage({ type: 'promotion' });
 				this.on_promotion();
