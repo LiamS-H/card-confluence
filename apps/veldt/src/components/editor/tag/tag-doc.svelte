@@ -36,6 +36,7 @@
 				cardconfluenceWithContext({
 					complete: async (pos: number) => {
 						const tag = tagAtCursor(view.state, pos);
+                        const offset = pos - tag.queryPos;
 						if (tag === null || tag.queryPos === null) {
 							return { from: pos, to: pos, options: [] };
 						}
@@ -47,9 +48,7 @@
 							tag.queryPos
 						);
 
-						console.log('[completion]', from, to, options);
-
-						return { options, from: pos, to: pos + (to - from) };
+						return { options, from: from + offset, to: to + offset };
 					}
 				}),
 				yCollab(doc, null, { undoManager }),
