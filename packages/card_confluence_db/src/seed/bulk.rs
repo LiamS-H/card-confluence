@@ -17,7 +17,7 @@ pub async fn fetch_bulk_cached(
         SeedMode::Latest | SeedMode::LatestOldTags => {
             let ScryfallBulkData {
                 updated_at,
-                download_uri,
+                jsonl_download_uri,
                 ..
             } = fetch_bulk(&endpoint).await.unwrap();
             let path = Path::from(format!("{}/{}.json", endpoint, updated_at));
@@ -25,7 +25,7 @@ pub async fn fetch_bulk_cached(
             if store.head(&path).await.is_err() {
                 println!("Downloading {}...", endpoint);
                 let mut stream = get_client()
-                    .get(&download_uri)
+                    .get(&jsonl_download_uri)
                     .send()
                     .await?
                     .bytes_stream();

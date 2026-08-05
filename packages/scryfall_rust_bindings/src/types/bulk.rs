@@ -17,8 +17,6 @@ pub struct ScryfallBulkData {
     pub uri: String,
     pub name: String,
     pub description: String,
-    pub size: u64,
-    pub download_uri: String,
-    pub content_type: String,
-    pub content_encoding: String,
+    pub jsonl_download_uri: String,
+    pub compressed_size: u64,
 }
