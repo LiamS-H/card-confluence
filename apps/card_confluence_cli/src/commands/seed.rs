@@ -9,9 +9,9 @@ pub async fn exec(
     parquet_store: Arc<dyn ObjectStore>,
 ) -> Result<()> {
     let mode = match mode.as_deref() {
-        Some("cached") => SeedMode::LatestCached,
+        Some("cached") | None | Some("") => SeedMode::LatestCached,
+        Some("latest") => SeedMode::Latest,
         Some("old-tags") => SeedMode::LatestOldTags,
-        None | Some("") => SeedMode::Latest,
         Some(id) => SeedMode::Specific(id.into()),
     };
     seed::seed(mode, json_store, parquet_store)

@@ -1,55 +1,88 @@
-use futures::StreamExt;
+use flate2::read::GzDecoder;
 use object_store::{path::Path, ObjectStore};
 use scryfall_rust_bindings::client::get_client;
 use scryfall_rust_bindings::fetch_bulk;
 use scryfall_rust_bindings::types::bulk::ScryfallBulkData;
+use std::io::{BufRead, BufReader, Read};
 use std::sync::Arc;
 
 use crate::seed::SeedMode;
 use crate::utils::get_latest;
+
+fn process_bulk_bytes(raw_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    if raw_bytes.is_empty() {
+        return Err("Empty response received".into());
+    }
+
+    let decompressed = if raw_bytes.starts_with(&[0x1f, 0x8b]) {
+        let mut decoder = GzDecoder::new(raw_bytes);
+        let mut out = Vec::new();
+        decoder.read_to_end(&mut out)?;
+        out
+    } else {
+        raw_bytes.to_vec()
+    };
+
+    let first_char = decompressed.iter().find(|&&b| !b.is_ascii_whitespace());
+    if let Some(&b'[') = first_char {
+        Ok(decompressed)
+    } else {
+        let mut json_array = Vec::with_capacity(decompressed.len() + 2);
+        json_array.push(b'[');
+        let mut first = true;
+
+        for line in BufReader::new(&decompressed[..]).lines() {
+            let line = line?;
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if !first {
+                json_array.push(b',');
+            }
+            json_array.extend_from_slice(trimmed.as_bytes());
+            first = false;
+        }
+        json_array.push(b']');
+        Ok(json_array)
+    }
+}
 
 pub async fn fetch_bulk_cached(
     endpoint: String,
     mode: &SeedMode,
     store: &Arc<dyn ObjectStore>,
 ) -> Result<Path, Box<dyn std::error::Error>> {
-    Ok(match mode {
-        SeedMode::Latest | SeedMode::LatestOldTags => {
-            let ScryfallBulkData {
-                updated_at,
-                jsonl_download_uri,
-                ..
-            } = fetch_bulk(&endpoint).await.unwrap();
-            let path = Path::from(format!("{}/{}.json", endpoint, updated_at));
+    let force_latest = matches!(mode, SeedMode::Latest | SeedMode::LatestOldTags);
 
-            if store.head(&path).await.is_err() {
-                println!("Downloading {}...", endpoint);
-                let mut stream = get_client()
-                    .get(&jsonl_download_uri)
-                    .send()
-                    .await?
-                    .bytes_stream();
-
-                let mut upload = store.put_multipart(&path).await?;
-                let mut buffer = Vec::new();
-                const MIN_PART_SIZE: usize = 5 * 1024 * 1024;
-
-                while let Some(chunk) = stream.next().await {
-                    let chunk = chunk.map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
-                    buffer.extend_from_slice(&chunk);
-                    if buffer.len() >= MIN_PART_SIZE {
-                        upload.put_part(std::mem::take(&mut buffer).into()).await?;
-                    }
-                }
-                if !buffer.is_empty() {
-                    upload.put_part(buffer.into()).await?;
-                }
-                upload.complete().await?;
-            }
-            path
+    if !force_latest {
+        if let Some(cached_path) = get_latest(store, &Path::from(endpoint.as_str()), "json").await {
+            return Ok(cached_path);
         }
-        _ => get_latest(store, &Path::from(endpoint), "json")
-            .await
-            .ok_or("No cached bulk data found")?,
-    })
+        println!("No cached data found for {}, downloading latest...", endpoint);
+    }
+
+    let ScryfallBulkData {
+        updated_at,
+        jsonl_download_uri,
+        ..
+    } = fetch_bulk(&endpoint).await?;
+
+    let clean_timestamp = updated_at.replace(':', "-");
+    let path = Path::from(format!("{}/{}.json", endpoint, clean_timestamp));
+
+    if store.head(&path).await.is_err() {
+        println!("Downloading and converting {}...", endpoint);
+        let raw_bytes = get_client()
+            .get(&jsonl_download_uri)
+            .send()
+            .await?
+            .bytes()
+            .await?;
+
+        let json_array_bytes = process_bulk_bytes(&raw_bytes)?;
+        store.put(&path, json_array_bytes.into()).await?;
+    }
+
+    Ok(path)
 }

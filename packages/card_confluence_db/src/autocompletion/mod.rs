@@ -10,8 +10,8 @@ use datafusion::prelude::SessionContext;
 use std::sync::Arc;
 
 use crate::autocompletion::completion::{
-    // FORMATS,
     FORMATS,
+    ORDERS,
     IS_VALUES,
     KEYWORDS,
 };
@@ -193,6 +193,14 @@ pub async fn completion_from_query(
             from,
             to,
             options: FORMATS.iter().map(|k| (*k).into()).collect(),
+        }));
+    }
+
+    if matches!(pred_type, PredicateField::Order) {
+        return Some(CompletionResponse::Completion(Completion {
+            from,
+            to,
+            options: ORDERS.iter().map(|k| (*k).into()).collect(),
         }));
     }
 

@@ -117,3 +117,11 @@ pub const FORMATS: &[&str] = &[
     "premodern",
     "predh",
 ];
+
+pub const ORDERS: &[&str] = &[
+   "cmc",
+   "usd",
+   "tix",
+   "eur",
+   "release",
+];

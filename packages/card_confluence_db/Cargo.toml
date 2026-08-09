@@ -21,6 +21,7 @@ scryfall-rust-bindings = { path = "../scryfall_rust_bindings" }
 
 serde_json = { workspace = true }
 tokio = { workspace = true }
+flate2 = { workspace = true }
 
 serde = { workspace = true, features = ["derive"] }
 wasm-bindgen = { workspace = true }

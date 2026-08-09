@@ -20,7 +20,7 @@ pub async fn fetch_data_cached(
     mode: SeedMode,
     store: &Arc<dyn ObjectStore>,
 ) -> Result<SeedFetchResult, Box<dyn std::error::Error>> {
-    let timestamp = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, false);
+    let timestamp = Utc::now().format("%Y-%m-%dT%H-%M-%S").to_string();
 
     println!("Fetching oracle_cards...");
     let cards_path = fetch_bulk_cached("oracle_cards".into(), &mode, store).await?;
@@ -31,42 +31,56 @@ pub async fn fetch_data_cached(
     println!("Fetching rulings...");
     let rulings_path = fetch_bulk_cached("rulings".into(), &mode, store).await?;
 
-    let sets_path = match mode {
-        SeedMode::Latest | SeedMode::LatestOldTags => {
-            println!("Fetching sets...");
-            let bytes = serde_json::to_vec(&fetch_sets().await.unwrap().data)?;
+    let force_latest_sets = matches!(mode, SeedMode::Latest | SeedMode::LatestOldTags);
+    let sets_path = if !force_latest_sets {
+        if let Some(path) = get_latest(store, &Path::from("sets"), "json").await {
+            path
+        } else {
+            println!("No cached sets found, fetching latest...");
+            let bytes = serde_json::to_vec(&fetch_sets().await?.data)?;
             let path = Path::from(format!("sets/{}.json", timestamp));
             store.put(&path, bytes.into()).await?;
             path
         }
-        _ => get_latest(store, &Path::from("sets"), "json")
-            .await
-            .ok_or("No cached sets found")?,
+    } else {
+        println!("Fetching sets...");
+        let bytes = serde_json::to_vec(&fetch_sets().await?.data)?;
+        let path = Path::from(format!("sets/{}.json", timestamp));
+        store.put(&path, bytes.into()).await?;
+        path
     };
 
-    let tags_path = match mode {
-        SeedMode::Latest => {
-            println!("Fetching tags...");
+    let force_latest_tags = mode == SeedMode::Latest;
+    let tags_path = if !force_latest_tags {
+        if let Some(path) = get_latest(store, &Path::from("tags"), "json").await {
+            path
+        } else {
+            println!("No cached tags found, fetching latest...");
             let bytes = serde_json::to_vec(&fetch_all_tags().await?)?;
             let path = Path::from(format!("tags/{}.json", timestamp));
             store.put(&path, bytes.into()).await?;
             path
         }
-        _ => get_latest(store, &Path::from("tags"), "json")
-            .await
-            .ok_or("No cached tags found")?,
+    } else {
+        println!("Fetching tags...");
+        let bytes = serde_json::to_vec(&fetch_all_tags().await?)?;
+        let path = Path::from(format!("tags/{}.json", timestamp));
+        store.put(&path, bytes.into()).await?;
+        path
     };
 
     let otags_path = {
         let keyword = "otag";
-        let prefix = Path::from("keywords");
-        let final_path = Path::from(format!("keywords/{}/{}.json", keyword, timestamp));
-        let progress_path = Path::from(format!("keywords/{}/{}.prog.json", keyword, timestamp));
+        let prefix = Path::from(format!("keywords/{}", keyword));
+        let latest_final = get_latest(store, &prefix, "json").await;
 
-        let latest_progress = get_latest(store, &prefix, ".prog.json").await;
-        let latest_final = get_latest(store, &prefix, ".json").await;
+        if let Some(path) = latest_final {
+            path
+        } else if mode == SeedMode::Latest {
+            let progress_path = Path::from(format!("keywords/{}/{}.prog.json", keyword, timestamp));
+            let final_path = Path::from(format!("keywords/{}/{}.json", keyword, timestamp));
+            let latest_progress = get_latest(store, &prefix, ".prog.json").await;
 
-        if mode == SeedMode::Latest || latest_final.is_none() {
             let mut progress = if let Some(path) = latest_progress {
                 let res = store.get(&path).await?;
                 let bytes = res.bytes().await?;
@@ -94,7 +108,14 @@ pub async fn fetch_data_cached(
 
             final_path
         } else {
-            latest_final.unwrap()
+            let empty_path = Path::from(format!("keywords/{}/empty.json", keyword));
+            if store.head(&empty_path).await.is_err() {
+                let empty_map: std::collections::HashMap<String, Vec<String>> =
+                    std::collections::HashMap::new();
+                let bytes = serde_json::to_vec(&empty_map)?;
+                store.put(&empty_path, bytes.into()).await?;
+            }
+            empty_path
         }
     };
 
