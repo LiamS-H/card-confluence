@@ -1,10 +1,11 @@
 use std::sync::Arc;
+use futures::StreamExt;
 
 use datafusion::{
     error::DataFusionError,
     prelude::{ParquetReadOptions, SessionContext},
 };
-use object_store::{path::Path as ObjectPath, ObjectStore};
+use object_store::{path::Path as ObjectPath, ObjectStore, Result};
 
 #[cfg(not(target_arch = "wasm32"))]
 use object_store::local::LocalFileSystem;
@@ -12,7 +13,8 @@ use object_store::prefix::PrefixStore;
 
 use url::Url;
 
-use crate::utils::get_latest;
+
+
 
 pub struct TablePaths {
     pub cards: String,
@@ -115,24 +117,53 @@ pub async fn get_local_context() -> Result<SessionContext, DataFusionError> {
 pub async fn get_latest_paths(
     parquet_store: Arc<dyn ObjectStore>,
 ) -> Result<TablePaths, DataFusionError> {
-    let latest_cards = get_latest(&parquet_store, &ObjectPath::from("cards"), "parquet")
-        .await
-        .ok_or_else(|| DataFusionError::External("Couldn't find cards file".into()))?;
+    let mut list = parquet_store.list(None);
 
-    let latest_prints = get_latest(&parquet_store, &ObjectPath::from("prints"), "parquet")
-        .await
-        .ok_or_else(|| DataFusionError::External("Couldn't find prints file".into()))?;
-    let latest_rulings = get_latest(&parquet_store, &ObjectPath::from("rulings"), "parquet")
-        .await
-        .ok_or_else(|| DataFusionError::External("Couldn't find rulings file".into()))?;
-    let latest_sets = get_latest(&parquet_store, &ObjectPath::from("sets"), "parquet")
-        .await
-        .ok_or_else(|| DataFusionError::External("Couldn't find sets file".into()))?;
+    let mut latest_cards: Option<ObjectPath> = None;
+    let mut latest_prints: Option<ObjectPath> = None;
+    let mut latest_rulings: Option<ObjectPath> = None;
+    let mut latest_sets: Option<ObjectPath> = None;
+
+    while let Some(item) = list.next().await {
+        let meta = item.map_err(|e| DataFusionError::External(Box::new(e)))?;
+        let path_str = meta.location.as_ref();
+
+        if path_str.contains('#') || !path_str.ends_with(".parquet") {
+            continue;
+        }
+
+        if path_str.starts_with("cards") {
+            if latest_cards.as_ref().map_or(true, |c| meta.location > *c) {
+                latest_cards = Some(meta.location);
+            }
+        } else if path_str.starts_with("prints") {
+            if latest_prints.as_ref().map_or(true, |p| meta.location > *p) {
+                latest_prints = Some(meta.location);
+            }
+        } else if path_str.starts_with("rulings") {
+            if latest_rulings.as_ref().map_or(true, |r| meta.location > *r) {
+                latest_rulings = Some(meta.location);
+            }
+        } else if path_str.starts_with("sets") {
+            if latest_sets.as_ref().map_or(true, |s| meta.location > *s) {
+                latest_sets = Some(meta.location);
+            }
+        }
+    }
+
+    let format_path = |opt: Option<ObjectPath>, name: &str| -> Result<String, DataFusionError> {
+        let path = opt.ok_or_else(|| {
+            DataFusionError::External(
+                format!("Could not find latest file for path prefix: '{}'", name).into()
+            )
+        })?;
+        Ok(format!("db://data/{}", path))
+    };
 
     Ok(TablePaths {
-        cards: format!("db://data/{}", latest_cards),
-        prints: format!("db://data/{}", latest_prints),
-        rulings: format!("db://data/{}", latest_rulings),
-        sets: format!("db://data/{}", latest_sets),
+        cards: format_path(latest_cards, "cards")?,
+        prints: format_path(latest_prints, "prints")?,
+        rulings: format_path(latest_rulings, "rulings")?,
+        sets: format_path(latest_sets, "sets")?,
     })
 }

@@ -33,7 +33,7 @@ pub async fn fetch_data_cached(
 
     let force_latest_sets = matches!(mode, SeedMode::Latest | SeedMode::LatestOldTags);
     let sets_path = if !force_latest_sets {
-        if let Some(path) = get_latest(store, &Path::from("sets"), "json").await {
+        if let Some(path) = get_latest(store, &Path::from("sets"), "json").await? {
             path
         } else {
             println!("No cached sets found, fetching latest...");
@@ -52,7 +52,7 @@ pub async fn fetch_data_cached(
 
     let force_latest_tags = mode == SeedMode::Latest;
     let tags_path = if !force_latest_tags {
-        if let Some(path) = get_latest(store, &Path::from("tags"), "json").await {
+        if let Some(path) = get_latest(store, &Path::from("tags"), "json").await? {
             path
         } else {
             println!("No cached tags found, fetching latest...");
@@ -72,14 +72,14 @@ pub async fn fetch_data_cached(
     let otags_path = {
         let keyword = "otag";
         let prefix = Path::from(format!("keywords/{}", keyword));
-        let latest_final = get_latest(store, &prefix, "json").await;
+        let latest_final = get_latest(store, &prefix, "json").await?;
 
         if let Some(path) = latest_final {
             path
         } else if mode == SeedMode::Latest {
             let progress_path = Path::from(format!("keywords/{}/{}.prog.json", keyword, timestamp));
             let final_path = Path::from(format!("keywords/{}/{}.json", keyword, timestamp));
-            let latest_progress = get_latest(store, &prefix, ".prog.json").await;
+            let latest_progress = get_latest(store, &prefix, ".prog.json").await?;
 
             let mut progress = if let Some(path) = latest_progress {
                 let res = store.get(&path).await?;

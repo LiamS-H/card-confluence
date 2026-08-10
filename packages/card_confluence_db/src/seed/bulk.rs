@@ -56,10 +56,13 @@ pub async fn fetch_bulk_cached(
     let force_latest = matches!(mode, SeedMode::Latest | SeedMode::LatestOldTags);
 
     if !force_latest {
-        if let Some(cached_path) = get_latest(store, &Path::from(endpoint.as_str()), "json").await {
+        let cached_path = get_latest(store, &Path::from(endpoint.as_str()), "json").await?;
+        if let Some(cached_path) = cached_path {
             return Ok(cached_path);
-        }
-        println!("No cached data found for {}, downloading latest...", endpoint);
+        } else {
+            println!("No cached data found for {}, downloading latest...", endpoint);
+        };
+
     }
 
     let ScryfallBulkData {

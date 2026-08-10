@@ -1,14 +1,14 @@
-use futures::stream::StreamExt;
-use object_store::{path::Path, ObjectStore};
+use object_store::{path::Path as ObjectPath, ObjectStore, Result};
 use std::sync::Arc;
+use futures::StreamExt;
 
 pub async fn get_latest(
     store: &Arc<dyn ObjectStore>,
-    prefix: &Path,
+    prefix: &ObjectPath,
     extension: &str,
-) -> Option<Path> {
-    let mut list = store.list(Some(prefix));
-    let mut latest: Option<Path> = None;
+) -> Result<Option<ObjectPath>> {
+    let mut list = store.list(None);
+    let mut latest: Option<ObjectPath> = None;
 
     let ext_suffix = if extension.starts_with('.') {
         extension.to_string()
@@ -16,27 +16,29 @@ pub async fn get_latest(
         format!(".{}", extension)
     };
 
+    let prefix_str = prefix.as_ref();
+
     while let Some(item) = list.next().await {
-        if let Ok(meta) = item {
-            let path_str = meta.location.as_ref();
-            // Ignore temporary upload files (e.g. containing '#')
-            if path_str.contains('#') {
-                continue;
-            }
-            // If looking for standard .json files, ignore .prog.json files
-            if ext_suffix == ".json" && path_str.ends_with(".prog.json") {
-                continue;
-            }
-            if path_str.ends_with(&ext_suffix) {
-                if let Some(ref current_latest) = latest {
-                    if meta.location > *current_latest {
-                        latest = Some(meta.location);
-                    }
-                } else {
+        let meta = item?;
+        let path_str = meta.location.as_ref();
+
+        if !path_str.starts_with(prefix_str) {
+            continue;
+        }
+
+        if path_str.contains('#') { continue; }
+        if ext_suffix == ".json" && path_str.ends_with(".prog.json") { continue; }
+
+        if path_str.ends_with(&ext_suffix) {
+            if let Some(ref current_latest) = latest {
+                if meta.location > *current_latest {
                     latest = Some(meta.location);
                 }
+            } else {
+                latest = Some(meta.location);
             }
         }
     }
-    latest
+
+    Ok(latest)
 }

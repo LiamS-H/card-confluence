@@ -10,7 +10,7 @@ pub async fn exec(
 ) -> Result<()> {
     for table in &["cards", "prints", "rulings", "sets"] {
         println!("Uploading latest {}...", table);
-        if let Some(latest) = get_latest(&parquet_store, &ObjectPath::from(*table), "parquet").await
+        if let Some(latest) = get_latest(&parquet_store, &ObjectPath::from(*table), "parquet").await?
         {
             let source_path = ObjectPath::from(latest.clone());
             let dest_path = ObjectPath::from(format!("{}.parquet", table));

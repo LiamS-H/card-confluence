@@ -27,7 +27,12 @@ enum Commands {
         mode: Option<String>,
     },
     /// Query the latest parquet data via interactive TUI
-    Query { text: Option<String> },
+    Query {
+        text: Option<String>,
+        /// Use R2 for latest parquet data
+        #[arg(long, env = "QUERY_USE_R2")]
+        r2: bool,
+    },
     /// Move latest local parquet files to R2
     UploadLatest,
 }
@@ -73,11 +78,16 @@ async fn main() -> Result<()> {
         Commands::Seed { mode } => {
             commands::seed::exec(mode, json_store, parquet_store).await?;
         }
-        Commands::Query { text } => {
-            if let Some(text) = text {
-                commands::query::exec(parquet_store, text).await?;
+        Commands::Query { text, r2 } => {
+            let target_store = if r2 {
+                get_r2_from_env_prefix("LATEST")?
             } else {
-                commands::query::rustyline_exec(parquet_store).await?;
+                parquet_store
+            };
+            if let Some(text) = text {
+                commands::query::exec(target_store, text).await?;
+            } else {
+                commands::query::rustyline_exec(target_store).await?;
             };
         }
         Commands::UploadLatest => {
