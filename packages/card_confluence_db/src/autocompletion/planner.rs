@@ -5,6 +5,8 @@ use crate::query_parser::planner::{
 };
 use arrow_schema::DataType;
 use datafusion::functions::core::expr_ext::FieldAccessor;
+use datafusion::functions_nested::expr_fn::{string_to_array};
+use datafusion::functions::expr_fn::{regexp_replace, replace};
 use datafusion::logical_expr::{col, lit, Expr as DFExpr, LogicalPlan, LogicalPlanBuilder};
 use datafusion::prelude::{cast, JoinType, SessionContext};
 use datafusion::scalar::ScalarValue;
@@ -40,6 +42,7 @@ pub async fn build_distinct_values_plan(
         )?;
     };
 
+
     let schema = builder.schema().clone();
     builder = builder.filter(expr_to_df_expr(context_expr, &schema)?)?;
     let base_plan = builder.build()?;
@@ -71,11 +74,25 @@ pub async fn build_distinct_values_plan(
             ])?
             .build()?,
         _ => {
-            let expr = pred.to_unique_df_expr()?;
+            let mut expr = pred.to_unique_df_expr()?;
+
+            if matches!(pred, PredicateField::Oracle) {
+                let clean_expr = regexp_replace(
+                    expr,
+                    lit(r#"[,?\.\)\(":;]"#),
+                    lit(""),
+                    Some(lit("g")),
+                );
+                let no_newlines = replace(clean_expr, lit("\n"), lit(" "));
+
+                expr = string_to_array(no_newlines, lit(" "), lit(ScalarValue::Utf8(None)));
+            }
+
             let mut builder =
                 LogicalPlanBuilder::from(base_plan).project(vec![expr.alias("label")])?;
 
-            if pred.is_array() {
+
+            if pred.is_array() || matches!(pred, PredicateField::Oracle) {
                 builder = builder.unnest_column("label")?;
 
                 if matches!(
@@ -97,6 +114,7 @@ pub async fn build_distinct_values_plan(
                         builder.project(vec![col("label").field(field_name).alias("label")])?;
                 }
             }
+
 
             builder
                 .project(vec![
