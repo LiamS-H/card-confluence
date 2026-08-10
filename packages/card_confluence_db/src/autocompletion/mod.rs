@@ -12,6 +12,7 @@ use std::sync::Arc;
 use crate::autocompletion::completion::{
     FORMATS,
     ORDERS,
+    UNIQUES,
     IS_VALUES,
     KEYWORDS,
 };
@@ -201,6 +202,14 @@ pub async fn completion_from_query(
             from,
             to,
             options: ORDERS.iter().map(|k| (*k).into()).collect(),
+        }));
+    }
+
+    if matches!(pred_type, PredicateField::Unique) {
+        return Some(CompletionResponse::Completion(Completion {
+            from,
+            to,
+            options: UNIQUES.iter().map(|k| (*k).into()).collect(),
         }));
     }
 

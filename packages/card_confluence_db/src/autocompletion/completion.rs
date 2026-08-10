@@ -64,6 +64,8 @@ pub const KEYWORDS: &[&str] = &[
     "e",
     "year",
     "date",
+    "order",
+    "unique"
 ];
 
 pub const IS_VALUES: &[&str] = &[
@@ -124,4 +126,9 @@ pub const ORDERS: &[&str] = &[
    "tix",
    "eur",
    "release",
+];
+
+pub const UNIQUES: &[&str] = &[
+   "cards",
+   "prints",
 ];
