@@ -1,9 +1,8 @@
 use std::sync::Arc;
-
 use arrow_ipc::writer::StreamWriter;
 use card_confluence_db::{
     autocompletion::{completion_from_query, Completion, CompletionResponse},
-    query_executor::context::{register_paths, TablePaths},
+    query_executor::context::{register_paths, TablePaths, get_latest_paths},
     query_parser::{
         parse_query,
         planner::{build_cards_detail_plan, build_rulings_plan, build_sets_plan},
@@ -13,6 +12,7 @@ use datafusion::{
     error::DataFusionError,
     logical_expr::{col, LogicalPlan, LogicalPlanBuilder},
     prelude::SessionContext,
+    object_store::ObjectStore,
 };
 use datafusion_proto::bytes::{logical_plan_from_bytes, logical_plan_to_bytes};
 use object_store::path::Path;
@@ -20,8 +20,10 @@ use url::Url;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use web_sys::FileSystemFileHandle;
 
+use crate::http_binding::PublicHTTPReadonlyStore;
 use crate::opfs_binding::OpfsReadonlyStore;
 
+pub mod http_binding;
 pub mod opfs_binding;
 
 use serde::{Deserialize, Serialize};
@@ -37,9 +39,9 @@ pub struct CompletionPlan {
 }
 
 #[wasm_bindgen]
-pub struct CardConfluenceLocal {
+pub struct CardConfluenceBrowser {
     context: SessionContext,
-    store: Arc<OpfsReadonlyStore>,
+    store: Arc<dyn ObjectStore>,
     base_url: Url,
 }
 
@@ -66,16 +68,51 @@ fn error_map<E: std::fmt::Debug>(u: E) -> JsValue {
 }
 
 #[wasm_bindgen]
-impl CardConfluenceLocal {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Result<Self, JsValue> {
+impl CardConfluenceBrowser {
+    pub async fn new_opfs(files: DBFileHandles) -> Result<Self, JsValue> {
         let store = Arc::new(OpfsReadonlyStore::new());
+
+
         let base_url = Url::parse("db://data/").unwrap();
 
         let context = SessionContext::new();
         context
             .runtime_env()
             .register_object_store(&base_url, store.clone());
+        let new_self = Self {
+            context,
+            store:store.clone(),
+            base_url,
+        };
+
+        new_self.attach_files(store.clone(), files).await?;
+
+
+        Ok(new_self)
+    }
+
+    pub async fn new_http(url: String) -> Result<Self, JsValue> {
+        let mut url_str = url;
+        if !url_str.ends_with('/') {
+            url_str.push('/');
+        }
+        let base_url = Url::parse(&url_str).map_err(error_map)?;
+        let store = Arc::new(PublicHTTPReadonlyStore::new(base_url.clone()));
+
+        let context = SessionContext::new();
+        context
+            .runtime_env()
+            .register_object_store(&base_url, store.clone());
+        let paths = get_latest_paths(store.clone()).await.map_err(error_map)?;
+
+        register_paths(
+            base_url.clone(),
+            &context,
+            paths,
+        )
+        .await
+        .map_err(error_map)?;
+
         Ok(Self {
             context,
             store,
@@ -83,20 +120,20 @@ impl CardConfluenceLocal {
         })
     }
 
-    pub async fn attach_files(&self, files: DBFileHandles) -> Result<(), JsValue> {
-        self.store
+    async fn attach_files(&self, store:Arc<OpfsReadonlyStore>, files: DBFileHandles) -> Result<(), JsValue> {
+        store
             .register_file(Path::from("cards.parquet"), files.cards())
             .await?;
 
-        self.store
+        store
             .register_file(Path::from("prints.parquet"), files.prints())
             .await?;
 
-        self.store
+        store
             .register_file(Path::from("rulings.parquet"), files.rulings())
             .await?;
 
-        self.store
+        store
             .register_file(Path::from("sets.parquet"), files.sets())
             .await?;
 
@@ -115,19 +152,19 @@ impl CardConfluenceLocal {
         Ok(())
     }
 
-    pub fn release_files(&self) -> Result<(), JsValue> {
-        self.store.release_file(Path::from("cards.parquet"))?;
-        self.context.deregister_table("cards").map_err(error_map)?;
-        self.store.release_file(Path::from("prints.parquet"))?;
-        self.context.deregister_table("prints").map_err(error_map)?;
-        self.store.release_file(Path::from("rulings.parquet"))?;
-        self.context
-            .deregister_table("rulings")
-            .map_err(error_map)?;
-        self.store.release_file(Path::from("sets.parquet"))?;
-        self.context.deregister_table("sets").map_err(error_map)?;
-        Ok(())
-    }
+    // fn release_files(&self, store:Arc<OpfsReadonlyStore>) -> Result<(), JsValue> {
+    //     store.release_file(Path::from("cards.parquet"))?;
+    //     self.context.deregister_table("cards").map_err(error_map)?;
+    //     store.release_file(Path::from("prints.parquet"))?;
+    //     self.context.deregister_table("prints").map_err(error_map)?;
+    //     store.release_file(Path::from("rulings.parquet"))?;
+    //     self.context
+    //         .deregister_table("rulings")
+    //         .map_err(error_map)?;
+    //     store.release_file(Path::from("sets.parquet"))?;
+    //     self.context.deregister_table("sets").map_err(error_map)?;
+    //     Ok(())
+    // }
 
     /// Optimize a logical plan using the session's optimizer and serialize it to bytes.
     fn optimize_plan(&self, plan: LogicalPlan) -> Result<Vec<u8>, DataFusionError> {

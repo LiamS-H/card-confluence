@@ -62,6 +62,12 @@ web-sys = { version = "0.3", features = [
     "File",
     "Blob",
     "console",
+    "Headers",
+    "Request",
+    "RequestInit",
+    "RequestMode",
+    "Response",
+    "WorkerGlobalScope",
 ] }
 js-sys = "0.3"
 getrandom = { version = "0.3", features = ["wasm_js"] }

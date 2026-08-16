@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
+import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
+
 import init, {
-	CardConfluenceLocal,
+	CardConfluenceBrowser,
 	type Completion,
 	type CompletionPlan
 } from '@card-confluence/wasm-browser';
@@ -80,18 +82,18 @@ export type QueryWorkerRequest =
 			ids: string[];
 	  };
 
-async function initBrowser(files: typeof get_local_parquet): Promise<CardConfluenceLocal> {
+async function initBrowser(files: typeof get_local_parquet): Promise<CardConfluenceBrowser> {
 	QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
 	await init();
-	const handles = await files();
-	if ('type' in handles) {
-		throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
-	}
-
-	const browser = new CardConfluenceLocal();
+	// const handles = await files();
+	// if ('type' in handles) {
+	// 	throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
+	// }
 
 	QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
-	await browser.attach_files(handles);
+	// const browser = await CardConfluenceBrowser.new_opfs(handles);
+	const browser = await CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST);
+
 	QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
 
 	return browser;
@@ -143,16 +145,29 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 			// case 'rulings':
 		}
 
-		const transaction = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
-		const store = transaction.objectStore(QUERY_CACHE_TABLE);
-		// console.log('[worker] getting cache');
-		let data = await cache_store_get(plan, store);
-		if (data === null) {
-			// console.log('[worker] cache miss');
-			// console.log('[worker] evaluating plan');
-			data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
-			await cache_store_insert(plan, data, store);
-		}
+		// 1. Check the cache using a read-only transaction
+        const readTx = cache.transaction([QUERY_CACHE_TABLE], 'readonly');
+        const readStore = readTx.objectStore(QUERY_CACHE_TABLE);
+        // console.log('[worker] getting cache');
+        let data = await cache_store_get(plan, readStore);
+
+        if (data === null) {
+            console.log('[worker] cache miss');
+            console.log('[worker] evaluating plan');
+
+            // In local db, this await never suspends and we only need one transaction,
+            // for the http store the eventloop clears and we have to make a second transaction.
+            data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
+
+            console.log('[worker] inserting data');
+
+            // 3. Open a brand NEW readwrite transaction to save the results
+            const writeTx = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
+            const writeStore = writeTx.objectStore(QUERY_CACHE_TABLE);
+            await cache_store_insert(plan, data, writeStore);
+
+            console.log('[worker] data inserted');
+        }
 		// console.log('[worker] cache hit!');
 		message ??= {
 			req_id: request.req_id,
@@ -183,7 +198,7 @@ QueryEventsChannel.onmessage(async (event) => {
 			console.warn('[worker] failed to release files', err);
 		}
 
-		const { resolve, reject, promise } = Promise.withResolvers<CardConfluenceLocal>();
+		const { resolve, reject, promise } = Promise.withResolvers<CardConfluenceBrowser>();
 		local_browser = promise;
 
 		const reset = cache_clear();
