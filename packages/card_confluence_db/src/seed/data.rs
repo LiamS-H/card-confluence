@@ -74,18 +74,19 @@ pub async fn fetch_data_cached(
         let prefix = Path::from(format!("keywords/{}", keyword));
         let latest_final = get_latest(store, &prefix, "json").await?;
 
-        if let Some(path) = latest_final {
-            path
-        } else if mode == SeedMode::Latest {
+        if mode == SeedMode::Latest {
+            println!("Fetching latest otags...");
             let progress_path = Path::from(format!("keywords/{}/{}.prog.json", keyword, timestamp));
             let final_path = Path::from(format!("keywords/{}/{}.json", keyword, timestamp));
             let latest_progress = get_latest(store, &prefix, ".prog.json").await?;
 
             let mut progress = if let Some(path) = latest_progress {
+                println!("Found progress, resuming...");
                 let res = store.get(&path).await?;
                 let bytes = res.bytes().await?;
                 serde_json::from_slice::<TagProgress>(&bytes)?
             } else {
+                println!("No progress found, starting fresh...");
                 let res = store.get(&tags_path).await?;
                 let bytes = res.bytes().await?;
                 let tags = serde_json::from_slice::<TagResult>(&bytes)?;
@@ -104,10 +105,15 @@ pub async fn fetch_data_cached(
                 &progress_path,
             )
             .await?;
+            println!("Scraped all otags.");
             store.put(&final_path, bytes.into()).await?;
 
             final_path
-        } else {
+        }
+        else if let Some(path) = latest_final {
+            path
+        }
+        else {
             let empty_path = Path::from(format!("keywords/{}/empty.json", keyword));
             if store.head(&empty_path).await.is_err() {
                 let empty_map: std::collections::HashMap<String, Vec<String>> =

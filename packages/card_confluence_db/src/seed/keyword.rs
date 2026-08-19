@@ -48,6 +48,8 @@ pub async fn scrape_keyword_incremental(
         sleep(RATE_LIMIT).await;
     }
 
+    store.delete(progress_path).await?;
+
     Ok(serde_json::to_vec(&progress.map)?)
 }
 

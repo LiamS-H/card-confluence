@@ -96,6 +96,7 @@ async fn main() -> Result<()> {
         }
         Commands::UploadLatest => {
             let latest_store = get_r2_from_env_prefix("LATEST")?;
+            println!("Uploading to remote");
             commands::upload::exec(parquet_store, latest_store).await?;
         }
     }
