@@ -88,9 +88,12 @@
 	{#if !response.loading && !response.error}
 		<div class="relative flex-1">
 			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
-				{#snippet item({ index, row, col })}
+				{#snippet item({ index, viewportRow, col })}
 					<div class="p-1">
-						<RowResult result={response.result.rows[index] as QueryResultRow} key={`${row}-${col}`}>
+						<RowResult
+							result={response.result.rows[index] as QueryResultRow}
+							key={`${viewportRow}-${col}`}
+						>
 							{#snippet children({ card, print, width })}
 								<DeckSearchCard {card} {print} {width} {zone} />
 							{/snippet}

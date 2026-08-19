@@ -36,7 +36,7 @@
 				cardconfluenceWithContext({
 					complete: async (pos: number) => {
 						const tag = tagAtCursor(view.state, pos);
-                        const offset = pos - tag.queryPos;
+						const offset = pos - tag.queryPos;
 						if (tag === null || tag.queryPos === null) {
 							return { from: pos, to: pos, options: [] };
 						}
@@ -102,11 +102,11 @@
 						{:else}
 							<div class="min-h-96">
 								<VirtualGrid items={response.result.rows} columns={previewColumns} overscan={2}>
-									{#snippet item({ index, row, col })}
+									{#snippet item({ index, viewportRow, col })}
 										<div class="p-1">
 											<RowResult
 												result={response.result.rows[index] as QueryResultRow}
-												key={`${row}-${col}`}
+												key={`${viewportRow}-${col}`}
 											>
 												{#snippet children({ card, print, width })}
 													<Card {card} {print} {width} />

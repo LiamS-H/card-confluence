@@ -6,7 +6,7 @@
 		columns: number;
 		aspectRatio?: number; // width / height, default 5/7
 		overscan?: number;
-		item?: Snippet<[{ index: number; item: T; row: number; col: number }]>;
+		item?: Snippet<[{ index: number; item: T; row: number; col: number; viewportRow: number }]>;
 	};
 
 	let { items, columns, aspectRatio = 5 / 7, overscan = 2, item }: Props<T> = $props();
@@ -42,7 +42,15 @@
 			for (let col = 0; col < columns; col++) {
 				const index = row * columns + col;
 				if (index >= items.length) break;
-				out.push({ index, item: items[index], row, col, x: col * itemWidth, y: row * itemHeight });
+				out.push({
+					index,
+					item: items[index],
+					row,
+					col,
+					x: col * itemWidth,
+					y: row * itemHeight,
+					viewportRow: row - start
+				});
 			}
 		}
 		return out;
@@ -63,7 +71,13 @@
 				style:height="{itemHeight}px"
 				style:transform="translate({v.x}px, {v.y}px)"
 			>
-				{@render item?.({ index: v.index, item: v.item, row: v.row, col: v.col })}
+				{@render item?.({
+					index: v.index,
+					item: v.item,
+					row: v.row,
+					col: v.col,
+					viewportRow: v.viewportRow
+				})}
 			</div>
 		{/each}
 	</div>
