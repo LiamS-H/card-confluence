@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use futures::StreamExt;
+use std::sync::Arc;
 
 use datafusion::{
     error::DataFusionError,
@@ -13,8 +13,7 @@ use object_store::prefix::PrefixStore;
 
 use url::Url;
 
-
-
+use crate::schema::meta_data::MetaData;
 
 pub struct TablePaths {
     pub cards: String,
@@ -114,6 +113,45 @@ pub async fn get_local_context() -> Result<SessionContext, DataFusionError> {
     return get_context(parquet_store, paths).await;
 }
 
+pub async fn get_http_context(
+    db_store: Arc<dyn ObjectStore>,
+    metadata_path: ObjectPath,
+) -> Result<SessionContext, DataFusionError> {
+    let meta_result = db_store.get(&metadata_path).await?;
+    let metadata = meta_result.bytes().await?;
+    let MetaData {
+        cards_path: cards,
+        prints_path: prints,
+        rulings_path: rulings,
+        sets_path: sets,
+        ..
+    } = serde_json::from_slice(&metadata).map_err(|e| {
+        DataFusionError::External(
+            format!("Failed to parse metadata from {}.\n{:?}", metadata_path, e).into(),
+        )
+    })?;
+
+    let ctx = SessionContext::new();
+
+    let base_url = Url::parse("db://data/").unwrap();
+    ctx.runtime_env()
+        .register_object_store(&base_url, Arc::new(db_store));
+
+    register_paths(
+        base_url,
+        &ctx,
+        TablePaths {
+            cards,
+            prints,
+            rulings,
+            sets,
+        },
+    )
+    .await?;
+
+    Ok(ctx)
+}
+
 pub async fn get_latest_paths(
     parquet_store: Arc<dyn ObjectStore>,
 ) -> Result<TablePaths, DataFusionError> {
@@ -151,19 +189,45 @@ pub async fn get_latest_paths(
         }
     }
 
-    let format_path = |opt: Option<ObjectPath>, name: &str| -> Result<String, DataFusionError> {
-        let path = opt.ok_or_else(|| {
-            DataFusionError::External(
-                format!("Could not find latest file for path prefix: '{}'", name).into()
-            )
-        })?;
-        Ok(format!("db://data/{}", path))
-    };
+    let cards = latest_cards
+        .ok_or(DataFusionError::ObjectStore(Box::new(
+            object_store::Error::NotFound {
+                path: "cards*.parquet".into(),
+                source: "failed to find suitable cards*.parquet".into(),
+            },
+        )))?
+        .into();
+    let prints = latest_prints
+        .ok_or(DataFusionError::ObjectStore(Box::new(
+            object_store::Error::NotFound {
+                path: "prints*.parquet".into(),
+                source: "failed to find suitable prints*.parquet".into(),
+            },
+        )))?
+        .into();
+
+    let rulings = latest_rulings
+        .ok_or(DataFusionError::ObjectStore(Box::new(
+            object_store::Error::NotFound {
+                path: "rulings*.parquet".into(),
+                source: "failed to find suitable rulings*.parquet".into(),
+            },
+        )))?
+        .into();
+
+    let sets = latest_sets
+        .ok_or(DataFusionError::ObjectStore(Box::new(
+            object_store::Error::NotFound {
+                path: "sets*.parquet".into(),
+                source: "failed to find suitable sets*.parquet".into(),
+            },
+        )))?
+        .into();
 
     Ok(TablePaths {
-        cards: format_path(latest_cards, "cards")?,
-        prints: format_path(latest_prints, "prints")?,
-        rulings: format_path(latest_rulings, "rulings")?,
-        sets: format_path(latest_sets, "sets")?,
+        cards,
+        prints,
+        rulings,
+        sets,
     })
 }

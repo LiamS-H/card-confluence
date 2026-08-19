@@ -1,5 +1,5 @@
 use card_confluence_db::seed::data::SeedFetchResult;
-use card_confluence_db::seed::write::write_parquets;
+use card_confluence_db::seed::write::json_to_parquet;
 // use card_confluence_db::seed::{self, SeedMode};
 // use chrono::Utc;
 use cloudflare_utils::r2_worker_store::R2WorkerStore;
@@ -64,7 +64,7 @@ pub async fn parquets_from_json(
         otags_path: ObjectPath::from(paths.otags_path),
     };
 
-    let parquet_paths = write_parquets(&data_paths, &history_json_store, &history_parquet_store)
+    let parquet_paths = json_to_parquet(&data_paths, &history_json_store, &history_parquet_store)
         .await
         .map_err(|u| JsValue::from(format!("{:#?}", u)))?;
     return Ok(SeedFinalPaths {

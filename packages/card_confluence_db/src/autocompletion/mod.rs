@@ -9,13 +9,7 @@ use datafusion::logical_expr::LogicalPlan;
 use datafusion::prelude::SessionContext;
 use std::sync::Arc;
 
-use crate::autocompletion::completion::{
-    FORMATS,
-    ORDERS,
-    UNIQUES,
-    IS_VALUES,
-    KEYWORDS,
-};
+use crate::autocompletion::completion::{FORMATS, IS_VALUES, KEYWORDS, ORDERS, UNIQUES};
 use crate::autocompletion::option::CompletionOption;
 use crate::autocompletion::planner::{find_predicate, replace_predicate_with_true};
 use crate::query_parser::lexer::{self, Token, TokenKind};
@@ -272,7 +266,7 @@ pub async fn autocomplete_from_completion(
 
 #[cfg(test)]
 mod tests {
-    use crate::query_executor::context::get_local_context;
+    use crate::context::get_local_context;
 
     use super::*;
 

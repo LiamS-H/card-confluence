@@ -76,7 +76,6 @@ class QueryClient {
 	//   we use a queue because it is performant to batch these requests,
 	//   we use a consumer_tag because consumers might change their mind before a batch comes, and this way we purge the old value.
 	private cards_queue: Map<string, string> = new Map();
-	// when batch is processed this stores the id currently awaiting response (so that they can be retried)
 	private cards_batch_timeout: NodeJS.Timeout | null = null;
 
 	public cards: SvelteMap<string, CardResponse> = new SvelteMap();
@@ -103,13 +102,13 @@ class QueryClient {
 		const dbWorker = new LocalQueryWorker();
 		console.log('[cc-client] spawning worker.');
 
-        dbWorker.onerror = (e) => {
-            console.error('[cc-client] failed to start. can happend when env variables are missing.', e);
-        };
+		dbWorker.onerror = (e) => {
+			console.error('[cc-client] failed to start. can happend when env variables are missing.', e);
+		};
 
 		dbWorker.onmessage = (e: MessageEvent<LocalWorkerStatus>) => {
 			if (e.data === 'ready') {
-                console.log("[worker] started");
+				console.log('[worker] started');
 				// tell others there is a new leader
 				QueryEventsChannel.postMessage({ type: 'promotion' });
 				this.on_promotion();
@@ -242,6 +241,7 @@ class QueryClient {
 		this.cards_batch_timeout = null;
 
 		if (this.cards_queue.size === 0) return;
+		console.log('[client] requesting', this.cards_queue.size, 'cards');
 
 		const ids = [...new Set(this.cards_queue.values())];
 		this.cards_queue.clear();
@@ -254,7 +254,7 @@ class QueryClient {
 
 	private request_card_batch() {
 		if (this.cards_batch_timeout) return;
-		this.cards_batch_timeout = setTimeout(() => this.process_cards_batch(), 200);
+		this.cards_batch_timeout = setTimeout(() => this.process_cards_batch(), 50);
 	}
 
 	public ensure_card(card_id: string, tag: string): void {

@@ -6,13 +6,18 @@ use arrow_array::RecordBatch;
 use arrow_convert::field::ArrowField;
 use arrow_convert::serialize::TryIntoArrow;
 use chrono::Utc;
+use futures::StreamExt;
 use object_store::{path::Path as ObjectPath, ObjectStore};
 use parquet::arrow::arrow_writer::ArrowWriter;
 use parquet::file::properties::{EnabledStatistics, WriterProperties};
 use scryfall_rust_bindings::types::{card::ScryfallCard, ruling::ScryfallRuling, set::ScryfallSet};
 use std::{collections::HashMap, sync::Arc};
 
-pub async fn write_parquets(
+use crate::context::get_latest_paths;
+use crate::schema::meta_data;
+use datafusion::error::DataFusionError;
+
+pub async fn json_to_parquet(
     seed_result: &SeedFetchResult,
     json_store: &Arc<dyn ObjectStore>,
     parquet_store: &Arc<dyn ObjectStore>,
@@ -204,4 +209,116 @@ where
         writer.close()?;
     }
     Ok(buffer)
+}
+
+async fn copy_parquet(
+    src_store: Arc<dyn ObjectStore>,
+    src_path: ObjectPath,
+    dest_store: Arc<dyn ObjectStore>,
+    dest_path: ObjectPath,
+) -> Result<(), DataFusionError> {
+    let get_res = src_store.get(&src_path).await?;
+    let mut stream = get_res.into_stream();
+    let mut upload = dest_store.put_multipart(&dest_path).await?;
+
+    let mut buffer = Vec::new();
+    const MIN_PART_SIZE: usize = 5 * 1024 * 1024;
+
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        buffer.extend_from_slice(&chunk);
+        if buffer.len() >= MIN_PART_SIZE {
+            upload.put_part(std::mem::take(&mut buffer).into()).await?;
+        }
+    }
+    if !buffer.is_empty() {
+        upload.put_part(buffer.into()).await?;
+    }
+    upload.complete().await?;
+    Ok(())
+}
+
+async fn process_and_copy_file(
+    data_store: Arc<dyn ObjectStore>,
+    db_store: Arc<dyn ObjectStore>,
+    raw_source_path: &str,
+    file_prefix: &str,
+    out_iso: &mut String,
+    out_path: &mut String,
+) -> Result<(), DataFusionError> {
+    let source_path = ObjectPath::from(raw_source_path.to_string());
+
+    let Some(extension) = source_path.extension() else {
+        // get_latest won't send invalid paths
+        unreachable!();
+    };
+    let Some(filename) = source_path.filename() else {
+        // get_latest won't send empty file names
+        unreachable!();
+    };
+
+    let iso = &filename[..filename.len() - extension.len() - 1];
+    let dest_path = ObjectPath::from(format!("{}.parquet", file_prefix));
+
+    *out_iso = iso.into();
+    *out_path = dest_path.clone().into();
+
+    copy_parquet(data_store, source_path, db_store, dest_path).await?;
+
+    Ok(())
+}
+
+pub async fn db_store_from_data_store(
+    data_store: Arc<dyn ObjectStore>,
+    db_store: Arc<dyn ObjectStore>,
+    metadata_path: ObjectPath,
+) -> Result<(), DataFusionError> {
+    let mut metadata = meta_data::MetaData::default();
+    let paths = get_latest_paths(data_store.clone()).await?;
+
+    process_and_copy_file(
+        data_store.clone(),
+        db_store.clone(),
+        &paths.cards,
+        "cards",
+        &mut metadata.cards_iso,
+        &mut metadata.cards_path,
+    )
+    .await?;
+
+    process_and_copy_file(
+        data_store.clone(),
+        db_store.clone(),
+        &paths.prints,
+        "prints",
+        &mut metadata.prints_iso,
+        &mut metadata.prints_path,
+    )
+    .await?;
+
+    process_and_copy_file(
+        data_store.clone(),
+        db_store.clone(),
+        &paths.rulings,
+        "rulings",
+        &mut metadata.rulings_iso,
+        &mut metadata.rulings_path,
+    )
+    .await?;
+
+    process_and_copy_file(
+        data_store.clone(),
+        db_store.clone(),
+        &paths.sets,
+        "sets",
+        &mut metadata.sets_iso,
+        &mut metadata.sets_path,
+    )
+    .await?;
+
+    let json_bytes =
+        serde_json::to_vec(&metadata).map_err(|e| DataFusionError::External(e.into()))?;
+
+    db_store.put(&metadata_path, json_bytes.into()).await?;
+    Ok(())
 }

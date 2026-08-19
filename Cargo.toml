@@ -8,7 +8,6 @@ members = [
     "apps/card_confluence_cli",
 ]
 resolver = "2"
-version = "0.10"
 
 
 [workspace.dependencies]

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use card_confluence_db::{
     autocompletion::autocomplete,
-    query_executor::context::{get_context, get_latest_paths},
+    context::{get_context, get_latest_paths},
     query_parser::parse_query,
 };
 use datafusion::{

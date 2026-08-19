@@ -146,28 +146,28 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 		}
 
 		// 1. Check the cache using a read-only transaction
-        const readTx = cache.transaction([QUERY_CACHE_TABLE], 'readonly');
-        const readStore = readTx.objectStore(QUERY_CACHE_TABLE);
-        // console.log('[worker] getting cache');
-        let data = await cache_store_get(plan, readStore);
+		const readTx = cache.transaction([QUERY_CACHE_TABLE], 'readonly');
+		const readStore = readTx.objectStore(QUERY_CACHE_TABLE);
+		// console.log('[worker] getting cache');
+		let data = await cache_store_get(plan, readStore);
 
-        if (data === null) {
-            console.log('[worker] cache miss');
-            console.log('[worker] evaluating plan');
+		if (data === null) {
+			console.log('[worker] cache miss');
+			console.log('[worker] evaluating plan');
 
-            // In local db, this await never suspends and we only need one transaction,
-            // for the http store the eventloop clears and we have to make a second transaction.
-            data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
+			// In local db, this await never suspends and we only need one transaction,
+			// for the http store the eventloop clears and we have to make a second transaction.
+			data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
 
-            console.log('[worker] inserting data');
+			console.log('[worker] inserting data');
 
-            // 3. Open a brand NEW readwrite transaction to save the results
-            const writeTx = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
-            const writeStore = writeTx.objectStore(QUERY_CACHE_TABLE);
-            await cache_store_insert(plan, data, writeStore);
+			// 3. Open a brand NEW readwrite transaction to save the results
+			const writeTx = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
+			const writeStore = writeTx.objectStore(QUERY_CACHE_TABLE);
+			await cache_store_insert(plan, data, writeStore);
 
-            console.log('[worker] data inserted');
-        }
+			console.log('[worker] data inserted');
+		}
 		// console.log('[worker] cache hit!');
 		message ??= {
 			req_id: request.req_id,
@@ -188,15 +188,12 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 QueryReqChannel.onmessage(handle_message);
 
 QueryEventsChannel.onmessage(async (event) => {
+	// This needs a whole overhaul because we need to split the downloading and switching of databases,
+	//
 	if (event.data.type === 'db-sync') {
 		QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
-		const browser = await local_browser;
-		try {
-			browser.release_files();
-		} catch (err) {
-			// files didn't need to be released
-			console.warn('[worker] failed to release files', err);
-		}
+		(await local_browser).free();
+		const intermediate_browser_promise = CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST);
 
 		const { resolve, reject, promise } = Promise.withResolvers<CardConfluenceBrowser>();
 		local_browser = promise;
@@ -212,8 +209,8 @@ QueryEventsChannel.onmessage(async (event) => {
 			throw Error(message);
 		}
 		QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
-		await browser.attach_files(handles);
-		resolve(browser);
+		const intermediate_browser = await intermediate_browser_promise;
+		resolve(intermediate_browser);
 		QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
 	}
 });

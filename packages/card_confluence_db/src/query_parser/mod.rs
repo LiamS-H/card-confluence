@@ -82,7 +82,7 @@ pub fn parse_to_ast(input: &str) -> Result<parser::ScryfallExpr, ScryfallError> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::query_executor::context::get_local_context;
+    use crate::context::get_local_context;
     use arrow_array::{Array, ListArray, RecordBatch, StringArray, StringViewArray};
     use datafusion::prelude::SessionContext;
     use std::sync::Arc;

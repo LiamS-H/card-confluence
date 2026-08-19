@@ -15,7 +15,7 @@ use object_store::{
     PutResult, Result as StoreResult,
 };
 use url::Url;
-use wasm_bindgen::{JsCast, JsValue};
+use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
 use web_sys::WorkerGlobalScope;
 
@@ -106,10 +106,9 @@ fn parse_content_range(
             if parts.len() == 2 {
                 let range_parts: Vec<&str> = parts[0].split('-').collect();
                 if range_parts.len() == 2 {
-                    if let (Ok(start), Ok(end)) = (
-                        range_parts[0].parse::<u64>(),
-                        range_parts[1].parse::<u64>(),
-                    ) {
+                    if let (Ok(start), Ok(end)) =
+                        (range_parts[0].parse::<u64>(), range_parts[1].parse::<u64>())
+                    {
                         let total = parts[1].parse::<u64>().unwrap_or(end + 1);
                         return (start..end + 1, total);
                     }
@@ -189,12 +188,13 @@ impl ObjectStore for PublicHTTPReadonlyStore {
             req_init.set_method("GET");
             req_init.set_headers(&headers);
 
-            let req = web_sys::Request::new_with_str_and_init(&url_str, &req_init).map_err(|e| {
-                Error::Generic {
-                    store: "PublicHTTPReadonlyStore",
-                    source: format!("Failed to create Request: {:?}", e).into(),
-                }
-            })?;
+            let req =
+                web_sys::Request::new_with_str_and_init(&url_str, &req_init).map_err(|e| {
+                    Error::Generic {
+                        store: "PublicHTTPReadonlyStore",
+                        source: format!("Failed to create Request: {:?}", e).into(),
+                    }
+                })?;
 
             let promise = worker_fetch(&req);
 
@@ -235,10 +235,12 @@ impl ObjectStore for PublicHTTPReadonlyStore {
                 source: format!("arrayBuffer() call failed: {:?}", e).into(),
             })?;
 
-            let buf_val = JsFuture::from(buf_promise).await.map_err(|e| Error::Generic {
-                store: "PublicHTTPReadonlyStore",
-                source: format!("arrayBuffer() promise rejected: {:?}", e).into(),
-            })?;
+            let buf_val = JsFuture::from(buf_promise)
+                .await
+                .map_err(|e| Error::Generic {
+                    store: "PublicHTTPReadonlyStore",
+                    source: format!("arrayBuffer() promise rejected: {:?}", e).into(),
+                })?;
 
             let uint8_arr = Uint8Array::new(&buf_val);
             let bytes = Bytes::from(uint8_arr.to_vec());
@@ -283,12 +285,13 @@ impl ObjectStore for PublicHTTPReadonlyStore {
             let req_init = web_sys::RequestInit::new();
             req_init.set_method("HEAD");
 
-            let req = web_sys::Request::new_with_str_and_init(&url_str, &req_init).map_err(|e| {
-                Error::Generic {
-                    store: "PublicHTTPReadonlyStore",
-                    source: format!("Failed to create HEAD Request: {:?}", e).into(),
-                }
-            })?;
+            let req =
+                web_sys::Request::new_with_str_and_init(&url_str, &req_init).map_err(|e| {
+                    Error::Generic {
+                        store: "PublicHTTPReadonlyStore",
+                        source: format!("Failed to create HEAD Request: {:?}", e).into(),
+                    }
+                })?;
 
             let promise = worker_fetch(&req);
 
@@ -342,6 +345,7 @@ impl ObjectStore for PublicHTTPReadonlyStore {
     }
 
     fn list(&self, _prefix: Option<&Path>) -> BoxStream<'static, StoreResult<ObjectMeta>> {
+        // TODO: Implement List
         Box::pin(stream::empty())
     }
 
@@ -350,6 +354,7 @@ impl ObjectStore for PublicHTTPReadonlyStore {
         _prefix: Option<&Path>,
         _offset: &Path,
     ) -> BoxStream<'static, StoreResult<ObjectMeta>> {
+        // TODO: Implement List
         Box::pin(stream::empty())
     }
 

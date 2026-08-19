@@ -6,7 +6,7 @@ pub mod transform;
 pub mod write;
 
 use crate::seed::data::fetch_data_cached;
-use crate::seed::write::write_parquets;
+use crate::seed::write::json_to_parquet;
 use std::sync::Arc;
 
 use object_store::{path::Path as ObjectPath, ObjectStore};
@@ -35,6 +35,6 @@ pub async fn seed(
 
     let seed_result = fetch_data_cached(mode, &json_store).await?;
 
-    let seed_result = write_parquets(&seed_result, &json_store, &parquet_store).await?;
+    let seed_result = json_to_parquet(&seed_result, &json_store, &parquet_store).await?;
     Ok(seed_result)
 }
