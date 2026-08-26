@@ -1,13 +1,12 @@
-/// <reference lib="webworker" />
 import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
 
 import init, {
 	CardConfluenceBrowser,
 	type Completion,
-	type CompletionPlan
+	type CompletionPlan,
+	type MetaData
 } from '@card-confluence/wasm-browser';
-import { get_local_parquet, sync_local_parquet } from './files';
-import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
+import { QueryEventsChannel, QueryReqChannel } from '../channels';
 import {
 	cache_clear,
 	cache_store_get,
@@ -18,16 +17,44 @@ import {
 } from '../cache';
 import { type QueryRequest } from '../client.svelte';
 
-export type DBStatus = 'loading' | 'downloading' | 'syncing' | 'synced';
+export type DBStatus =
+	| {
+			state: 'loading';
+			data: 'local' | 'remote';
+	  }
+	| {
+			state: 'downloading';
+			data: 'local';
+	  }
+	| {
+			state: 'processing';
+			data: 'local';
+	  }
+	| {
+			state: 'connecting';
+			data: 'remote';
+	  }
+	| {
+			state: 'ready';
+			data: 'remote' | 'local';
+			metadata: MetaData;
+	  };
+
+export const worker_status: DBStatus = { state: 'loading', data: 'remote' };
+
+export function setWorkerStatus(new_status: DBStatus) {
+	Object.assign(worker_status, new_status);
+	QueryEventsChannel.postMessage({ type: 'db-status', status: worker_status });
+}
 
 export type QueryWorkerEvent =
 	| {
-			type: 'promotion';
+			// used by client to get a db status message
+			type: 'db-check';
 	  }
 	| {
-			type: 'db-sync';
-	  }
-	| {
+			// will add more info to db status for the version and type of connection
+			// each client will maintain a svelte state object tracking this info
 			type: 'db-status';
 			status: DBStatus;
 	  }
@@ -82,30 +109,12 @@ export type QueryWorkerRequest =
 			ids: string[];
 	  };
 
-async function initBrowser(files: typeof get_local_parquet): Promise<CardConfluenceBrowser> {
-	QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
-	await init();
-	// const handles = await files();
-	// if ('type' in handles) {
-	// 	throw Error(`Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`);
-	// }
-
-	QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
-	// const browser = await CardConfluenceBrowser.new_opfs(handles);
-	const browser = await CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST);
-
-	QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
-
-	return browser;
-}
-
-let local_browser = initBrowser(get_local_parquet);
-
-async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
-	const request = event.data;
+export async function handle_query_request(
+	browser: CardConfluenceBrowser,
+	request: QueryWorkerRequest
+): Promise<QueryWorkerResponse> {
 	let message!: QueryWorkerResponse;
 	try {
-		const browser = await local_browser;
 		const cache = await local_cache;
 		let plan!: Uint8Array<ArrayBuffer>;
 		switch (request.type) {
@@ -136,8 +145,7 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 				};
 				if (plan.length == 0) {
 					message.index = null;
-					QueryResChannel.postMessage(message);
-					return;
+					return message;
 				}
 				break;
 			}
@@ -145,7 +153,6 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 			// case 'rulings':
 		}
 
-		// 1. Check the cache using a read-only transaction
 		const readTx = cache.transaction([QUERY_CACHE_TABLE], 'readonly');
 		const readStore = readTx.objectStore(QUERY_CACHE_TABLE);
 		// console.log('[worker] getting cache');
@@ -156,12 +163,11 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 			console.log('[worker] evaluating plan');
 
 			// In local db, this await never suspends and we only need one transaction,
-			// for the http store the eventloop clears and we have to make a second transaction.
+			// for the http store, the js event loop empties and we have to make a second transaction.
 			data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
 
 			console.log('[worker] inserting data');
 
-			// 3. Open a brand NEW readwrite transaction to save the results
 			const writeTx = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
 			const writeStore = writeTx.objectStore(QUERY_CACHE_TABLE);
 			await cache_store_insert(plan, data, writeStore);
@@ -182,43 +188,34 @@ async function handle_message(event: MessageEvent<QueryWorkerRequest>) {
 		};
 	}
 
-	QueryResChannel.postMessage(message);
+	return message;
 }
-
-QueryReqChannel.onmessage(handle_message);
 
 QueryEventsChannel.onmessage(async (event) => {
 	// This needs a whole overhaul because we need to split the downloading and switching of databases,
 	//
-	if (event.data.type === 'db-sync') {
-		QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
-		(await local_browser).free();
-		const intermediate_browser_promise = CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST);
-
-		const { resolve, reject, promise } = Promise.withResolvers<CardConfluenceBrowser>();
-		local_browser = promise;
-
-		const reset = cache_clear();
-
-		const [handles] = await Promise.all([sync_local_parquet(), reset]);
-		// const [handles] = await Promise.all([get_local_parquet(), reset]);
-		if ('type' in handles) {
-			const message = `Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`;
-			reject(message);
-			QueryEventsChannel.postMessage({ type: 'error-fatal', message: 'failed to get file handle' });
-			throw Error(message);
-		}
-		QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
-		const intermediate_browser = await intermediate_browser_promise;
-		resolve(intermediate_browser);
-		QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
+	if (event.data.type === 'db-check') {
+		QueryEventsChannel.postMessage({ type: 'db-status', status: worker_status });
 	}
+	// QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
+	// (await local_browser).free();
+	// const intermediate_browser_promise = CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST);
+
+	// const { resolve, reject, promise } = Promise.withResolvers<CardConfluenceBrowser>();
+	// local_browser = promise;
+
+	// const reset = cache_clear();
+
+	// const [handles] = await Promise.all([sync_local_parquet(), reset]);
+	// // const [handles] = await Promise.all([get_local_parquet(), reset]);
+	// if ('type' in handles) {
+	// 	const message = `Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`;
+	// 	reject(message);
+	// 	QueryEventsChannel.postMessage({ type: 'error-fatal', message: 'failed to get file handle' });
+	// 	throw Error(message);
+	// }
+	// QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
+	// const intermediate_browser = await intermediate_browser_promise;
+	// resolve(intermediate_browser);
+	// QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
 });
-
-export type LocalWorkerStatus = 'ready';
-
-function updateStatus(status: LocalWorkerStatus) {
-	self.postMessage(status);
-}
-
-updateStatus('ready');

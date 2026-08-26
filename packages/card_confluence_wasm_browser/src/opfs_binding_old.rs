@@ -10,7 +10,8 @@ use std::{
 
 use bytes::Bytes;
 use futures::{
-    stream::{self, BoxStream},
+    stream::{self, BoxStream, StreamExt},
+    TryStreamExt,
 };
 use js_sys::Uint8Array;
 use object_store::{
@@ -19,11 +20,7 @@ use object_store::{
 };
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{
-    FileSystemDirectoryHandle, FileSystemFileHandle, FileSystemGetDirectoryOptions,
-    FileSystemGetFileOptions, FileSystemReadWriteOptions, FileSystemSyncAccessHandle,
-    WorkerGlobalScope,
-};
+use web_sys::{FileSystemFileHandle, FileSystemReadWriteOptions, FileSystemSyncAccessHandle};
 
 // ── SendWrapper ───────────────────────────────────────────────────────────────
 
@@ -59,7 +56,7 @@ where
 
 /// A read-only [`ObjectStore`] that serves files from the browser's OPFS.
 pub struct OpfsReadonlyStore {
-    /// `FileSystemSyncAccessHandle` is `!Send`, which is fine — we only ever access
+    /// `FileSystemFileHandle` is `!Send`, which is fine — we only ever access
     /// this map on the one WASM thread, and `SendWrapper` silences the
     /// compiler.
     files: SendWrapper<RefCell<HashMap<Path, FileSystemSyncAccessHandle>>>,
@@ -73,52 +70,11 @@ impl OpfsReadonlyStore {
         }
     }
 
-    /// Registers the given paths from the Browser's Origin Private File System (OPFS).
-    ///
-    /// It gets the OPFS root directory handle, traverses directories if needed,
-    /// opens the files, and escalates them to synchronous access handles.
-    pub async fn register_paths(&self, paths: Vec<String>) -> Result<(), JsValue> {
-        let global: WorkerGlobalScope = js_sys::global().unchecked_into();
-        let navigator = global.navigator();
-        let storage = navigator.storage();
-        let dir_val = JsFuture::from(storage.get_directory()).await?;
-        let root_dir: FileSystemDirectoryHandle = dir_val.unchecked_into();
-
-        for path_str in &paths {
-            let path = Path::from(path_str.as_str());
-            let parts: Vec<&str> = path_str.split('/').filter(|s| !s.is_empty()).collect();
-            if parts.is_empty() {
-                continue;
-            }
-
-            let mut current_dir = root_dir.clone();
-            for i in 0..parts.len() - 1 {
-                let options = FileSystemGetDirectoryOptions::new();
-                options.set_create(false);
-                let dir_promise = current_dir.get_directory_handle_with_options(parts[i], &options);
-                let dir_val = JsFuture::from(dir_promise).await?;
-                current_dir = dir_val.unchecked_into();
-            }
-
-            let file_name = parts.last().unwrap();
-            let options = FileSystemGetFileOptions::new();
-            options.set_create(false);
-
-            let file_promise = current_dir.get_file_handle_with_options(file_name, &options);
-            let file_val = JsFuture::from(file_promise).await?;
-            let file_handle: FileSystemFileHandle = file_val.unchecked_into();
-
-            let promise = file_handle.create_sync_access_handle();
-            let js_val = JsFuture::from(promise).await?;
-            let sync_handle: FileSystemSyncAccessHandle = js_val.unchecked_into();
-
-            self.files.0.borrow_mut().insert(path, sync_handle);
-        }
-
-        Ok(())
-    }
-
     /// Registers an OPFS file handle under the given logical `path`.
+    ///
+    /// The handle must already exist in OPFS (i.e. obtained without
+    /// `{ create: true }`). Registering the same path twice overwrites the
+    /// previous handle.
     pub async fn register_file(
         &self,
         path: Path,
@@ -158,6 +114,7 @@ impl OpfsReadonlyStore {
         handle: &FileSystemSyncAccessHandle,
         range: Option<&object_store::GetRange>,
     ) -> Result<(Bytes, Range<u64>)> {
+        // 1. Get the current size synchronously
         let total_size = handle.get_size().map_err(|e| Error::Generic {
             store: "OpfsReadonlyStore",
             source: format!("getSize() failed: {:?}", e).into(),
@@ -166,10 +123,12 @@ impl OpfsReadonlyStore {
         let byte_range = Self::resolve_range(range, total_size);
         let len = byte_range.end - byte_range.start;
 
+        // 2. Prepare the buffer and options
         let buffer = Uint8Array::new_with_length(len as u32);
         let options = FileSystemReadWriteOptions::new();
         options.set_at(byte_range.start as f64);
 
+        // 3. Perform the synchronous read
         handle
             .read_with_buffer_source_and_options(&buffer, &options)
             .map_err(|e| Error::Generic {
@@ -180,6 +139,8 @@ impl OpfsReadonlyStore {
         Ok((Bytes::from(buffer.to_vec()), byte_range))
     }
 
+    /// Resolves a [`GetRange`] to a concrete [`Range<u64>`] given the file's
+    /// `total` byte length.
     fn resolve_range(range: Option<&object_store::GetRange>, total: u64) -> Range<u64> {
         match range {
             None => 0..total,
@@ -189,12 +150,16 @@ impl OpfsReadonlyStore {
         }
     }
 
+    /// Builds an [`ObjectMeta`] for a registered path using the file's own
+    /// reported size and last-modified timestamp.
     fn file_meta(path: Path, handle: &FileSystemSyncAccessHandle) -> Result<ObjectMeta> {
         let size = handle.get_size().map_err(|e| Error::Generic {
             store: "OpfsReadonlyStore",
             source: format!("getSize() failed: {:?}", e).into(),
         })? as u64;
 
+        // Note: SyncAccessHandle lacks a last_modified method.
+        // You may need to pass this in from a previous async getFile() call.
         let last_modified = chrono::Utc::now();
 
         Ok(ObjectMeta {
@@ -242,6 +207,7 @@ impl ObjectStore for OpfsReadonlyStore {
         'life0: 'async_trait,
         'life1: 'async_trait,
     {
+        // Scope the borrow so it doesn't cross the await point or future creation
         let handle_ptr_res = {
             let map = self.files.0.borrow();
             map.get(location)
@@ -300,16 +266,42 @@ impl ObjectStore for OpfsReadonlyStore {
         }
     }
 
-    fn list(&self, _prefix: Option<&Path>) -> BoxStream<'static, Result<ObjectMeta>> {
-        Box::pin(stream::empty())
+    fn list(&self, prefix: Option<&Path>) -> BoxStream<'static, Result<ObjectMeta>> {
+        // Collect pointers to safely yield items outside the RefCell borrow scope
+        let entries: Vec<(Path, SendWrapper<*const FileSystemSyncAccessHandle>)> = {
+            let map = self.files.0.borrow();
+            map.iter()
+                .filter(|(p, _)| match &prefix {
+                    None => true,
+                    Some(pfx) => p.as_ref().starts_with(pfx.as_ref()),
+                })
+                .map(|(p, h)| {
+                    (
+                        p.clone(),
+                        SendWrapper(h as *const FileSystemSyncAccessHandle),
+                    )
+                })
+                .collect()
+        };
+
+        let stream = stream::iter(entries).then(|(path, ptr)| {
+            send_future(async move {
+                let handle = unsafe { &*ptr.0 };
+                Self::file_meta(path, handle)
+            })
+        });
+
+        Box::pin(stream)
     }
 
     fn list_with_offset(
         &self,
-        _prefix: Option<&Path>,
-        _offset: &Path,
+        prefix: Option<&Path>,
+        offset: &Path,
     ) -> BoxStream<'static, Result<ObjectMeta>> {
-        Box::pin(stream::empty())
+        let offset = offset.clone();
+        let base = self.list(prefix);
+        Box::pin(base.try_filter(move |meta| std::future::ready(meta.location > offset)))
     }
 
     fn put_opts<'life0, 'life1, 'async_trait>(

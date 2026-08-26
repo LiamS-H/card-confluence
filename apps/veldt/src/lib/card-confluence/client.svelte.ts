@@ -1,11 +1,13 @@
 import { browser, dev } from '$app/environment';
-import LocalQueryWorker from '$lib/card-confluence/local-worker?worker';
+// import LocalQueryWorker from '$lib/card-confluence/local-worker?worker';
+import HTTPQueryWorker from '$lib/card-confluence/query-worker/http?worker';
+import LocalQueryWorker from '$lib/card-confluence/query-worker/local?worker';
 import type {
 	DBStatus,
-	LocalWorkerStatus,
 	QueryWorkerRequest,
 	QueryWorkerResponse
-} from '$lib/card-confluence/local-worker';
+} from '$lib/card-confluence/query-worker/shared';
+
 import {
 	QueryEventsChannel,
 	QueryReqChannel,
@@ -14,7 +16,16 @@ import {
 import { SvelteMap } from 'svelte/reactivity';
 import { cache_get, cache_clear, type CacheKey } from './cache';
 import { tableFromIPC } from '@uwdata/flechette';
-import type { Card, Print, CompletionOption, Completion } from '@card-confluence/wasm-browser';
+import type {
+	Card,
+	Print,
+	CompletionOption,
+	Completion,
+	MetaData
+} from '@card-confluence/wasm-browser';
+import { get_veldt_settings, type VeldtSettings } from '$lib/settings.svelte';
+import { compare_metadata, get_opfs_metadata, get_remote_metadata } from './db-meta';
+import { download_db } from './download-worker/factory';
 
 export type { Print };
 
@@ -63,8 +74,10 @@ export function query_to_string(query: QueryRequest): string {
 
 class QueryClient {
 	private epoch = $state(0);
-	db_status = $state<DBStatus>('loading');
-	ready = false;
+	db_status = $state<DBStatus>({
+		state: 'loading',
+		data: get_veldt_settings().database.useLocal ? 'local' : 'remote'
+	});
 	private initialized = false;
 
 	// key is the idb key, value is the js memory result value
@@ -88,7 +101,6 @@ class QueryClient {
 		// when called with ifAvailable, this will exit early and mark the client ready because there is already a leader
 		if (!lock) {
 			console.log('[cc-client] connected as follower.');
-			this.ready = true;
 			return false;
 		}
 		console.log('[cc-client] connected as leader.');
@@ -97,25 +109,83 @@ class QueryClient {
 			await cache_clear();
 		}
 
-		// TODO: this is where we can check for internet connection, and which worker to use
-		// This also locks the main db files, meaning we can't sync them from opfs, currently we kill and restart wasm to get new files
-		const dbWorker = new LocalQueryWorker();
-		console.log('[cc-client] spawning worker.');
+		let worker: Worker;
+		type Config = { local: true; update: MetaData | null } | { local: false; update: null } | null;
+		let last_config: null | Config = null;
 
-		dbWorker.onerror = (e) => {
-			console.error('[cc-client] failed to start. can happend when env variables are missing.', e);
-		};
+		async function handle_settings(settings: VeldtSettings) {
+			const [remote_meta, remote_error] = await get_remote_metadata();
+			const [local_meta, local_error] = await get_opfs_metadata();
 
-		dbWorker.onmessage = (e: MessageEvent<LocalWorkerStatus>) => {
-			if (e.data === 'ready') {
-				console.log('[worker] started');
-				// tell others there is a new leader
-				QueryEventsChannel.postMessage({ type: 'promotion' });
-				this.on_promotion();
+			function get_config(): Config {
+				if (local_error && remote_error) return null;
+				if (remote_error) return { local: true, update: null };
+				if (settings.database.useLocal === false) return { local: false, update: null };
+				// useLocal is true:
+				if (local_error) return { local: true, update: remote_meta };
+				const compare = compare_metadata(local_meta, remote_meta);
+				if (compare.sources.length === 0) return { local: true, update: null };
+
+				return { local: true, update: compare };
 			}
-		};
+			const config = get_config();
 
-		this.ready = true;
+			if (config === null) {
+				throw Error('DB connection error fatal.');
+			}
+			if (
+				last_config &&
+				config.local === last_config.local &&
+				!config.update === !last_config.update // we do this so that we are basically
+			) {
+			}
+			const { local } = config;
+
+			if (!local) {
+				console.log('[cc-client] spawning http worker.');
+				worker = new HTTPQueryWorker();
+
+				worker.onerror = (e) => {
+					console.error(
+						'[cc-client] failed to start. can happen when env variables are missing.',
+						e
+					);
+				};
+				return;
+			}
+			if (!config.update) {
+				console.log('[cc-client] spawning local worker.');
+				worker = new LocalQueryWorker();
+
+				worker.onerror = (e) => {
+					console.error(
+						'[cc-client] failed to start. can happen when env variables are missing.',
+						e
+					);
+				};
+				return;
+			}
+			console.log('[cc-client] spawning temporary http worker.');
+			worker = new HTTPQueryWorker();
+			worker.onerror = (e) => {
+				console.error('[cc-client] failed to start. can happen when env variables are missing.', e);
+			};
+			if (settings.database.askEachDownload) {
+				// we ask the user if they wish to download, and await a response
+			}
+			// spawn download worker
+			console.log('[cc-client] spawning download worker');
+			await download_db(config.update);
+			worker.terminate();
+			console.log('[cc-client] spawning local worker to take over.');
+			worker = new LocalQueryWorker();
+
+			worker.onerror = (e) => {
+				console.error('[cc-client] failed to start. can happen when env variables are missing.', e);
+			};
+			// replace http worker with new local worker once downloaded.
+		}
+		handle_settings(get_veldt_settings());
 
 		// empty promise to resolve when leader is released
 		return new Promise(() => {});
@@ -138,7 +208,7 @@ class QueryClient {
 				if (!query) {
 					console.error(
 						'[cc-client] A query was responded to without being in the queries Map.\
-                        All queries should get an entry in the map went first requested'
+                        All queries should get an entry in the map when first requested'
 					);
 					return;
 				}
@@ -315,8 +385,6 @@ class QueryClient {
 			const options = tableFromIPC(data).toArray() as CompletionOption[];
 
 			resolve({ ...completion, options });
-
-			// const rows = table.toArray() as QueryResultRow[];
 		}, controller);
 
 		return promise;
@@ -325,20 +393,15 @@ class QueryClient {
 	public async init(): Promise<void> {
 		if (this.initialized) return;
 		this.initialized = true;
-		// register the resolver
 		QueryResChannel.onmessage((e) => this.on_worker_response(e));
 
 		QueryEventsChannel.onmessage((event) => {
 			switch (event.data.type) {
 				case 'db-status':
 					this.db_status = event.data.status;
-					if (event.data.status === 'synced') {
+					if (event.data.status.state === 'ready') {
 						this.on_promotion();
 					}
-					return;
-				case 'db-sync':
-					this.db_status = 'loading';
-					this.clear_cache();
 					return;
 			}
 		});
@@ -348,42 +411,32 @@ class QueryClient {
 			{ ifAvailable: true }, // exit early when not free so that initiation can proceed. this will never resolve when lock succeeds.
 			this.on_self_promotion
 		);
-		// <--- this code is only reached when not the leader. --->
-		this.on_promotion();
-		// listen for other promotions.
-		QueryEventsChannel.onmessage((event) => {
-			switch (event.data.type) {
-				case 'promotion':
-					this.on_promotion();
-					return;
-			}
-		});
 
 		// promote when lock is free later
 		navigator.locks.request('db-leader-lock', {}, this.on_self_promotion);
 		return;
 	}
 
-	private invalidate_all() {
-		this.epoch += 1;
-	}
+	// private invalidate_all() {
+	// 	this.epoch += 1;
+	// }
 
 	public track_invalidations() {
 		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		this.epoch;
 	}
 
-	private clear_cache() {
-		this.queries.clear();
-		this.queries_data_map.clear();
-		this.cards.clear();
-		this.invalidate_all();
-	}
+	// private clear_cache() {
+	// 	this.queries.clear();
+	// 	this.queries_data_map.clear();
+	// 	this.cards.clear();
+	// 	this.invalidate_all();
+	// }
 
-	public update_db_latest() {
-		QueryEventsChannel.postMessage({ type: 'db-sync' });
-		this.clear_cache();
-	}
+	// public update_db_latest() {
+	// 	QueryEventsChannel.postMessage({ type: 'db-sync' });
+	// 	this.clear_cache();
+	// }
 }
 
 declare global {

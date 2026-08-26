@@ -14,7 +14,7 @@ use scryfall_rust_bindings::types::{card::ScryfallCard, ruling::ScryfallRuling, 
 use std::{collections::HashMap, sync::Arc};
 
 use crate::context::get_latest_paths;
-use crate::schema::meta_data;
+use crate::schema::meta_data::{self, MetaDataSource};
 use datafusion::error::DataFusionError;
 
 pub async fn json_to_parquet(
@@ -243,9 +243,7 @@ async fn process_and_copy_file(
     db_store: Arc<dyn ObjectStore>,
     raw_source_path: &str,
     file_prefix: &str,
-    out_iso: &mut String,
-    out_path: &mut String,
-) -> Result<(), DataFusionError> {
+) -> Result<MetaDataSource, DataFusionError> {
     let source_path = ObjectPath::from(raw_source_path.to_string());
 
     let Some(extension) = source_path.extension() else {
@@ -260,12 +258,13 @@ async fn process_and_copy_file(
     let iso = &filename[..filename.len() - extension.len() - 1];
     let dest_path = ObjectPath::from(format!("{}.parquet", file_prefix));
 
-    *out_iso = iso.into();
-    *out_path = dest_path.clone().into();
+    copy_parquet(data_store, source_path.clone(), db_store, dest_path.clone()).await?;
 
-    copy_parquet(data_store, source_path, db_store, dest_path).await?;
-
-    Ok(())
+    Ok(MetaDataSource {
+        table: file_prefix.into(),
+        iso: iso.into(),
+        path: dest_path.clone().into(),
+    })
 }
 
 pub async fn db_store_from_data_store(
@@ -276,45 +275,31 @@ pub async fn db_store_from_data_store(
     let mut metadata = meta_data::MetaData::default();
     let paths = get_latest_paths(data_store.clone()).await?;
 
-    process_and_copy_file(
-        data_store.clone(),
-        db_store.clone(),
-        &paths.cards,
-        "cards",
-        &mut metadata.cards_iso,
-        &mut metadata.cards_path,
-    )
-    .await?;
+    let source =
+        process_and_copy_file(data_store.clone(), db_store.clone(), &paths.cards, "cards").await?;
+    metadata.sources.push(source);
 
-    process_and_copy_file(
+    let source = process_and_copy_file(
         data_store.clone(),
         db_store.clone(),
         &paths.prints,
         "prints",
-        &mut metadata.prints_iso,
-        &mut metadata.prints_path,
     )
     .await?;
+    metadata.sources.push(source);
 
-    process_and_copy_file(
+    let source = process_and_copy_file(
         data_store.clone(),
         db_store.clone(),
         &paths.rulings,
         "rulings",
-        &mut metadata.rulings_iso,
-        &mut metadata.rulings_path,
     )
     .await?;
+    metadata.sources.push(source);
 
-    process_and_copy_file(
-        data_store.clone(),
-        db_store.clone(),
-        &paths.sets,
-        "sets",
-        &mut metadata.sets_iso,
-        &mut metadata.sets_path,
-    )
-    .await?;
+    let source =
+        process_and_copy_file(data_store.clone(), db_store.clone(), &paths.sets, "sets").await?;
+    metadata.sources.push(source);
 
     let json_bytes =
         serde_json::to_vec(&metadata).map_err(|e| DataFusionError::External(e.into()))?;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { use_query } from '$lib';
-	import { query_client, type QueryResultRow } from '$lib';
+	import { type QueryResultRow } from '$lib';
 	import RowResult from '$components/query/row-result.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
@@ -67,20 +67,9 @@
 				variant="outline"
 				intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
 			>
+				add to
 				{zone}
 			</Button>
-			<span class="flex h-full items-center border-y-2 border-secondary px-2 text-secondary"
-				>local data</span
-			>
-			<Button
-				size="sm"
-				variant="full"
-				intent="secondary"
-				disabled={query_client.db_status !== 'synced'}
-				onclick={() => {
-					query_client.update_db_latest();
-				}}>{query_client.db_status === 'synced' ? 'update' : query_client.db_status}</Button
-			>
 		</div>
 
 		{#if !response.loading && !response.error}{/if}

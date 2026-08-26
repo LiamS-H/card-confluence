@@ -119,35 +119,27 @@ pub async fn get_http_context(
 ) -> Result<SessionContext, DataFusionError> {
     let meta_result = db_store.get(&metadata_path).await?;
     let metadata = meta_result.bytes().await?;
-    let MetaData {
-        cards_path: cards,
-        prints_path: prints,
-        rulings_path: rulings,
-        sets_path: sets,
-        ..
-    } = serde_json::from_slice(&metadata).map_err(|e| {
+    let metadata = serde_json::from_slice(&metadata).map_err(|e| {
         DataFusionError::External(
             format!("Failed to parse metadata from {}.\n{:?}", metadata_path, e).into(),
         )
     })?;
+    get_context_from_metadata(db_store, metadata).await
+}
 
+pub async fn get_context_from_metadata(
+    db_store: Arc<dyn ObjectStore>,
+    metadata: MetaData,
+) -> Result<SessionContext, DataFusionError> {
     let ctx = SessionContext::new();
+
+    let paths: TablePaths = metadata.try_into()?;
 
     let base_url = Url::parse("db://data/").unwrap();
     ctx.runtime_env()
         .register_object_store(&base_url, Arc::new(db_store));
 
-    register_paths(
-        base_url,
-        &ctx,
-        TablePaths {
-            cards,
-            prints,
-            rulings,
-            sets,
-        },
-    )
-    .await?;
+    register_paths(base_url, &ctx, paths).await?;
 
     Ok(ctx)
 }

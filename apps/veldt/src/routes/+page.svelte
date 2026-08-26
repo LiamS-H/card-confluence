@@ -8,7 +8,6 @@
 	import Card from '$components/card-img/card.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
-	import Button from '$components/button.svelte';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
 
@@ -54,18 +53,6 @@
 				max="10"
 				bind:value={card_columns}
 			/>
-		</div>
-		<div class="flex w-fit items-center border-2 border-secondary text-secondary *:-m-px">
-			<span class="px-2">local data</span>
-			<Button
-				size="sm"
-				variant="full"
-				intent="secondary"
-				disabled={query_client.db_status !== 'synced'}
-				onclick={() => {
-					query_client.update_db_latest();
-				}}>{query_client.db_status === 'synced' ? 'update' : query_client.db_status}</Button
-			>
 		</div>
 
 		{#if !response.loading && !response.error}{/if}

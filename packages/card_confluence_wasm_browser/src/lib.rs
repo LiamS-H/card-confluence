@@ -1,21 +1,20 @@
 use arrow_ipc::writer::StreamWriter;
 use card_confluence_db::{
     autocompletion::{completion_from_query, Completion, CompletionResponse},
-    context::{get_http_context, register_paths, TablePaths},
+    context::get_context_from_metadata,
     query_parser::{
         parse_query,
         planner::{build_cards_detail_plan, build_rulings_plan, build_sets_plan},
     },
+    schema::meta_data::MetaData,
 };
 use datafusion::{
     error::DataFusionError,
     logical_expr::{col, LogicalPlan, LogicalPlanBuilder},
-    object_store::path::Path as ObjectPath,
     object_store::ObjectStore,
     prelude::SessionContext,
 };
 use datafusion_proto::bytes::{logical_plan_from_bytes, logical_plan_to_bytes};
-use object_store::path::Path;
 use std::sync::Arc;
 use url::Url;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
@@ -43,7 +42,6 @@ pub struct CompletionPlan {
 pub struct CardConfluenceBrowser {
     context: SessionContext,
     store: Arc<dyn ObjectStore>,
-    base_url: Url,
 }
 
 // 1. Define the structural binding for the JS object
@@ -70,27 +68,25 @@ fn error_map<E: std::fmt::Debug>(u: E) -> JsValue {
 
 #[wasm_bindgen]
 impl CardConfluenceBrowser {
-    pub async fn new_opfs(files: DBFileHandles) -> Result<Self, JsValue> {
+    pub async fn new_opfs(metadata: MetaData) -> Result<Self, JsValue> {
         let store = Arc::new(OpfsReadonlyStore::new());
+        store
+            .register_paths(metadata.sources.iter().map(|s| s.path.clone()).collect())
+            .await?;
 
-        let base_url = Url::parse("db://data/").unwrap();
+        let context = get_context_from_metadata(store.clone(), metadata)
+            .await
+            .map_err(error_map)?;
 
-        let context = SessionContext::new();
-        context
-            .runtime_env()
-            .register_object_store(&base_url, store.clone());
         let new_self = Self {
             context,
             store: store.clone(),
-            base_url,
         };
-
-        new_self.attach_files(store.clone(), files).await?;
 
         Ok(new_self)
     }
 
-    pub async fn new_http(url: String) -> Result<Self, JsValue> {
+    pub async fn new_http(url: String, metadata: MetaData) -> Result<Self, JsValue> {
         let mut url_str = url;
         if !url_str.ends_with('/') {
             url_str.push('/');
@@ -98,51 +94,11 @@ impl CardConfluenceBrowser {
         let base_url = Url::parse(&url_str).map_err(error_map)?;
         let store = Arc::new(PublicHTTPReadonlyStore::new(base_url.clone()));
 
-        let context = get_http_context(store.clone(), ObjectPath::from("metadata.json"))
+        let context = get_context_from_metadata(store.clone(), metadata)
             .await
             .map_err(error_map)?;
 
-        Ok(Self {
-            context,
-            store,
-            base_url,
-        })
-    }
-
-    async fn attach_files(
-        &self,
-        store: Arc<OpfsReadonlyStore>,
-        files: DBFileHandles,
-    ) -> Result<(), JsValue> {
-        store
-            .register_file(Path::from("cards.parquet"), files.cards())
-            .await?;
-
-        store
-            .register_file(Path::from("prints.parquet"), files.prints())
-            .await?;
-
-        store
-            .register_file(Path::from("rulings.parquet"), files.rulings())
-            .await?;
-
-        store
-            .register_file(Path::from("sets.parquet"), files.sets())
-            .await?;
-
-        register_paths(
-            self.base_url.clone(),
-            &self.context,
-            TablePaths {
-                cards: "cards.parquet".into(),
-                prints: "prints.parquet".into(),
-                rulings: "rulings.parquet".into(),
-                sets: "sets.parquet".into(),
-            },
-        )
-        .await
-        .map_err(error_map)?;
-        Ok(())
+        Ok(Self { context, store })
     }
 
     // fn release_files(&self, store:Arc<OpfsReadonlyStore>) -> Result<(), JsValue> {
