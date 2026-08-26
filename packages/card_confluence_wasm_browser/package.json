@@ -3,7 +3,7 @@
   "scripts": {
     "build:parallel": "RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals' wasm-pack build --target web --out-dir dist --out-name wasm_browser",
     "build": "RUSTFLAGS='-C target-feature=+bulk-memory' wasm-pack build --target web --out-dir dist --out-name wasm_browser",
-    "build:fast": "RUSTFLAGS='-C opt-level=1' wasm-pack build --target web --out-dir dist --out-name wasm_browser"
+    "build:dev": "RUSTFLAGS='-C target-feature=+bulk-memory' wasm-pack build --dev --target web --out-dir dist --out-name wasm_browser"
   },
   "files": [
     "dist"

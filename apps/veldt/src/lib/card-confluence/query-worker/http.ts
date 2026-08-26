@@ -8,7 +8,7 @@ import { get_remote_metadata } from '../db-meta';
 import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
 
 async function initBrowser(): Promise<CardConfluenceBrowser> {
-	setWorkerStatus({ state: 'loading' });
+	setWorkerStatus({ state: 'loading', data: 'remote' });
 	await init();
 	setWorkerStatus({ state: 'connecting', data: 'remote' });
 	const [metadata, error] = await get_remote_metadata();

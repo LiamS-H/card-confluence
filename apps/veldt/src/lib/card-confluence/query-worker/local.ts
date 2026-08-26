@@ -7,7 +7,7 @@ import { handle_query_request, setWorkerStatus, worker_status, type DBStatus } f
 import { get_opfs_metadata } from '../db-meta';
 
 async function initBrowser(): Promise<CardConfluenceBrowser> {
-	setWorkerStatus({ state: 'loading' });
+	setWorkerStatus({ state: 'loading', data: 'local' });
 	await init();
 
 	const [metadata, error] = await get_opfs_metadata();
