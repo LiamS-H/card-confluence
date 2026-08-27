@@ -36,10 +36,10 @@
 				cardconfluenceWithContext({
 					complete: async (pos: number) => {
 						const tag = tagAtCursor(view.state, pos);
-						const offset = pos - tag.queryPos;
 						if (tag === null || tag.queryPos === null) {
 							return { from: pos, to: pos, options: [] };
 						}
+						const offset = pos - tag.queryPos;
 
 						const { from, to, options } = await query_client.autocomplete(
 							{
@@ -85,14 +85,14 @@
 	<div class="absolute top-2 right-2">
 		{#if previewOpen && query !== ''}
 			<div
-				class="flex min-h-107 min-w-96 resize flex-col overflow-hidden border-2 border-foreground bg-background [direction:rtl] *:-my-px"
+				class="flex min-h-107 min-w-96 resize flex-col overflow-hidden [direction:rtl]"
 				bind:offsetWidth={previewW}
 				bind:offsetHeight={previewH}
 				style:width={previewW ? `${previewW}px` : undefined}
 				style:height={previewH ? `${previewH}px` : undefined}
 			>
-				<div class="flex flex-1 flex-col [direction:ltr]">
-					<div class="relative flex flex-1 justify-center">
+				<div class="flex flex-1 flex-col bg-foreground p-0.5 pb-0 [direction:ltr]">
+					<div class="relative flex flex-1 justify-center bg-background">
 						{#if response.loading}
 							<span>loading</span>
 						{:else if response.error}
@@ -118,21 +118,21 @@
 							</div>
 						{/if}
 					</div>
-					<div class="flex justify-between border-t-2 border-foreground *:-my-px">
-						<span
-							class="flex flex-1 items-center justify-center bg-foreground text-xl text-background"
-						>
-							{tag?.name}
-						</span>
-						<Button
-							disabled={query.trim() === ''}
-							onclick={() => {
-								jump_to_query(query.trim());
-							}}>search +</Button
-						>
+				</div>
+				<div class="flex flex-row-reverse justify-between">
+					<span
+						class="flex flex-1 items-center justify-center bg-foreground text-xl text-background"
+					>
+						{tag?.name}
+					</span>
+					<Button
+						disabled={query.trim() === ''}
+						onclick={() => {
+							jump_to_query(query.trim());
+						}}>search +</Button
+					>
 
-						<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
-					</div>
+					<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
 				</div>
 			</div>
 		{:else if !previewOpen}
