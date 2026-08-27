@@ -1,4 +1,3 @@
-// settings.svelte.ts
 import { Channel } from './utils/channel';
 
 const key = 'VeldtSettings';
@@ -20,7 +19,6 @@ export function get_default_veldt_settings(): VeldtSettings {
 	};
 }
 
-// 1. Initial disk read (runs once on import)
 function load_initial_settings(): VeldtSettings {
 	if (typeof window === 'undefined') return get_default_veldt_settings();
 
@@ -34,25 +32,21 @@ function load_initial_settings(): VeldtSettings {
 	return defaults;
 }
 
-// 2. Reactive in-memory state
 let shared_settings = $state<VeldtSettings>(load_initial_settings());
 
-// 3. Listen for changes from other tabs/workers
 if (typeof window !== 'undefined') {
 	VeldtSettingsChannel.onmessage((event) => {
-		shared_settings = event.data || event;
+		Object.assign(shared_settings, event.data || event);
 	});
 }
 
-// 4. Synchronous consumer getter
 export function get_veldt_settings(): VeldtSettings {
 	return shared_settings;
 }
 
-// 5. Unified setter
 export function set_veldt_settings(settings: VeldtSettings) {
 	// Update memory (instant UI update for current tab)
-	shared_settings = settings;
+	Object.assign(shared_settings, settings);
 
 	if (typeof window !== 'undefined') {
 		// Persist to disk

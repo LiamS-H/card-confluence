@@ -1,21 +1,34 @@
 <script lang="ts">
 	import { query_client } from '$lib';
 	import Button from '$components/button.svelte';
-	// Status will show the current age of the data local or remote
-	// When data is remove the db icon will be info variant and open the popup. use local button
-	// When data is local the db icon will have a check mark and open the popup. synced button
+	import { get_veldt_settings, set_veldt_settings } from '$lib/settings.svelte';
+	import { clickOutside } from '$lib/actions/click-outside';
 
-	// Popup for downloading new db, middle button is ask every time, with right button being proceed do not show again,
-	// must make sure that certain db calls will properly clear popup
 	const status = $derived(query_client.db_status);
+
+	let open = $state(false);
+
+	const settings = get_veldt_settings();
+
+	function set_local(useLocal: boolean) {
+		set_veldt_settings({
+			...settings,
+			database: { ...settings.database, useLocal }
+		});
+	}
 </script>
 
 <div class="relative">
 	<div class="flex">
-		<div class="flex items-center bg-secondary px-3 text-xl text-background">
-			{status.data} engine
-		</div>
-		<Button intent="secondary" disabled={status.state !== 'ready'}>
+		<Button onclick={() => (open = !open)} intent="secondary" variant={open ? 'fixed' : 'outline'}>
+			{status.data} data
+		</Button>
+		<Button
+			onclick={() => (open = !open)}
+			intent="secondary"
+			variant="fixed"
+			disabled={status.state !== 'ready'}
+		>
 			{#if status.state !== 'ready'}
 				{status.state}
 			{:else}
@@ -36,5 +49,57 @@
 				{/if}
 			{/if}
 		</Button>
+	</div>
+	<div
+		class="absolute z-200 flex w-full flex-col bg-secondary"
+		class:hidden={!open}
+		use:clickOutside={() => (open = false)}
+	>
+		<div class="h-full w-full p-0.5 pt-0">
+			<div class="flex h-full w-full flex-col gap-2 bg-background p-2">
+				<span class="w-full text-xl">Database Settings - {status.data}</span>
+				{#if status.data === 'local'}
+					{#if !settings.database.useLocal}
+						<span class="text-destructive">Unable to connect to remote.</span>
+					{/if}
+					<span> You are using the recommended local database. </span>
+
+					<span> This gives you offline access, as well as the fastest queries. </span>
+					<span> When new database versions come out they will be downloaded automatically. </span>
+					<span> This uses ~260mb</span>
+				{:else if settings.database.useLocal}
+					<span class="text-primary">Local database downloading...</span>
+					<span>
+						While the database is downloaded you can still query against the remote database.</span
+					>
+				{:else}
+					<span> You are not using the recommended local version of the database. </span>
+					<span>
+						The local version downloads ~260mb of data to your machine, and allows much faster
+						queries.
+					</span>
+					<span> This has the added benefit of making the app work offline </span>
+				{/if}
+
+				{#if settings.database.useLocal}
+					<Button
+						onclick={() => {
+							open = false;
+							set_local(false);
+						}}
+						intent="destructive">prefer remote</Button
+					>
+				{:else}
+					<Button
+						onclick={() => {
+							open = false;
+							set_local(true);
+						}}
+						intent="secondary">go local</Button
+					>
+				{/if}
+			</div>
+		</div>
+		<div class="flex justify-between"></div>
 	</div>
 </div>
