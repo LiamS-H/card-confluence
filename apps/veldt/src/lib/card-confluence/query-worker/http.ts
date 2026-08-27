@@ -3,7 +3,13 @@
 import init, { CardConfluenceBrowser } from '@card-confluence/wasm-browser';
 
 import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
-import { handle_query_request, setWorkerStatus, worker_status, type DBStatus } from './shared';
+import {
+	handle_query_request,
+	setWorkerStatus,
+	worker_status,
+	type DBStatus,
+	type QueryWorkerMessage
+} from './shared';
 import { get_remote_metadata } from '../db-meta';
 import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
 
@@ -19,7 +25,7 @@ async function initBrowser(): Promise<CardConfluenceBrowser> {
 	}
 	const browser = await CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST, metadata);
 
-	setWorkerStatus({ state: 'ready', data: 'remote', metadata: { sources: [] } });
+	setWorkerStatus({ state: 'ready', data: 'remote', metadata });
 
 	return browser;
 }
@@ -36,3 +42,12 @@ QueryEventsChannel.onmessage((event) => {
 		QueryEventsChannel.postMessage({ type: 'db-status', status: worker_status });
 	}
 });
+
+onmessage = async (event) => {
+	const message: QueryWorkerMessage = event.data;
+	if (message.action === 'destroy') {
+		const browser = await http_browser;
+		browser.free();
+		postMessage(undefined);
+	}
+};

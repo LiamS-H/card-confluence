@@ -196,6 +196,15 @@ impl fmt::Debug for OpfsReadonlyStore {
     }
 }
 
+impl Drop for OpfsReadonlyStore {
+    fn drop(&mut self) {
+        let mut map = self.files.0.borrow_mut();
+        for (_, handle) in map.drain() {
+            let _ = handle.close();
+        }
+    }
+}
+
 impl ObjectStore for OpfsReadonlyStore {
     fn get_opts<'life0, 'life1, 'async_trait>(
         &'life0 self,

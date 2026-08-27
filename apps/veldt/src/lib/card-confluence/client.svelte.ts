@@ -4,6 +4,7 @@ import HTTPQueryWorker from '$lib/card-confluence/query-worker/http?worker';
 import LocalQueryWorker from '$lib/card-confluence/query-worker/local?worker';
 import type {
 	DBStatus,
+	QueryWorkerMessage,
 	QueryWorkerRequest,
 	QueryWorkerResponse
 } from '$lib/card-confluence/query-worker/shared';
@@ -119,7 +120,9 @@ class QueryClient {
 
 			function get_config(): Config {
 				if (local_error && remote_error) return null;
-				if (remote_error) return { local: true, update: null };
+				if (remote_error) {
+					return { local: true, update: null };
+				}
 				if (settings.database.useLocal === false) return { local: false, update: null };
 				// useLocal is true:
 				if (local_error) return { local: true, update: remote_meta };
@@ -136,10 +139,19 @@ class QueryClient {
 			if (
 				last_config &&
 				config.local === last_config.local &&
-				!config.update === !last_config.update // we do this so that we are basically
+				!config.update === !last_config.update
 			) {
 			}
 			const { local } = config;
+
+			if (worker) {
+				console.log('[cc-client] deleting worker.');
+				worker.postMessage({ action: 'destroy' } as QueryWorkerMessage);
+				const { promise, resolve } = Promise.withResolvers();
+				worker.onmessage = resolve;
+				await promise;
+				worker.terminate();
+			}
 
 			if (!local) {
 				console.log('[cc-client] spawning http worker.');
@@ -173,9 +185,12 @@ class QueryClient {
 			if (settings.database.askEachDownload) {
 				// we ask the user if they wish to download, and await a response
 			}
-			// spawn download worker
 			console.log('[cc-client] spawning download worker');
 			await download_db(config.update);
+			worker.postMessage({ action: 'destroy' } as QueryWorkerMessage);
+			const { promise, resolve } = Promise.withResolvers();
+			worker.onmessage = resolve;
+			await promise;
 			worker.terminate();
 			console.log('[cc-client] spawning local worker to take over.');
 			worker = new LocalQueryWorker();
@@ -183,9 +198,15 @@ class QueryClient {
 			worker.onerror = (e) => {
 				console.error('[cc-client] failed to start. can happen when env variables are missing.', e);
 			};
-			// replace http worker with new local worker once downloaded.
 		}
-		handle_settings(get_veldt_settings());
+
+		// no memory leak since this is a singleton class attached to the browser.
+		$effect.root(() => {
+			$effect(() => {
+				const settings = $state.snapshot(get_veldt_settings());
+				handle_settings(settings);
+			});
+		});
 
 		// empty promise to resolve when leader is released
 		return new Promise(() => {});

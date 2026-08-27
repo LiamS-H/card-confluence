@@ -3,7 +3,12 @@
 import init, { CardConfluenceBrowser } from '@card-confluence/wasm-browser';
 
 import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
-import { handle_query_request, setWorkerStatus, worker_status, type DBStatus } from './shared';
+import {
+	handle_query_request,
+	setWorkerStatus,
+	worker_status,
+	type QueryWorkerMessage
+} from './shared';
 import { get_opfs_metadata } from '../db-meta';
 
 async function initBrowser(): Promise<CardConfluenceBrowser> {
@@ -25,9 +30,9 @@ async function initBrowser(): Promise<CardConfluenceBrowser> {
 	return browser;
 }
 
-let http_browser = initBrowser();
+let local_browser = initBrowser();
 QueryReqChannel.onmessage(async (event) => {
-	const browser = await http_browser;
+	const browser = await local_browser;
 	const resp = await handle_query_request(browser, event.data);
 	QueryResChannel.postMessage(resp);
 });
@@ -37,3 +42,12 @@ QueryEventsChannel.onmessage((event) => {
 		QueryEventsChannel.postMessage({ type: 'db-status', status: worker_status });
 	}
 });
+
+onmessage = async (event) => {
+	const message: QueryWorkerMessage = event.data;
+	if (message.action === 'destroy') {
+		const browser = await local_browser;
+		browser.free();
+		postMessage(undefined);
+	}
+};

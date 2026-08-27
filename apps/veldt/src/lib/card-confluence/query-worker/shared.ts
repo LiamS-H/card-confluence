@@ -38,6 +38,11 @@ export type DBStatus =
 			state: 'ready';
 			data: 'remote' | 'local';
 			metadata: MetaData;
+	  }
+	| {
+			state: 'error';
+			data: 'remote' | 'local';
+			message: string;
 	  };
 
 export const worker_status: DBStatus = { state: 'loading', data: 'remote' };
@@ -108,6 +113,10 @@ export type QueryWorkerRequest =
 			type: 'rulings';
 			ids: string[];
 	  };
+
+export type QueryWorkerMessage = {
+	action: 'destroy';
+};
 
 export async function handle_query_request(
 	browser: CardConfluenceBrowser,
