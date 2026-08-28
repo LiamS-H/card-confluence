@@ -207,6 +207,14 @@ pub async fn completion_from_query(
         }));
     }
 
+    if matches!(pred_type, PredicateField::Prefer) {
+        return Some(CompletionResponse::Completion(Completion {
+            from,
+            to,
+            options: UNIQUES.iter().map(|k| (*k).into()).collect(),
+        }));
+    }
+
     // Replace the predicate at cursor with True so the rest of the query
     // acts as a filter context
     let context_expr = replace_predicate_with_true(&ast, pred);

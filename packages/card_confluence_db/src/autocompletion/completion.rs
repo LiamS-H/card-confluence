@@ -65,7 +65,8 @@ pub const KEYWORDS: &[&str] = &[
     "year",
     "date",
     "order",
-    "unique"
+    "unique",
+    "prefer",
 ];
 
 pub const IS_VALUES: &[&str] = &[
@@ -120,15 +121,8 @@ pub const FORMATS: &[&str] = &[
     "predh",
 ];
 
-pub const ORDERS: &[&str] = &[
-   "cmc",
-   "usd",
-   "tix",
-   "eur",
-   "release",
-];
+pub const ORDERS: &[&str] = &["cmc", "usd", "tix", "eur", "release"];
 
-pub const UNIQUES: &[&str] = &[
-   "cards",
-   "prints",
-];
+pub const UNIQUES: &[&str] = &["cards", "prints"];
+
+pub const PREFERS: &[&str] = &["oldest", "newest", "cheapest"];
