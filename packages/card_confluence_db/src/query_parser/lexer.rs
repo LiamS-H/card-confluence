@@ -128,7 +128,12 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 }
                 let value: String = chars[inner_start..pos].iter().collect();
                 pos += 1;
-                TokenKind::Value(value)
+                tokens.push(Token {
+                    kind: TokenKind::Value(value),
+                    start: start + 1,
+                    end: pos - 1,
+                });
+                continue;
             }
 
             c if c.is_alphanumeric() || c == '_' || c == '*' || c == '/' || c == '.' => {
@@ -339,8 +344,8 @@ mod tests {
                 },
                 Token {
                     kind: TokenKind::Value("Serra Angel".into()),
-                    start: 5,
-                    end: 18
+                    start: 6,
+                    end: 17
                 },
             ]
         );
