@@ -39,7 +39,7 @@
 					{const days_old = Math.floor(
 						(Date.now() - new Date(prints.iso).getTime()) / (1000 * 60 * 60 * 24)
 					)}
-					{#if days_old === 0}
+					{#if days_old <= 0}
 						less than a day
 					{:else if days_old === 1}
 						yesterday
@@ -66,7 +66,7 @@
 
 					<span> This gives you offline access, as well as the fastest queries. </span>
 					<span> When new database versions come out they will be downloaded automatically. </span>
-					<span> This uses ~260mb</span>
+					<span> This uses ~200mb of storage on you device.</span>
 				{:else if settings.database.useLocal}
 					<span class="text-primary">Local database downloading...</span>
 					<span>
@@ -75,7 +75,7 @@
 				{:else}
 					<span> You are not using the recommended local version of the database. </span>
 					<span>
-						The local version downloads ~260mb of data to your machine, and allows much faster
+						The local version downloads ~200mb of data to your storage, and allows much faster
 						queries.
 					</span>
 					<span> This has the added benefit of making the app work offline </span>
