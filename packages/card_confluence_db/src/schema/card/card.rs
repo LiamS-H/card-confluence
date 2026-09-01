@@ -50,6 +50,7 @@ pub struct Card {
     pub colors: Vec<String>,
 
     pub game_changer: bool,
+    pub commander: bool,
     pub reserved: bool,
     pub otags: Vec<String>,
 

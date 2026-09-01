@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions::string::expr_fn::lower; // use this "lower(col(1))"
-use datafusion::logical_expr::{col, lit, not, try_cast, Expr as DFExpr, ScalarUDF};
+use datafusion::logical_expr::{Expr as DFExpr, ScalarUDF, col, lit, not, try_cast};
 use datafusion::scalar::ScalarValue;
 
 use crate::query_parser::lexer::Op;
@@ -166,12 +166,13 @@ pub fn is_pred(value: &str) -> Result<DFExpr, PlanError> {
             .or(array_contains_expr("cards.card_types", lit("Land")))
             .or(array_contains_expr("cards.card_types", lit("Battle")))),
         "reserved" => Ok(col("cards.reserved").eq(lit(true))),
-        "commander" => Ok((array_contains_expr("cards.super_types", lit("Legendary"))
-            .and(array_contains_expr("cards.card_types", lit("Creature"))))
-        .or(array_contains_expr(
-            "cards.otags",
-            lit("can_be_your_commander"),
-        ))),
+        // "commander" => Ok((array_contains_expr("cards.super_types", lit("Legendary"))
+        //     .and(array_contains_expr("cards.card_types", lit("Creature"))))
+        // .or(array_contains_expr(
+        //     "cards.otags",
+        //     lit("can_be_your_commander"),
+        // ))),
+        "commander" => Ok(col("cards.commander").eq(lit(true))),
 
         // Print-side boolean flags
         "reprint" => Ok(col("prints.reprint").eq(lit(true))),

@@ -125,48 +125,108 @@ mod tests {
     }
 }
 
+fn is_commander(card: &ScryfallCard, type_line: &String) -> bool {
+    let lower_type_line = type_line.to_lowercase();
+    let front_type_line = lower_type_line.split("//").next().unwrap();
+
+    if card.layout.contains("token") {
+        return false;
+    }
+
+    if card.name.to_lowercase() == "grist, the hunger tide" {
+        return true;
+    };
+
+    if card.layout.contains("meld")
+        && card
+            .all_parts
+            .clone()
+            .unwrap()
+            .iter()
+            .find(|s| s.id == card.id && s.component == "meld_result")
+            .is_some()
+    {
+        return false;
+    }
+
+    if let Some(oracle_text) = &card.oracle_text
+        && oracle_text.to_lowercase().contains("can be your commander")
+    {
+        return true;
+    }
+
+    if !front_type_line.contains("legendary") {
+        return false;
+    };
+
+    // this might be enough to distinguish commanders, though right now we use the actual ruling
+    // if card.power.is_some() && card.toughness.is_some() {
+    //     return true;
+    // }
+
+    if front_type_line.contains("creature") {
+        return true;
+    }
+
+    if front_type_line.contains("background") {
+        return true;
+    }
+
+    if front_type_line.contains("vehicle") {
+        return true;
+    }
+
+    if front_type_line.contains("spacecraft") && card.power.is_some() && card.toughness.is_some() {
+        return true;
+    }
+
+    return false;
+}
+
 impl From<ScryfallCard> for Card {
-    fn from(scryfall: ScryfallCard) -> Self {
-        let type_line = scryfall.type_line.unwrap_or("".into());
+    fn from(mut scryfall: ScryfallCard) -> Self {
+        if scryfall.oracle_id.is_none() {
+            if let Some(first_face) = scryfall.card_faces.as_ref().and_then(|faces| faces.first()) {
+                scryfall.oracle_id = first_face.oracle_id.clone();
+                scryfall.type_line = first_face.type_line.clone();
+                scryfall.cmc = first_face.cmc;
+                scryfall.mana_cost = if first_face.mana_cost == "" {
+                    None
+                } else {
+                    Some(first_face.mana_cost.clone())
+                };
+                scryfall.oracle_text = first_face.oracle_text.clone();
+                scryfall.colors = first_face.colors.clone();
+                scryfall.power = first_face.power.clone();
+                scryfall.toughness = first_face.toughness.clone();
+            }
+        }
+
+        let type_line = scryfall.type_line.clone().unwrap_or_default();
+        let commander = is_commander(&scryfall, &type_line);
+
         let Types {
             sub_types,
             super_types,
             card_types,
         } = types_from_type_line(&type_line);
+
         Self {
             layout: scryfall.layout,
-            oracle_id: scryfall.oracle_id.unwrap_or_else(|| {
-                scryfall
-                    .card_faces
-                    .clone()
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .oracle_id
-                    .clone()
-                    .unwrap()
-            }),
+            oracle_id: scryfall.oracle_id.unwrap(),
             all_parts: scryfall
                 .all_parts
                 .map(|v| v.into_iter().map(Into::into).collect()),
-            cmc: scryfall.cmc.unwrap_or_else(|| {
-                scryfall
-                    .card_faces
-                    .clone()
-                    .unwrap()
-                    .first()
-                    .unwrap()
-                    .cmc
-                    .unwrap()
-            }) as f32,
+            cmc: scryfall.cmc.unwrap_or(0.0) as f32,
             card_faces: scryfall
                 .card_faces
                 .map(|v| v.into_iter().map(Into::into).collect()),
             color_identity: scryfall.color_identity,
             color_indicator: scryfall.color_indicator,
-            colors: scryfall.colors.unwrap_or(Vec::new()),
+            colors: scryfall.colors.unwrap_or_default(),
             defense: scryfall.defense,
             edhrec_rank: scryfall.edhrec_rank,
+            commander,
             game_changer: scryfall.game_changer.unwrap_or(false),
             keywords: scryfall.keywords,
             legalities: scryfall.legalities.into(),
