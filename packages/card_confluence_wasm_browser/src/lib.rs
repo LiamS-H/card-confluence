@@ -1,8 +1,9 @@
 use arrow_ipc::writer::StreamWriter;
 use card_confluence_db::{
-    autocompletion::{completion_from_query, Completion, CompletionResponse},
+    autocompletion::{Completion, CompletionResponse, completion_from_query},
     context::get_context_from_metadata,
     query_parser::{
+        hash::canonicalize_for_cache,
         parse_query,
         planner::{build_cards_detail_plan, build_rulings_plan, build_sets_plan},
     },
@@ -10,14 +11,18 @@ use card_confluence_db::{
 };
 use datafusion::{
     error::DataFusionError,
-    logical_expr::{col, LogicalPlan, LogicalPlanBuilder},
+    logical_expr::{LogicalPlan, LogicalPlanBuilder, col},
     object_store::ObjectStore,
     prelude::SessionContext,
 };
 use datafusion_proto::bytes::{logical_plan_from_bytes, logical_plan_to_bytes};
-use std::sync::Arc;
+use rapidhash::fast::RapidHasher;
+use std::{
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 use url::Url;
-use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
+use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 use web_sys::FileSystemFileHandle;
 
 use crate::http_binding::PublicHTTPReadonlyStore;
@@ -36,6 +41,22 @@ pub struct CompletionPlan {
     #[serde(with = "serde_bytes")]
     plan: Vec<u8>,
     completion: Completion,
+}
+
+/// New struct that carries both the logical‑plan bytes *and* a hash that can be used as a cache key.
+/// For now the hash is simply the plan bytes themselves, but the struct allows us to change the
+/// hashing strategy later without touching the public API.
+#[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+pub struct HashedPlan {
+    /// The hash of the (optimized) logical plan. Currently the raw plan bytes are used as the hash.
+    #[tsify(type = "Uint8Array")]
+    #[serde(with = "serde_bytes")]
+    pub hash: Vec<u8>,
+    /// The serialized optimized logical plan.
+    #[tsify(type = "Uint8Array")]
+    #[serde(with = "serde_bytes")]
+    pub plan: Vec<u8>,
 }
 
 #[wasm_bindgen]
@@ -101,19 +122,21 @@ impl CardConfluenceBrowser {
         Ok(Self { context, store })
     }
 
-    // fn release_files(&self, store:Arc<OpfsReadonlyStore>) -> Result<(), JsValue> {
-    //     store.release_file(Path::from("cards.parquet"))?;
-    //     self.context.deregister_table("cards").map_err(error_map)?;
-    //     store.release_file(Path::from("prints.parquet"))?;
-    //     self.context.deregister_table("prints").map_err(error_map)?;
-    //     store.release_file(Path::from("rulings.parquet"))?;
-    //     self.context
-    //         .deregister_table("rulings")
-    //         .map_err(error_map)?;
-    //     store.release_file(Path::from("sets.parquet"))?;
-    //     self.context.deregister_table("sets").map_err(error_map)?;
-    //     Ok(())
-    // }
+    /// Optimize a plan and create a hash which matches semantically similar queries.
+    fn hash_plan(&self, plan: LogicalPlan) -> Result<HashedPlan, DataFusionError> {
+        let optimized = self.context.state().optimize(&plan)?;
+        let plan = logical_plan_to_bytes(&optimized)?;
+        let canon_plan = canonicalize_for_cache(optimized)?;
+
+        let mut hasher = RapidHasher::default();
+        canon_plan.hash(&mut hasher);
+        let hash_u64 = hasher.finish();
+
+        Ok(HashedPlan {
+            plan: plan.into(),
+            hash: hash_u64.to_le_bytes().to_vec(),
+        })
+    }
 
     /// Optimize a logical plan using the session's optimizer and serialize it to bytes.
     fn optimize_plan(&self, plan: LogicalPlan) -> Result<Vec<u8>, DataFusionError> {
@@ -152,7 +175,7 @@ impl CardConfluenceBrowser {
         self.execute_plan(plan).await.map_err(error_map)
     }
 
-    pub async fn query_plan_from_query(&self, query: String) -> Result<Vec<u8>, JsValue> {
+    pub async fn query_plan_from_query(&self, query: String) -> Result<HashedPlan, JsValue> {
         let plan = parse_query(&self.context, &query)
             .await
             .map_err(error_map)?;
@@ -163,7 +186,7 @@ impl CardConfluenceBrowser {
             .build()
             .map_err(error_map)?;
 
-        self.optimize_plan(plan).map_err(error_map)
+        self.hash_plan(plan).map_err(error_map)
     }
 
     pub async fn completion_plan_from_query(
@@ -187,30 +210,30 @@ impl CardConfluenceBrowser {
         }
     }
 
-    pub async fn sets_plan_from_set_codes(&self, sets: Vec<String>) -> Result<Vec<u8>, JsValue> {
+    pub async fn sets_plan_from_set_codes(&self, sets: Vec<String>) -> Result<HashedPlan, JsValue> {
         let plan = build_sets_plan(&self.context, sets)
             .await
             .map_err(error_map)?;
-
-        self.optimize_plan(plan).map_err(error_map)
+        self.hash_plan(plan).map_err(error_map)
     }
 
-    pub async fn cards_plan_from_card_ids(&self, card_id: Vec<String>) -> Result<Vec<u8>, JsValue> {
+    pub async fn cards_plan_from_card_ids(
+        &self,
+        card_id: Vec<String>,
+    ) -> Result<HashedPlan, JsValue> {
         let plan = build_cards_detail_plan(&self.context, card_id)
             .await
             .map_err(error_map)?;
-
-        self.optimize_plan(plan).map_err(error_map)
+        self.hash_plan(plan).map_err(error_map)
     }
 
     pub async fn rulings_plan_from_card_ids(
         &self,
         card_ids: Vec<String>,
-    ) -> Result<Vec<u8>, JsValue> {
+    ) -> Result<HashedPlan, JsValue> {
         let plan = build_rulings_plan(&self.context, card_ids)
             .await
             .map_err(error_map)?;
-
-        self.optimize_plan(plan).map_err(error_map)
+        self.hash_plan(plan).map_err(error_map)
     }
 }

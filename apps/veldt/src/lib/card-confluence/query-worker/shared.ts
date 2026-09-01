@@ -125,32 +125,48 @@ export async function handle_query_request(
 	let message!: QueryWorkerResponse;
 	try {
 		const cache = await local_cache;
+		let key!: Uint8Array<ArrayBuffer>;
 		let plan!: Uint8Array<ArrayBuffer>;
 		switch (request.type) {
 			case 'query': {
-				plan = (await browser.query_plan_from_query(
-					request.query.query
-				)) as Uint8Array<ArrayBuffer>;
+				const hashedPlan = await browser.query_plan_from_query(request.query.query);
+				key = hashedPlan.hash as unknown as Uint8Array<ArrayBuffer>;
+				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
 				break;
 			}
 			case 'cards': {
-				plan = (await browser.cards_plan_from_card_ids(request.ids)) as Uint8Array<ArrayBuffer>;
+				const hashedPlan = await browser.cards_plan_from_card_ids(request.ids);
+				key = hashedPlan.hash as unknown as Uint8Array<ArrayBuffer>;
+				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
+				break;
+			}
+			case 'sets': {
+				const hashedPlan = await browser.sets_plan_from_set_codes(request.ids);
+				key = hashedPlan.hash as unknown as Uint8Array<ArrayBuffer>;
+				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
+				break;
+			}
+			case 'rulings': {
+				const hashedPlan = await browser.rulings_plan_from_card_ids(request.ids);
+				key = hashedPlan.hash as unknown as Uint8Array<ArrayBuffer>;
+				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
 				break;
 			}
 			case 'completion': {
 				// console.log('[worker] completion');
-				const evaluation = (await browser.completion_plan_from_query(
+				const evaluation = await browser.completion_plan_from_query(
 					request.query.query,
 					request.pos
-				)) as CompletionPlan;
+				);
 				plan = evaluation.plan as unknown as Uint8Array<ArrayBuffer>;
+				key = plan;
 				// console.log('[worker] planned', plan);
 				const completion = evaluation.completion;
 				message = {
 					req_id: request.req_id,
 					type: 'completion',
 					completion,
-					index: plan
+					index: key
 				};
 				if (plan.length == 0) {
 					message.index = null;
@@ -158,14 +174,12 @@ export async function handle_query_request(
 				}
 				break;
 			}
-			// case 'sets':
-			// case 'rulings':
 		}
 
 		const readTx = cache.transaction([QUERY_CACHE_TABLE], 'readonly');
 		const readStore = readTx.objectStore(QUERY_CACHE_TABLE);
 		// console.log('[worker] getting cache');
-		let data = await cache_store_get(plan, readStore);
+		let data = await cache_store_get(key, readStore);
 
 		if (data === null) {
 			console.log('[worker] cache miss');
@@ -179,15 +193,15 @@ export async function handle_query_request(
 
 			const writeTx = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
 			const writeStore = writeTx.objectStore(QUERY_CACHE_TABLE);
-			await cache_store_insert(plan, data, writeStore);
+			await cache_store_insert(key, data, writeStore);
 
 			console.log('[worker] data inserted');
 		}
-		// console.log('[worker] cache hit!');
+		console.log('[worker] cache hit!');
 		message ??= {
 			req_id: request.req_id,
 			type: 'result',
-			index: plan
+			index: key
 		};
 	} catch (error) {
 		message = {

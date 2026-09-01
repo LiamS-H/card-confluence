@@ -1,3 +1,4 @@
+pub mod hash;
 pub mod lexer;
 pub mod parser;
 pub mod planner;
