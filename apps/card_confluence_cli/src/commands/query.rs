@@ -25,6 +25,49 @@ struct QueryHelper {
     handle: Handle,
 }
 
+pub fn score_subsequence<A: AsRef<str>, B: AsRef<str>>(search: A, target: B) -> i32 {
+    let mut score = 0;
+    let mut target_chars = target.as_ref().chars();
+    let mut consecutive = 0;
+    let mut position = 0;
+
+    for q_char in search.as_ref().chars() {
+        let mut matched = false;
+
+        while let Some(t_char) = target_chars.next() {
+            if q_char.eq_ignore_ascii_case(&t_char) {
+                score += 10;
+
+                score += consecutive * 5;
+
+                // Reward matches near the beginning
+                if position < 3 {
+                    score += 5;
+                }
+
+                // Extra bonus for matching the first character
+                if position == 0 {
+                    score += 10;
+                }
+
+                consecutive += 1;
+                matched = true;
+                break;
+            } else {
+                consecutive = 0;
+            }
+
+            position += 1;
+        }
+
+        if !matched {
+            return 0;
+        }
+    }
+
+    score
+}
+
 impl Helper for QueryHelper {}
 
 impl Completer for QueryHelper {
@@ -45,20 +88,24 @@ impl Completer for QueryHelper {
             println!("No Completions!");
             return Ok((pos, vec![]));
         };
-        let matches: Vec<&String> = completion
+        let mut matches: Vec<(&String, i32)> = completion
             .options
             .iter()
             .filter_map(|s| {
-                if s.label
-                    .to_lowercase()
-                    .starts_with(&line[completion.from..completion.to].to_lowercase())
-                {
-                    Some(&s.label)
-                } else {
+                let score = score_subsequence(
+                    &line[completion.from..completion.to].to_lowercase(),
+                    &s.label.to_lowercase(),
+                );
+                if score == 0 {
                     None
+                } else {
+                    Some((&s.label, score))
                 }
             })
             .collect();
+
+        matches.sort_by_key(|(_, n)| std::cmp::Reverse(*n));
+        let matches: Vec<&String> = matches.iter().map(|(s, _)| *s).collect();
 
         let pairs = matches
             .into_iter()

@@ -8,16 +8,7 @@ use crate::query_parser::lexer::{self, Token, TokenKind};
 use crate::query_parser::parser;
 
 use crate::query_parser::planner::predicates::PredicateField;
-
-fn is_subsequence<A: AsRef<str>, B: AsRef<str>>(search: &A, target: &B) -> bool {
-    let mut target_iter = target.as_ref().chars();
-
-    search.as_ref().chars().all(|s_char| {
-        target_iter
-            .find(|t_char| t_char.to_ascii_lowercase() == s_char.to_ascii_lowercase())
-            .is_some()
-    })
-}
+use crate::utils::is_subsequence;
 
 pub async fn complete(ctx: &SessionContext, input: &str, pos: usize) -> Option<CompletionResponse> {
     let mut tokens = lexer::tokenize(input).ok()?;
