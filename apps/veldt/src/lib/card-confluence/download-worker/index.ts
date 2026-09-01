@@ -18,24 +18,18 @@ export type DownloadResponse =
 	  } & (OPFSError | JSONError | FetchError));
 
 async function download_sources(request: DownloadRequest): Promise<DownloadResponse> {
-	const dl_error = await download_to_opfs(
-		`${PUBLIC_PARQUET_LATEST}/metadata.json`,
-		'metadata.json'
+	const tasks = request.sources.map((source) =>
+		download_to_opfs(`${PUBLIC_PARQUET_LATEST}/${source.path}`, source.path)
 	);
 
-	if (dl_error !== null) {
-		return { status: 'error', ...dl_error };
-	}
-	console.log('[download] downloading', request.sources);
+	tasks.push(download_to_opfs(`${PUBLIC_PARQUET_LATEST}/metadata.json`, 'metadata.json'));
 
-	for (const source of request.sources) {
-		const filename = source.path;
-		console.log('[download] downloading', filename);
-		const error = await download_to_opfs(`${PUBLIC_PARQUET_LATEST}/${filename}`, filename);
-		if (error !== null) {
-			return { status: 'error', ...error };
-		}
-		console.log('[download] downloaded', filename);
+	const results = await Promise.all(tasks);
+
+	const firstError = results.find((error) => error !== null);
+
+	if (firstError) {
+		return { status: 'error', ...firstError };
 	}
 
 	return { status: 'success' };
