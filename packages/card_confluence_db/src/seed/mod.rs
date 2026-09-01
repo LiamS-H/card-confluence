@@ -1,5 +1,6 @@
 pub mod bulk;
 pub mod data;
+pub mod json_store;
 pub mod keyword;
 pub mod set;
 pub mod transform;
@@ -9,7 +10,7 @@ use crate::seed::data::fetch_data_cached;
 use crate::seed::write::json_to_parquet;
 use std::sync::Arc;
 
-use object_store::{path::Path as ObjectPath, ObjectStore};
+use object_store::{ObjectStore, path::Path as ObjectPath};
 
 #[derive(Debug, PartialEq)]
 pub enum SeedMode {

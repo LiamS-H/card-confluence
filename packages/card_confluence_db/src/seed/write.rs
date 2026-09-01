@@ -1,13 +1,13 @@
 use crate::schema::card::print::Print;
 use crate::schema::{card::card::Card, ruling::Ruling, set::Set};
-use crate::seed::data::SeedFetchResult;
 use crate::seed::SeedResult;
+use crate::seed::data::SeedFetchResult;
 use arrow_array::RecordBatch;
 use arrow_convert::field::ArrowField;
 use arrow_convert::serialize::TryIntoArrow;
 use chrono::Utc;
 use futures::StreamExt;
-use object_store::{path::Path as ObjectPath, ObjectStore};
+use object_store::{ObjectStore, path::Path as ObjectPath};
 use parquet::arrow::arrow_writer::ArrowWriter;
 use parquet::file::properties::{EnabledStatistics, WriterProperties};
 use scryfall_rust_bindings::types::{card::ScryfallCard, ruling::ScryfallRuling, set::ScryfallSet};

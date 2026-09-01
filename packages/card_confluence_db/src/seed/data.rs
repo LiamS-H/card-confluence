@@ -1,12 +1,12 @@
 use chrono::Utc;
-use object_store::{path::Path, ObjectStore};
-use scryfall_rust_bindings::{fetch_all_tags, fetch_sets, TagResult};
+use object_store::{ObjectStore, path::Path};
+use scryfall_rust_bindings::{TagResult, fetch_all_tags, fetch_sets};
 use std::sync::Arc;
 
-use crate::seed::bulk::fetch_bulk_cached;
-use crate::seed::keyword::{scrape_keyword_incremental, TagProgress};
 use crate::seed::SeedMode;
-use crate::utils::get_latest;
+use crate::seed::bulk::fetch_bulk_cached;
+use crate::seed::json_store::get_latest_file;
+use crate::seed::keyword::{TagProgress, scrape_keyword_incremental};
 
 pub struct SeedFetchResult {
     pub cards_path: Path,
@@ -33,7 +33,7 @@ pub async fn fetch_data_cached(
 
     let force_latest_sets = matches!(mode, SeedMode::Latest | SeedMode::LatestOldTags);
     let sets_path = if !force_latest_sets {
-        if let Some(path) = get_latest(store, &Path::from("sets"), "json").await? {
+        if let Some(path) = get_latest_file(store, &Path::from("sets"), "json").await? {
             path
         } else {
             println!("No cached sets found, fetching latest...");
@@ -52,7 +52,7 @@ pub async fn fetch_data_cached(
 
     let force_latest_tags = mode == SeedMode::Latest;
     let tags_path = if !force_latest_tags {
-        if let Some(path) = get_latest(store, &Path::from("tags"), "json").await? {
+        if let Some(path) = get_latest_file(store, &Path::from("tags"), "json").await? {
             path
         } else {
             println!("No cached tags found, fetching latest...");
@@ -72,13 +72,13 @@ pub async fn fetch_data_cached(
     let otags_path = {
         let keyword = "otag";
         let prefix = Path::from(format!("keywords/{}", keyword));
-        let latest_final = get_latest(store, &prefix, "json").await?;
+        let latest_final = get_latest_file(store, &prefix, "json").await?;
 
         if mode == SeedMode::Latest {
             println!("Fetching latest otags...");
             let progress_path = Path::from(format!("keywords/{}/{}.prog.json", keyword, timestamp));
             let final_path = Path::from(format!("keywords/{}/{}.json", keyword, timestamp));
-            let latest_progress = get_latest(store, &prefix, ".prog.json").await?;
+            let latest_progress = get_latest_file(store, &prefix, ".prog.json").await?;
 
             let mut progress = if let Some(path) = latest_progress {
                 println!("Found progress, resuming...");
@@ -109,11 +109,9 @@ pub async fn fetch_data_cached(
             store.put(&final_path, bytes.into()).await?;
 
             final_path
-        }
-        else if let Some(path) = latest_final {
+        } else if let Some(path) = latest_final {
             path
-        }
-        else {
+        } else {
             let empty_path = Path::from(format!("keywords/{}/empty.json", keyword));
             if store.head(&empty_path).await.is_err() {
                 let empty_map: std::collections::HashMap<String, Vec<String>> =

@@ -1,5 +1,5 @@
 use flate2::read::GzDecoder;
-use object_store::{path::Path, ObjectStore};
+use object_store::{ObjectStore, path::Path};
 use scryfall_rust_bindings::client::get_client;
 use scryfall_rust_bindings::fetch_bulk;
 use scryfall_rust_bindings::types::bulk::ScryfallBulkData;
@@ -7,7 +7,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::sync::Arc;
 
 use crate::seed::SeedMode;
-use crate::utils::get_latest;
+use crate::seed::json_store::get_latest_file;
 
 fn process_bulk_bytes(raw_bytes: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     if raw_bytes.is_empty() {
@@ -56,13 +56,15 @@ pub async fn fetch_bulk_cached(
     let force_latest = matches!(mode, SeedMode::Latest | SeedMode::LatestOldTags);
 
     if !force_latest {
-        let cached_path = get_latest(store, &Path::from(endpoint.as_str()), "json").await?;
+        let cached_path = get_latest_file(store, &Path::from(endpoint.as_str()), "json").await?;
         if let Some(cached_path) = cached_path {
             return Ok(cached_path);
         } else {
-            println!("No cached data found for {}, downloading latest...", endpoint);
+            println!(
+                "No cached data found for {}, downloading latest...",
+                endpoint
+            );
         };
-
     }
 
     let ScryfallBulkData {

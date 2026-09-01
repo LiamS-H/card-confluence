@@ -2,7 +2,7 @@ use futures::StreamExt;
 use object_store::{ObjectStore, Result, path::Path as ObjectPath};
 use std::sync::Arc;
 
-pub async fn get_latest(
+pub async fn get_latest_file(
     store: &Arc<dyn ObjectStore>,
     prefix: &ObjectPath,
     extension: &str,
