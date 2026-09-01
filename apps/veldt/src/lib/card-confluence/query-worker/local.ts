@@ -16,13 +16,14 @@ async function initBrowser(): Promise<CardConfluenceBrowser> {
 	await init();
 
 	const [metadata, error] = await get_opfs_metadata();
-	console.log('[worker] found local data', metadata);
+	console.log('[worker] found local data', metadata, error);
 	if (error) {
 		const message = `OPFS error, unable to read metadata.json ${error}`;
 		QueryEventsChannel.postMessage({ type: 'error-fatal', message });
 		throw Error(message);
 	}
 	setWorkerStatus({ state: 'processing', data: 'local' });
+
 	const browser = await CardConfluenceBrowser.new_opfs(metadata);
 
 	setWorkerStatus({ state: 'ready', data: 'local', metadata });
