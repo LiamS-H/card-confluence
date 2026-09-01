@@ -1,6 +1,6 @@
-use object_store::{path::Path as ObjectPath, ObjectStore, Result};
-use std::sync::Arc;
 use futures::StreamExt;
+use object_store::{ObjectStore, Result, path::Path as ObjectPath};
+use std::sync::Arc;
 
 pub async fn get_latest(
     store: &Arc<dyn ObjectStore>,
@@ -26,8 +26,12 @@ pub async fn get_latest(
             continue;
         }
 
-        if path_str.contains('#') { continue; }
-        if ext_suffix == ".json" && path_str.ends_with(".prog.json") { continue; }
+        if path_str.contains('#') {
+            continue;
+        }
+        if ext_suffix == ".json" && path_str.ends_with(".prog.json") {
+            continue;
+        }
 
         if path_str.ends_with(&ext_suffix) {
             if let Some(ref current_latest) = latest {
