@@ -12,6 +12,160 @@ pub fn text_col(column: &str) -> DFExpr {
     lower(col(column))
 }
 
+pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
+    let mut generic = 0;
+    let mut colored = std::collections::HashMap::new();
+
+    if value.contains('{') {
+        let mut chars = value.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c == '{' {
+                let mut symbol = String::new();
+                while let Some(&c2) = chars.peek() {
+                    if c2 == '}' {
+                        chars.next();
+                        break;
+                    }
+                    symbol.push(c2);
+                    chars.next();
+                }
+                let symbol = symbol.to_uppercase();
+                if let Ok(n) = symbol.parse::<i64>() {
+                    generic += n;
+                } else {
+                    for c in symbol.chars() {
+                        if "WUBRGC".contains(c) {
+                            *colored.entry(c).or_insert(0) += 1;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        let mut chars = value.chars().peekable();
+        let mut num_str = String::new();
+        while let Some(&c) = chars.peek() {
+            if c.is_ascii_digit() {
+                num_str.push(c);
+                chars.next();
+            } else {
+                break;
+            }
+        }
+        if !num_str.is_empty() {
+            generic += num_str.parse::<i64>().unwrap_or(0);
+        }
+        for c in chars {
+            let c = c.to_ascii_uppercase();
+            if "WUBRGC".contains(c) {
+                *colored.entry(c).or_insert(0) += 1;
+            }
+        }
+    }
+
+    let req_cmc: i64 = generic + colored.values().sum::<i64>();
+
+    let generic_expr = if generic > 0 {
+        use datafusion::functions::expr_fn::{regexp_replace, replace};
+        use datafusion::functions::unicode::expr_fn::character_length;
+        let replaced = regexp_replace(
+            col(column), 
+            lit(r"\{[^}]*[WUBRGP][^}]*\}"), 
+            lit("@"), 
+            Some(lit("gi"))
+        );
+        let blocks = character_length(replaced.clone()) - character_length(replace(replaced, lit("@"), lit("")));
+        let card_generic = cast_expr(col("cards.cmc"), arrow_schema::DataType::Int64) - cast_expr(blocks, arrow_schema::DataType::Int64);
+        Some(card_generic)
+    } else {
+        None
+    };
+
+    match op {
+        Op::Gte | Op::Gt => {
+            let mut expr = if *op == Op::Gt {
+                col("cards.cmc").gt(lit(req_cmc as f64))
+            } else {
+                col("cards.cmc").gt_eq(lit(req_cmc as f64))
+            };
+
+            if let Some(ge) = &generic_expr {
+                expr = expr.and(ge.clone().gt_eq(lit(generic as i64)));
+            }
+
+            for (color, count) in colored {
+                let pattern = format!("(?i)(?:.*?\\{{[^}}]*{}[^}}]*\\}}){{{}}}", color, count);
+                expr = expr.and(regexp_like_expr(column, &pattern));
+            }
+            Ok(expr)
+        }
+        Op::Eq | Op::Colon => {
+            let mut expr = col("cards.cmc").eq(lit(req_cmc as f64));
+            
+            if let Some(ge) = &generic_expr {
+                expr = expr.and(ge.clone().eq(lit(generic as i64)));
+            }
+
+            for (color, count) in &colored {
+                let pattern = format!("(?i)(?:.*?\\{{[^}}]*{}[^}}]*\\}}){{{}}}", color, count);
+                expr = expr.and(regexp_like_expr(column, &pattern));
+            }
+            
+            for c in "WUBRGCXYS".chars() {
+                if !colored.contains_key(&c) {
+                    let pattern = format!("(?i)\\{{[^}}]*{}[^}}]*\\}}", c);
+                    expr = expr.and(not(regexp_like_expr(column, &pattern)));
+                }
+            }
+            Ok(expr)
+        }
+        Op::Lt | Op::Lte => {
+            let mut expr = if *op == Op::Lt {
+                col("cards.cmc").lt(lit(req_cmc as f64))
+            } else {
+                col("cards.cmc").lt_eq(lit(req_cmc as f64))
+            };
+            
+            if let Some(ge) = &generic_expr {
+                // If the query asks for generic mana, the card cannot have more generic mana than requested (already handled by <= CMC and color rules?)
+                // Actually, if m<=2u, generic <= 2.
+                expr = expr.and(ge.clone().lt_eq(lit(generic as i64)));
+            }
+
+            for c in "WUBRGCXYS".chars() {
+                if let Some(&count) = colored.get(&c) {
+                    let pattern = format!("(?i)(?:.*?\\{{[^}}]*{}[^}}]*\\}}){{{}}}", c, count + 1);
+                    expr = expr.and(not(regexp_like_expr(column, &pattern)));
+                } else {
+                    let pattern = format!("(?i)\\{{[^}}]*{}[^}}]*\\}}", c);
+                    expr = expr.and(not(regexp_like_expr(column, &pattern)));
+                }
+            }
+            Ok(expr)
+        }
+        Op::Ne => {
+            let mut eq_expr = col("cards.cmc").eq(lit(req_cmc as f64));
+            
+            if let Some(ge) = &generic_expr {
+                eq_expr = eq_expr.and(ge.clone().eq(lit(generic as i64)));
+            }
+
+            for (color, count) in &colored {
+                let pattern = format!("(?i)(?:.*?\\{{[^}}]*{}[^}}]*\\}}){{{}}}", color, count);
+                eq_expr = eq_expr.and(regexp_like_expr(column, &pattern));
+            }
+            for c in "WUBRGCXYS".chars() {
+                if !colored.contains_key(&c) {
+                    let pattern = format!("(?i)\\{{[^}}]*{}[^}}]*\\}}", c);
+                    eq_expr = eq_expr.and(not(regexp_like_expr(column, &pattern)));
+                }
+            }
+            Ok(not(eq_expr))
+        }
+    }
+}
+
 pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
         let regex = &value[1..value.len() - 1];
@@ -92,7 +246,12 @@ pub fn cast_expr(expr: DFExpr, data_type: arrow_schema::DataType) -> DFExpr {
     try_cast(expr, data_type)
 }
 
-pub fn color_pred(column: &str, op: &Op, value: &str, is_identity: bool) -> Result<DFExpr, PlanError> {
+pub fn color_pred(
+    column: &str,
+    op: &Op,
+    value: &str,
+    is_identity: bool,
+) -> Result<DFExpr, PlanError> {
     if let Ok(n) = value.parse::<i64>() {
         let len = array_length_expr(column);
         return Ok(match op {
@@ -106,14 +265,10 @@ pub fn color_pred(column: &str, op: &Op, value: &str, is_identity: bool) -> Resu
     }
 
     let letters = normalize_colors(value);
-    
+
     // Resolve Colon to either Gte (for color) or Lte (for identity)
     let resolved_op = if *op == Op::Colon {
-        if is_identity {
-            Op::Lte
-        } else {
-            Op::Gte
-        }
+        if is_identity { Op::Lte } else { Op::Gte }
     } else {
         op.clone()
     };
@@ -149,7 +304,7 @@ pub fn color_pred(column: &str, op: &Op, value: &str, is_identity: bool) -> Resu
                 } else {
                     lit(true)
                 };
-                
+
                 if letters.contains('M') {
                     expr = expr.and(array_length_expr(column).gt(lit(1)));
                 }

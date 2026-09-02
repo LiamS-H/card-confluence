@@ -140,7 +140,7 @@ pub async fn complete(ctx: &SessionContext, input: &str, pos: usize) -> Option<C
     // Replace the predicate at cursor with True so the rest of the query
     // acts as a filter context
     let context_expr = replace_predicate_with_true(&ast, pred);
-    let plan = planner::build_distinct_values_plan(ctx, &context_expr, pred_type)
+    let plan = planner::build_distinct_values_plan(ctx, &context_expr, pred)
         .await
         .ok()?;
     Some(CompletionResponse::Query(

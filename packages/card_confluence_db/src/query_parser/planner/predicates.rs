@@ -1,13 +1,13 @@
-use datafusion::logical_expr::{lit, Expr as DFExpr};
+use datafusion::logical_expr::{Expr as DFExpr, lit};
 
 use crate::query_parser::{
     lexer::Op,
     planner::{
+        PlanError,
         expressions::{
             array_contains_expr, color_pred, exact_pred, flexible_numeric_pred, format_pred,
             is_pred, numeric_pred, powtou_pred, text_pred,
         },
-        PlanError,
     },
 };
 
@@ -32,9 +32,11 @@ impl Predicate {
         match field {
             // Oracle-side (cards.*)
             PredicateField::Type => text_pred(&"cards.type_line", &pred.op, &pred.value),
-            //TODO: make an intermediate struct like {r:3, c:2} and then convert the string to this type for integer comparison;
-            // this will also make this the only field that will need to be compared across card faces
-            PredicateField::Mana => text_pred(&"cards.mana_cost", &pred.op, &pred.value),
+            PredicateField::Mana => crate::query_parser::planner::expressions::mana_pred(
+                &"cards.mana_cost",
+                &pred.op,
+                &pred.value,
+            ),
             PredicateField::Oracle | PredicateField::Name | PredicateField::Layout => {
                 text_pred(&column_name?, &pred.op, &pred.value)
             }
@@ -50,12 +52,8 @@ impl Predicate {
             }
 
             PredicateField::PowTou => powtou_pred(&pred.op, &pred.value),
-            PredicateField::Color => {
-                color_pred(&column_name?, &pred.op, &pred.value, false)
-            }
-            PredicateField::Identity => {
-                color_pred(&column_name?, &pred.op, &pred.value, true)
-            }
+            PredicateField::Color => color_pred(&column_name?, &pred.op, &pred.value, false),
+            PredicateField::Identity => color_pred(&column_name?, &pred.op, &pred.value, true),
             PredicateField::OracleId => exact_pred("cards.oracle_id", &pred.value),
             PredicateField::Produces | PredicateField::OracleTag | PredicateField::Keyword => {
                 Ok(array_contains_expr(&column_name?, lit(pred.value.clone())))
