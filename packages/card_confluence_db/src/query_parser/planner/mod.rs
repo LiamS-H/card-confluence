@@ -1,8 +1,8 @@
-use datafusion::common::metadata::FieldMetadata;
 use datafusion::common::DFSchema;
+use datafusion::common::metadata::FieldMetadata;
 use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions::expr_fn::named_struct;
-use datafusion::logical_expr::{col, lit, not, Expr as DFExpr, LogicalPlan, LogicalPlanBuilder};
+use datafusion::logical_expr::{Expr as DFExpr, LogicalPlan, LogicalPlanBuilder, col, lit, not};
 use datafusion::prelude::{JoinType, SessionContext};
 use datafusion::scalar::ScalarValue;
 use datafusion_functions_aggregate::expr_fn::{array_agg, first_value, min};
@@ -433,9 +433,9 @@ mod tests {
 
         let ids = vec!["id3".to_string(), "id1".to_string(), "id4".to_string()];
         let expr = p("cmc < 2.5"); // matches id1 and id2
-                                   // id3: cmc=3 (false)
-                                   // id1: cmc=1 (true)
-                                   // id4: not in table (false)
+        // id3: cmc=3 (false)
+        // id1: cmc=1 (true)
+        // id4: not in table (false)
 
         let plan = build_filter_plan(&ctx, ids, &expr).await.unwrap();
         let df = ctx.execute_logical_plan(plan).await.unwrap();

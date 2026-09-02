@@ -54,7 +54,7 @@ impl TryFrom<MetaData> for TablePaths {
                             table
                         )
                         .into(),
-                    ))
+                    ));
                 }
             }
         }

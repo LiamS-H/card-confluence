@@ -1,5 +1,5 @@
-use object_store::{path::Path, ObjectStore};
-use scryfall_rust_bindings::{fetch_search, ScryfallSearchSettings};
+use object_store::{ObjectStore, path::Path};
+use scryfall_rust_bindings::{ScryfallSearchSettings, fetch_search};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, sync::Arc, time::Duration};
 use tokio::time::sleep;

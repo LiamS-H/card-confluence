@@ -1,8 +1,8 @@
 use arrow::array::Int8Builder;
 use arrow_array::Int8Array;
 use arrow_convert::{
-    deserialize::ArrowDeserialize, field::ArrowField, serialize::ArrowSerialize, ArrowDeserialize,
-    ArrowField, ArrowSerialize,
+    ArrowDeserialize, ArrowField, ArrowSerialize, deserialize::ArrowDeserialize, field::ArrowField,
+    serialize::ArrowSerialize,
 };
 use arrow_schema::DataType;
 use serde::{Deserialize, Serialize};

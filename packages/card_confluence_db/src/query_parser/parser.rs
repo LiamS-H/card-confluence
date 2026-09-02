@@ -151,13 +151,13 @@ impl Parser {
                         other => {
                             return Err(ParseError(format!(
                                 "Expected operator after field '{field}', got {other:?}"
-                            )))
+                            )));
                         }
                     },
                     None => {
                         return Err(ParseError(format!(
                             "Expected operator after field '{field}', got end of input"
-                        )))
+                        )));
                     }
                 };
 

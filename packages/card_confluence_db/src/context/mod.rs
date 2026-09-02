@@ -5,7 +5,7 @@ use datafusion::{
     error::DataFusionError,
     prelude::{ParquetReadOptions, SessionContext},
 };
-use object_store::{path::Path as ObjectPath, ObjectStore, Result};
+use object_store::{ObjectStore, Result, path::Path as ObjectPath};
 
 #[cfg(not(target_arch = "wasm32"))]
 use object_store::local::LocalFileSystem;
