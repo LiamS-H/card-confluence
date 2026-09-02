@@ -11,13 +11,13 @@ import {
 	type QueryWorkerMessage
 } from './shared';
 import { get_remote_metadata } from '../db-meta';
-import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
+const PUBLIC_PARQUET_LATEST = import.meta.env.VITE_PUBLIC_PARQUET_LATEST;
 
 async function initBrowser(): Promise<CardConfluenceBrowser> {
 	setWorkerStatus({ state: 'loading', data: 'remote' });
 	await init();
 	setWorkerStatus({ state: 'connecting', data: 'remote' });
-	const [metadata, error] = await get_remote_metadata();
+	const [metadata, error] = await get_remote_metadata(PUBLIC_PARQUET_LATEST);
 	if (error) {
 		const message = `OPFS error, unable to read metadata.json ${error}`;
 		QueryEventsChannel.postMessage({ type: 'error-fatal', message });

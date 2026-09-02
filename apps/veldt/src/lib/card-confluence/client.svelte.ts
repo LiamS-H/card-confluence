@@ -27,6 +27,7 @@ import type {
 import { get_veldt_settings, type VeldtSettings } from '$lib/settings.svelte';
 import { compare_metadata, get_opfs_metadata, get_remote_metadata } from './db-meta';
 import { download_db } from './download-worker/factory';
+import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
 
 export type { Print };
 
@@ -115,7 +116,7 @@ class QueryClient {
 		let last_config: null | Config = null;
 
 		async function handle_settings(settings: VeldtSettings) {
-			const [remote_meta, remote_error] = await get_remote_metadata();
+			const [remote_meta, remote_error] = await get_remote_metadata(PUBLIC_PARQUET_LATEST);
 			const [local_meta, local_error] = await get_opfs_metadata();
 
 			function get_config(): Config {

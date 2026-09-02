@@ -1,14 +1,13 @@
-import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
 import type { FetchError, JSONError } from '$lib/errors';
 import { read_json_from_opfs } from '$lib/utils/opfs';
 import type { MetaData } from '@card-confluence/wasm-browser';
 
-export async function get_remote_metadata(): Promise<
-	[MetaData, null] | [null, JSONError | FetchError]
-> {
+export async function get_remote_metadata(
+	url: string
+): Promise<[MetaData, null] | [null, JSONError | FetchError]> {
 	let response: Response;
 	try {
-		response = await fetch(`${PUBLIC_PARQUET_LATEST}/metadata.json`);
+		response = await fetch(`${url}/metadata.json`);
 	} catch {
 		return [null, { type: 'no_internet_error' }];
 	}

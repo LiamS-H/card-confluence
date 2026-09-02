@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
+const PUBLIC_PARQUET_LATEST = import.meta.env.VITE_PUBLIC_PARQUET_LATEST;
 
 import type { OPFSError, JSONError, FetchError } from '$lib/errors';
 import type { MetaDataSource } from '@card-confluence/wasm-browser';
