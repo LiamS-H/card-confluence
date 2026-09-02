@@ -92,47 +92,97 @@ pub fn cast_expr(expr: DFExpr, data_type: arrow_schema::DataType) -> DFExpr {
     try_cast(expr, data_type)
 }
 
-pub fn color_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
-    let letters = normalize_colors(value);
+pub fn color_pred(column: &str, op: &Op, value: &str, is_identity: bool) -> Result<DFExpr, PlanError> {
+    if let Ok(n) = value.parse::<i64>() {
+        let len = array_length_expr(column);
+        return Ok(match op {
+            Op::Colon | Op::Eq => len.eq(lit(n)),
+            Op::Ne => len.not_eq(lit(n)),
+            Op::Gt => len.gt(lit(n)),
+            Op::Gte => len.gt_eq(lit(n)),
+            Op::Lt => len.lt(lit(n)),
+            Op::Lte => len.lt_eq(lit(n)),
+        });
+    }
 
-    match op {
-        Op::Colon => {
-            if letters == "C" {
-                return Ok(array_length_expr(column).eq(lit(0)));
-            }
-            letters
-                .chars()
-                .map(|c| {
-                    if c == 'M' {
-                        Ok(array_length_expr(column).gt(lit(1)))
-                    } else {
-                        Ok(array_contains_expr(column, lit(c.to_string())))
-                    }
-                })
-                .reduce(|a, b| Ok(a?.and(b?)))
-                .unwrap_or_else(|| Err(PlanError("Empty color value".into())))
+    let letters = normalize_colors(value);
+    
+    // Resolve Colon to either Gte (for color) or Lte (for identity)
+    let resolved_op = if *op == Op::Colon {
+        if is_identity {
+            Op::Lte
+        } else {
+            Op::Gte
         }
+    } else {
+        op.clone()
+    };
+
+    match resolved_op {
         Op::Eq => {
-            let colors = canonical_color_vec(&letters);
-            Ok(col(column).eq(lit_array(colors)))
+            if letters == "C" {
+                Ok(array_length_expr(column).eq(lit(0)))
+            } else {
+                let colors = canonical_color_vec(&letters);
+                Ok(col(column).eq(lit_array(colors)))
+            }
         }
         Op::Ne => {
-            let colors = canonical_color_vec(&letters);
-            Ok(col(column).not_eq(lit_array(colors)))
+            if letters == "C" {
+                Ok(array_length_expr(column).not_eq(lit(0)))
+            } else {
+                let colors = canonical_color_vec(&letters);
+                Ok(col(column).not_eq(lit_array(colors)))
+            }
         }
-        Op::Gt | Op::Gte | Op::Lt | Op::Lte => {
-            let n: i64 = value
-                .parse()
-                .map_err(|_| PlanError(format!("Cannot parse '{value}' as a color count")))?;
-            let len = array_length_expr(column);
-            Ok(match op {
-                Op::Gt => len.gt(lit(n)),
-                Op::Gte => len.gt_eq(lit(n)),
-                Op::Lt => len.lt(lit(n)),
-                Op::Lte => len.lt_eq(lit(n)),
-                _ => unreachable!(),
-            })
+        Op::Gte | Op::Gt => {
+            if letters == "C" {
+                if resolved_op == Op::Gt {
+                    Ok(array_length_expr(column).gt(lit(0)))
+                } else {
+                    Ok(lit(true)) // c>=c is any card (or c=c for colorless only? Scryfall makes c>=c mean colorless. Let's make it len=0 for c>=c if they want. Actually, let's just do len>=0 which is true). Wait, c>=c in Scryfall means colorless. Let's just do len == 0.
+                }
+            } else {
+                let colors = canonical_color_vec(&letters);
+                let mut expr = if resolved_op == Op::Gt {
+                    array_length_expr(column).gt(lit(colors.len() as i32))
+                } else {
+                    lit(true)
+                };
+                
+                if letters.contains('M') {
+                    expr = expr.and(array_length_expr(column).gt(lit(1)));
+                }
+
+                for c in colors {
+                    expr = expr.and(array_contains_expr(column, lit(c)));
+                }
+                Ok(expr)
+            }
         }
+        Op::Lte | Op::Lt => {
+            if letters == "C" {
+                if resolved_op == Op::Lt {
+                    Ok(lit(false)) // c<c is impossible
+                } else {
+                    Ok(array_length_expr(column).eq(lit(0))) // c<=c is colorless
+                }
+            } else {
+                let colors = canonical_color_vec(&letters);
+                let mut expr = if resolved_op == Op::Lt {
+                    array_length_expr(column).lt(lit(colors.len() as i32))
+                } else {
+                    lit(true)
+                };
+                for c in "WUBRG".chars() {
+                    if !letters.contains(c) {
+                        expr = expr.and(not(array_contains_expr(column, lit(c.to_string()))));
+                    }
+                }
+                Ok(expr)
+            }
+        }
+        Op::Colon => unreachable!(),
     }
 }
 

@@ -50,8 +50,11 @@ impl Predicate {
             }
 
             PredicateField::PowTou => powtou_pred(&pred.op, &pred.value),
-            PredicateField::Color | PredicateField::Identity => {
-                color_pred(&column_name?, &pred.op, &pred.value)
+            PredicateField::Color => {
+                color_pred(&column_name?, &pred.op, &pred.value, false)
+            }
+            PredicateField::Identity => {
+                color_pred(&column_name?, &pred.op, &pred.value, true)
             }
             PredicateField::OracleId => exact_pred("cards.oracle_id", &pred.value),
             PredicateField::Produces | PredicateField::OracleTag | PredicateField::Keyword => {

@@ -89,6 +89,9 @@ pub fn tokenize(input: &str) -> Result<Vec<Token>, LexError> {
                 if chars.get(pos + 1) == Some(&'=') {
                     pos += 2;
                     TokenKind::Op(Op::Lte)
+                } else if chars.get(pos + 1) == Some(&'>') {
+                    pos += 2;
+                    TokenKind::Op(Op::Ne)
                 } else {
                     pos += 1;
                     TokenKind::Op(Op::Lt)
