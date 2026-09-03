@@ -1,0 +1,11 @@
+// we do this because otherwise rust-analyzer watches any file change, causing slow reindexes on .ts file saves.
+{
+  "rust-analyzer.linkedProjects": [
+    "packages/card_confluence_db/Cargo.toml",
+    "packages/card_confluence_wasm_browser/Cargo.toml",
+    "packages/scryfall_rust_bindings/Cargo.toml",
+    "packages/wasm_workflow_seed/Cargo.toml",
+    "packages/cloudflare_utils/Cargo.toml",
+    "apps/card_confluence_cli/Cargo.toml"
+  ]
+}
