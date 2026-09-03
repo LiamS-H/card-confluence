@@ -2,6 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import { cva, type VariantProps } from 'class-variance-authority';
+	import { Button } from 'bits-ui';
 
 	const buttonVariants = cva(
 		'group relative overflow-hidden transition-colors disabled:opacity-50 disabled:pointer-events-none',
@@ -85,7 +86,7 @@
 	// );
 </script>
 
-<button
+<Button.Root
 	{disabled}
 	class={buttonVariants({ intent, variant, size, width, class: className })}
 	{...rest}
@@ -97,4 +98,4 @@
 	<span class="relative z-10 mix-blend-difference">
 		{@render children()}
 	</span>
-</button>
+</Button.Root>
