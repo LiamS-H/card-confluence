@@ -18,7 +18,7 @@
 	}
 </script>
 
-<div class="relative">
+<div class="relative" use:clickOutside={() => (open = false)}>
 	<div class="flex">
 		<Button onclick={() => (open = !open)} intent="secondary" variant={open ? 'fixed' : 'outline'}>
 			{status.data} data
@@ -50,11 +50,7 @@
 			{/if}
 		</Button>
 	</div>
-	<div
-		class="absolute z-200 flex w-full flex-col bg-secondary"
-		class:hidden={!open}
-		use:clickOutside={() => (open = false)}
-	>
+	<div class="absolute z-200 flex w-full flex-col bg-secondary" class:hidden={!open}>
 		<div class="h-full w-full p-0.5 pt-0">
 			<div class="flex h-full w-full flex-col gap-2 bg-background p-2">
 				<span class="w-full text-xl">Database Settings - {status.data}</span>
