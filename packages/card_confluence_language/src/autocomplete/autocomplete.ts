@@ -175,11 +175,11 @@ export const completeCardConfluence: CompletionSource = async (context) => {
         return null;
     }
 
-    const pred_typ = predicateTypeFromKeyword(cursor_keyword);
+    const pred_type = predicateTypeFromKeyword(cursor_keyword);
     const context_completion = await query_context.complete(pos);
 
     const sections = new Map<string, CompletionSection>();
-    const options = context_completion.options.map((option) => {
+    let options: Completion[] = context_completion.options.map((option) => {
         const { label, detail, info, group } = option;
         if (!group)
             return {
@@ -194,6 +194,17 @@ export const completeCardConfluence: CompletionSource = async (context) => {
             section: sections.getOrInsert(group, { name: group }),
         };
     });
+    if (["cmc", "power", "toughness"].includes(pred_type)) {
+        options = context_completion.options.map((option) => {
+            const num = Number.parseFloat(option.label);
+            if (Number.isNaN(num)) {
+                return option;
+            }
+            // 99 is max, but there are some negative numbers in un-sets
+            return { ...option, boost: 90 - num };
+        });
+    }
+
     if (!options) return null;
 
     let val;
@@ -233,10 +244,8 @@ export const completeCardConfluence: CompletionSource = async (context) => {
         options,
         commitCharacters,
     };
-    console.log("[cc]", result);
-    console.log(`[cc] "${view.state.doc[result.to]}"`, result.to);
 
-    switch (pred_typ) {
+    switch (pred_type) {
         case "name":
             result.commitCharacters = undefined;
             result.options.forEach((n) => (n.apply = apply));

@@ -8,7 +8,7 @@ use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions::expr_fn::{regexp_replace, replace};
 use datafusion::functions_nested::expr_fn::string_to_array;
 use datafusion::logical_expr::{Expr as DFExpr, LogicalPlan, LogicalPlanBuilder, col, lit};
-use datafusion::prelude::{JoinType, SessionContext, cast};
+use datafusion::prelude::{JoinType, SessionContext, cast, when};
 use datafusion::scalar::ScalarValue;
 
 pub async fn build_distinct_values_plan(
@@ -78,7 +78,10 @@ pub async fn build_distinct_values_plan(
             let mut expr = pred.to_unique_df_expr()?;
 
             if matches!(pred, PredicateField::Mana) {
-                if !matches!(target_pred.op, crate::query_parser::lexer::Op::Colon | crate::query_parser::lexer::Op::Eq) {
+                if !matches!(
+                    target_pred.op,
+                    crate::query_parser::lexer::Op::Colon | crate::query_parser::lexer::Op::Eq
+                ) {
                     expr = regexp_replace(expr, lit(r"[\{\}]"), lit(""), Some(lit("g")));
                     expr = datafusion::functions::string::expr_fn::lower(expr);
                 }
@@ -90,6 +93,14 @@ pub async fn build_distinct_values_plan(
                 let no_newlines = replace(clean_expr, lit("\n"), lit(" "));
 
                 expr = string_to_array(no_newlines, lit(" "), lit(ScalarValue::Utf8(None)));
+            }
+
+            if matches!(pred, PredicateField::Cmc) {
+                expr = when(
+                    (expr.clone() % lit(1.0)).eq(lit(0.0)),
+                    cast(cast(expr.clone(), DataType::Int64), DataType::Utf8),
+                )
+                .otherwise(cast(expr, DataType::Utf8))?;
             }
 
             let mut builder =
