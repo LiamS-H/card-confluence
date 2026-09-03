@@ -34,7 +34,7 @@ export class WorkflowSeed extends WorkflowEntrypoint<Env, Params> {
 
             const response = await fetchBulk(type);
             if (response.object === "error") {
-                throw new Error(
+                throw Error(
                     `Scryfall error for ${type}: ${JSON.stringify(response)}`,
                 );
             }
@@ -46,9 +46,7 @@ export class WorkflowSeed extends WorkflowEntrypoint<Env, Params> {
             const response = await fetch(bulkMetadata.download_uri);
             if (!response.ok || !response.body) {
                 await response.body?.cancel();
-                throw new Error(
-                    `Failed to stream ${type}: ${response.statusText}`,
-                );
+                throw Error(`Failed to stream ${type}: ${response.statusText}`);
             }
             try {
                 const fileName = `.scryfall/${type}/${bulkMetadata.updated_at}.json`;
@@ -77,7 +75,7 @@ export class WorkflowSeed extends WorkflowEntrypoint<Env, Params> {
             console.log(`[${this.runId}]sets_fetching...`);
             const response = await fetchSets();
             if (response.object === "error") {
-                throw new Error(
+                throw Error(
                     `Scryfall error for sets: ${JSON.stringify(response)}`,
                 );
             }
@@ -179,7 +177,7 @@ export class WorkflowSeed extends WorkflowEntrypoint<Env, Params> {
                                 rateLimited = true;
                                 break;
                             }
-                            throw new Error(
+                            throw Error(
                                 `Scryfall error for otag "${otag}": ${JSON.stringify(response)}`,
                             );
                         }

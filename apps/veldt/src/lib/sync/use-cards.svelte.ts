@@ -31,7 +31,7 @@ export class DeckCardInterface {
 		const oracle_entry = cards.get(oracle_id);
 
 		if (!oracle_entry) {
-			throw new Error(`No oracle entry found for ${oracle_id}`);
+			throw Error(`No oracle entry found for ${oracle_id}`);
 		}
 
 		const instances = oracle_entry.get('instances');
@@ -163,9 +163,9 @@ export class DeckCardInterface {
 export function use_deck_cards_provider(getDeck: () => DeckStruct): DeckCardInterface {
 	const deck_interface = $derived(new DeckCardInterface(getDeck()));
 	setContext(DECK_CARD_INTERFACE_KEY, deck_interface);
-    $effect(()=>{
-	    setContext(DECK_CARD_INTERFACE_KEY, deck_interface);
-    })
+	$effect(() => {
+		setContext(DECK_CARD_INTERFACE_KEY, deck_interface);
+	});
 	return deck_interface;
 }
 

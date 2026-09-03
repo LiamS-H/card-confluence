@@ -19,7 +19,10 @@ async function initBrowser(): Promise<CardConfluenceBrowser> {
 	console.log('[worker] found local data', metadata, error);
 	if (error) {
 		const message = `OPFS error, unable to read metadata.json ${error}`;
-		QueryEventsChannel.postMessage({ type: 'error-fatal', message });
+		QueryEventsChannel.postMessage({
+			type: 'db-status',
+			status: { state: 'error', data: 'local', message }
+		});
 		throw Error(message);
 	}
 	setWorkerStatus({ state: 'processing', data: 'local' });
@@ -47,8 +50,10 @@ QueryEventsChannel.onmessage((event) => {
 onmessage = async (event) => {
 	const message: QueryWorkerMessage = event.data;
 	if (message.action === 'destroy') {
-		const browser = await local_browser;
-		browser.free();
+		try {
+			const browser = await local_browser;
+			browser.free();
+		} catch {}
 		postMessage(undefined);
 	}
 };

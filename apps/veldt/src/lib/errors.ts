@@ -1,6 +1,7 @@
 export type FetchError =
 	| {
 			type: 'fetch_error';
+			status_code: number;
 			message: string;
 	  }
 	| {

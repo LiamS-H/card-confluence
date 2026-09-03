@@ -6,9 +6,10 @@ export async function get_remote_metadata(
 	url: string
 ): Promise<[MetaData, null] | [null, JSONError | FetchError]> {
 	let response: Response;
+
 	try {
 		response = await fetch(`${url}/metadata.json`);
-	} catch {
+	} catch (e) {
 		return [null, { type: 'no_internet_error' }];
 	}
 
@@ -16,7 +17,9 @@ export async function get_remote_metadata(
 		return [
 			null,
 			{
-				type: 'no_internet_error'
+				type: 'fetch_error',
+				status_code: response.status,
+				message: `failed to fetch url:${url} ${JSON.stringify(response)}`
 			}
 		];
 	}

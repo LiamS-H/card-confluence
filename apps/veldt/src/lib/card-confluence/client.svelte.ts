@@ -243,7 +243,7 @@ class QueryClient {
 					return;
 				}
 				if (response.type === 'completion') {
-					throw new Error('completion returned for non completion request.');
+					throw Error('completion returned for non completion request.');
 				}
 
 				if (query.loading !== true) {
@@ -291,7 +291,7 @@ class QueryClient {
 					return;
 				}
 				if (response.type === 'completion') {
-					throw new Error('completion returned for non completion request.');
+					throw Error('completion returned for non completion request.');
 				}
 
 				const data = await cache_get(response.index);

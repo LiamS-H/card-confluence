@@ -20,7 +20,11 @@ export async function download_to_opfs(
 	}
 
 	if (!response.ok || !response.body) {
-		return { type: 'fetch_error', message: response.statusText };
+		return {
+			type: 'fetch_error',
+			status_code: response.status,
+			message: `failed to fetch url:${file_url} ${JSON.stringify(response)}`
+		};
 	}
 
 	try {

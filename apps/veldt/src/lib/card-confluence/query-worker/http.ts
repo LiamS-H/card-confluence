@@ -7,11 +7,11 @@ import {
 	handle_query_request,
 	setWorkerStatus,
 	worker_status,
-	type DBStatus,
 	type QueryWorkerMessage
 } from './shared';
 import { get_remote_metadata } from '../db-meta';
 const PUBLIC_PARQUET_LATEST = import.meta.env.VITE_PUBLIC_PARQUET_LATEST;
+console.log('[vite]', import.meta.env.VITE_PUBLIC_PARQUET_LATEST);
 
 async function initBrowser(): Promise<CardConfluenceBrowser> {
 	setWorkerStatus({ state: 'loading', data: 'remote' });
@@ -19,8 +19,11 @@ async function initBrowser(): Promise<CardConfluenceBrowser> {
 	setWorkerStatus({ state: 'connecting', data: 'remote' });
 	const [metadata, error] = await get_remote_metadata(PUBLIC_PARQUET_LATEST);
 	if (error) {
-		const message = `OPFS error, unable to read metadata.json ${error}`;
-		QueryEventsChannel.postMessage({ type: 'error-fatal', message });
+		const message = `Http error, unable to read metadata.json ${JSON.stringify(error)}`;
+		QueryEventsChannel.postMessage({
+			type: 'db-status',
+			status: { state: 'error', data: 'remote', message }
+		});
 		throw Error(message);
 	}
 	const browser = await CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST, metadata);
@@ -46,8 +49,10 @@ QueryEventsChannel.onmessage((event) => {
 onmessage = async (event) => {
 	const message: QueryWorkerMessage = event.data;
 	if (message.action === 'destroy') {
-		const browser = await http_browser;
-		browser.free();
+		try {
+			const browser = await http_browser;
+			browser.free();
+		} catch {}
 		postMessage(undefined);
 	}
 };
