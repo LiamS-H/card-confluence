@@ -65,10 +65,10 @@ async fn main() -> Result<()> {
     let local = Arc::new(LocalFileSystem::new_with_prefix("./")?);
 
     let history_store = if cli.history_r2 {
-        println!("Using remote history store.");
+        eprintln!("Using remote history store.");
         get_r2_from_env_prefix("HISTORY")?
     } else {
-        println!("Using local history store.");
+        eprintln!("Using local history store.");
         local.clone()
     };
 
@@ -82,10 +82,10 @@ async fn main() -> Result<()> {
         }
         Commands::Query { text, r2 } => {
             let target_store = if r2 {
-                println!("Using remote latest store.");
+                eprintln!("Using remote latest store.");
                 get_r2_from_env_prefix("LATEST")?
             } else {
-                println!("Using local latest store.");
+                eprintln!("Using local latest store.");
                 parquet_store
             };
             if let Some(text) = text {

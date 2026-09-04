@@ -6,6 +6,7 @@ use card_confluence_db::{
 };
 use datafusion::{
     arrow::util::pretty::pretty_format_batches, logical_expr::col, prelude::SessionContext,
+    arrow::array::Array,
 };
 use object_store::ObjectStore;
 use rustyline::completion::{Completer, Pair};
@@ -126,14 +127,35 @@ impl Highlighter for QueryHelper {}
 
 impl Validator for QueryHelper {}
 
-pub async fn exec(parquet_store: Arc<dyn ObjectStore>, text: String) -> Result<()> {
+pub async fn exec(
+    parquet_store: Arc<dyn ObjectStore>,
+    text: String,
+) -> Result<()> {
     let paths = get_latest_paths(parquet_store.clone()).await?;
     let ctx = get_context(parquet_store, paths).await?;
+
     let plan = parse_query(&ctx, &text).await?;
     let df = ctx.execute_logical_plan(plan).await?;
-    // let df = df.select(vec![col("name"), col("colors"), col("mana_cost")])?;
-    println!("Found: {} results", df.clone().count().await?);
-    df.collect().await?;
+
+    let df = df.select(vec![col("name")])?;
+    eprintln!("found {} cards", df.clone().count().await?);
+
+    let batches = df.collect().await?;
+
+    for batch in batches {
+        let names = batch
+            .column(0)
+            .as_any()
+            .downcast_ref::<datafusion::arrow::array::StringViewArray>()
+            .unwrap();
+
+        for i in 0..names.len() {
+            if !names.is_null(i) {
+                println!("{}", names.value(i));
+            }
+        }
+    }
+
     Ok(())
 }
 
