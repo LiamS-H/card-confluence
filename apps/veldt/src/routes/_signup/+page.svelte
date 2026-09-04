@@ -2,7 +2,7 @@
 	import { authClient } from '$lib';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 
 	let email = $state('');
 	let password = $state('');

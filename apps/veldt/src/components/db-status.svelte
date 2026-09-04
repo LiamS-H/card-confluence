@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { query_client } from '$lib';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 	import { get_veldt_settings, set_veldt_settings } from '$lib/settings.svelte';
 	import { clickOutside } from '$lib/actions/click-outside';
 

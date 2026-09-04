@@ -3,7 +3,7 @@
 	import { sync_client } from '$lib/sync/client';
 	import Input from '$components/input.svelte';
 	import TagDoc from './tag/tag-doc.svelte';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 	import Deck from './deck/deck.svelte';
 	import { use_deck_cards_provider } from '$lib/sync/use-cards.svelte';
 	import CardSearch from './cards/card-search.svelte';

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 	import DeckMetaCard from '$components/deck-meta-card.svelte';
 	import { sync_client } from '$lib/sync/client';
 	import { use_decks } from '$lib';

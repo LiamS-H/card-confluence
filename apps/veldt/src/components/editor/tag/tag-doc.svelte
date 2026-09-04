@@ -13,7 +13,7 @@
 	import { use_query } from '$lib';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import RowResult from '$components/query/row-result.svelte';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 	import Card from '$components/card-img';
 
 	const { doc, jump_to_query } = $props<{ doc: Y.Text; jump_to_query: (query: string) => void }>();

@@ -2,7 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { type Pathname } from '$app/types';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 	import DbStatus from '$components/db-status.svelte';
 
 	// import { authClient } from '$lib';

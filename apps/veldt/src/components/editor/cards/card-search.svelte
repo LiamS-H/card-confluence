@@ -4,7 +4,7 @@
 	import RowResult from '$components/query/row-result.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 	import DeckSearchCard from '$components/editor/deck-card.svelte';
 	import type { DeckZone } from '@repo/schema-sync';
 	import { page } from '$app/state';
