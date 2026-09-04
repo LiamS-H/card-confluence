@@ -434,6 +434,8 @@ class QueryClient {
 			this.on_self_promotion
 		);
 
+		QueryEventsChannel.postMessage({ type: 'db-check' });
+
 		// promote when lock is free later
 		navigator.locks.request('db-leader-lock', {}, this.on_self_promotion);
 		return;
