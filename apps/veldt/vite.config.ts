@@ -12,6 +12,9 @@ export default defineConfig({
 			allow: [`${searchForWorkspaceRoot(process.cwd())}/packages/`]
 		}
 	},
+	ssr: {
+		noExternal: ['@material-symbols-svg/svelte']
+	},
 	test: {
 		expect: { requireAssertions: true },
 		projects: [
