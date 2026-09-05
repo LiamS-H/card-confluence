@@ -23,7 +23,6 @@ use std::{
 };
 use url::Url;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
-use web_sys::FileSystemFileHandle;
 
 use crate::http_binding::PublicHTTPReadonlyStore;
 use crate::opfs_binding::OpfsReadonlyStore;

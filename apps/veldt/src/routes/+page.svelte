@@ -8,8 +8,12 @@
 	import Card from '$components/card-img/card.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
+	import { CardDialog, CardInfo } from '$components/card-dialog';
+	import * as Dialog from '$components/ui/dialog';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
+	let active_card_id = $derived(page.url.searchParams.get('card') ?? null);
+	let active_print_id = $derived(page.url.searchParams.get('print') ?? null);
 
 	function onDocChange(new_query: string) {
 		const params = new URL(page.url).searchParams;
@@ -31,6 +35,22 @@
 
 	let card_columns = $state(4);
 </script>
+
+<CardDialog
+	oracle_id={active_card_id}
+	print_id={active_print_id}
+	on_close={() => {
+		const params = new URL(page.url).searchParams;
+		params.set('q', query);
+		params.delete('card');
+		params.delete('print');
+		goto(resolve(`/?${params.toString()}`), {
+			keepFocus: true,
+			noScroll: true,
+			replaceState: true
+		});
+	}}
+/>
 
 <div class="flex h-full flex-col gap-2 pt-2">
 	<Search doc={query} {onDocChange} />
@@ -67,7 +87,14 @@
 							key={`${viewportRow}-${col}`}
 						>
 							{#snippet children({ card, print, width })}
-								<Card {card} {print} {width} />
+								{const params = new URL(page.url).searchParams}
+								{@const _ =
+									(params.set('q', query),
+									params.set('card', card.oracle_id),
+									params.set('print', print.scryfall_id))}
+								<a href={`/?${params.toString()}`}>
+									<Card {card} {print} {width} />
+								</a>
 							{/snippet}
 						</RowResult>
 					</div>

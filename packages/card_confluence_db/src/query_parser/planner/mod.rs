@@ -502,6 +502,10 @@ pub async fn build_cards_detail_plan(
     let prints_schema = prints_table.schema().clone();
     let prints_plan = prints_table.into_unoptimized_plan();
 
+    let sets_table = ctx.table("sets").await?;
+    let sets_schema = sets_table.schema().clone();
+    let sets_plan = sets_table.into_unoptimized_plan();
+
     let mut builder = LogicalPlanBuilder::from(cards_plan);
 
     let id_exprs: Vec<_> = ids.into_iter().map(lit).collect();
@@ -515,9 +519,41 @@ pub async fn build_cards_detail_plan(
         None,
     )?;
 
+    builder = builder.join(
+        sets_plan,
+        JoinType::Inner,
+        (vec!["prints.set_code"], vec!["sets.code"]),
+        None,
+    )?;
+
+    let sets_struct = schema_as_flat_struct("sets", &sets_schema);
+
+    let mut prints_kv_pairs: Vec<_> = prints_schema
+        .fields()
+        .iter()
+        .flat_map(|f| {
+            let name = f.name();
+            [
+                DFExpr::Literal(
+                    ScalarValue::Utf8(Some(name.clone())),
+                    Some(FieldMetadata::from(f.metadata())),
+                ),
+                col(format!("prints.{name}")),
+            ]
+        })
+        .collect();
+
+    prints_kv_pairs.push(DFExpr::Literal(
+        ScalarValue::Utf8(Some("set".to_string())),
+        None,
+    ));
+    prints_kv_pairs.push(sets_struct);
+
+    let print_with_set_struct = named_struct(prints_kv_pairs);
+
     builder = builder.aggregate(
         schemas_as_cols("cards", &cards_schema),
-        vec![array_agg(schema_as_flat_struct("prints", &prints_schema)).alias("prints")],
+        vec![array_agg(print_with_set_struct).alias("prints")],
     )?;
 
     Ok(builder.build()?)
