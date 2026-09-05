@@ -14,7 +14,8 @@
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import RowResult from '$components/query/row-result.svelte';
 	import { Button } from '$components/ui/button';
-	import Card from '$components/card-img';
+	import CardImg from '$components/card-img';
+	import * as Card from '$components/ui/card';
 
 	const { doc, jump_to_query } = $props<{ doc: Y.Text; jump_to_query: (query: string) => void }>();
 
@@ -91,34 +92,32 @@
 				style:width={previewW ? `${previewW}px` : undefined}
 				style:height={previewH ? `${previewH}px` : undefined}
 			>
-				<div class="flex flex-1 flex-col bg-foreground p-0.5 pb-0 [direction:ltr]">
-					<div class="relative flex flex-1 justify-center bg-background">
-						{#if response.loading}
-							<span>loading</span>
-						{:else if response.error}
-							<span>{response.message}</span>
-						{:else if response.result.rows.length === 0}
-							<span>0 results</span>
-						{:else}
-							<div class="min-h-96">
-								<VirtualGrid items={response.result.rows} columns={previewColumns} overscan={2}>
-									{#snippet item({ index, viewportRow, col })}
-										<div class="p-1">
-											<RowResult
-												result={response.result.rows[index] as QueryResultRow}
-												key={`${viewportRow}-${col}`}
-											>
-												{#snippet children({ card, print, width })}
-													<Card {card} {print} {width} />
-												{/snippet}
-											</RowResult>
-										</div>
-									{/snippet}
-								</VirtualGrid>
-							</div>
-						{/if}
-					</div>
-				</div>
+				<Card.Body class="relative flex flex-1 justify-center p-0 [direction:ltr]">
+					{#if response.loading}
+						<span>loading</span>
+					{:else if response.error}
+						<span>{response.message}</span>
+					{:else if response.result.rows.length === 0}
+						<span>0 results</span>
+					{:else}
+						<div class="min-h-96">
+							<VirtualGrid items={response.result.rows} columns={previewColumns} overscan={2}>
+								{#snippet item({ index, viewportRow, col })}
+									<div class="p-1">
+										<RowResult
+											result={response.result.rows[index] as QueryResultRow}
+											key={`${viewportRow}-${col}`}
+										>
+											{#snippet children({ card, print, width })}
+												<CardImg {card} {print} {width} />
+											{/snippet}
+										</RowResult>
+									</div>
+								{/snippet}
+							</VirtualGrid>
+						</div>
+					{/if}
+				</Card.Body>
 				<div class="flex flex-row-reverse justify-between">
 					<span
 						class="flex flex-1 items-center justify-center bg-foreground text-xl text-background"
