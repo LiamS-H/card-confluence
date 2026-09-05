@@ -29,8 +29,7 @@
 		defaultVariants: {
 			intent: 'default',
 			variant: 'outline',
-			size: 'md',
-			width: 'auto'
+			size: 'md'
 		}
 	});
 
