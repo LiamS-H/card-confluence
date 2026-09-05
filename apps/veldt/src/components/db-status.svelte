@@ -2,11 +2,12 @@
 	import { query_client } from '$lib';
 	import { Button } from '$components/ui/button';
 	import { get_veldt_settings, set_veldt_settings } from '$lib/settings.svelte';
-	import { clickOutside } from '$lib/actions/click-outside';
+	import * as Popover from '$components/ui/popover';
+	import * as Card from '$components/ui/card';
 
 	const status = $derived(query_client.db_status);
 
-	let open = $state(false);
+	let isOpen = $state(false);
 
 	const settings = get_veldt_settings();
 
@@ -18,42 +19,47 @@
 	}
 </script>
 
-<div class="relative" use:clickOutside={() => (open = false)}>
-	<div class="flex">
-		<Button onclick={() => (open = !open)} intent="secondary" variant={open ? 'fixed' : 'outline'}>
-			{status.data} data
-		</Button>
-		<Button
-			onclick={() => (open = !open)}
-			intent="secondary"
-			variant="fixed"
-			disabled={status.state !== 'ready'}
-		>
-			{#if status.state !== 'ready'}
-				{status.state}
-			{:else}
-				{const prints = status.metadata.sources.find((s) => s.table === 'prints')}
-				{#if !prints}
-					Invalid ISO
+<Popover.Root bind:open={isOpen}>
+	<Popover.Trigger>
+		{#snippet child({ props })}
+			<Button
+				{...props}
+				intent="secondary"
+				variant={isOpen ? 'fixed' : 'outline'}
+				onclick={() => (isOpen = !isOpen)}
+			>
+				data
+			</Button>
+		{/snippet}
+	</Popover.Trigger>
+	<Popover.Content align="end">
+		<Card.Root intent={'secondary'}>
+			<Card.Body>
+				<span class="w-full text-xl">Database Location - {status.data} </span>
+				{#if status.state !== 'ready'}
+					<span class="-mt-1 w-full text-primary/50">
+						{status.state}
+					</span>
 				{:else}
-					{const days_old = Math.floor(
-						(Date.now() - new Date(prints.iso).getTime()) / (1000 * 60 * 60 * 24)
-					)}
-					{#if days_old <= 0}
-						less than a day
-					{:else if days_old === 1}
-						yesterday
+					{const prints = status.metadata.sources.find((s) => s.table === 'prints')}
+					{#if !prints}
+						<span class="-mt-1 w-full text-destructive/50"> Invalid ISO </span>
 					{:else}
-						{days_old} days ago
+						<span class="-mt-1 w-full text-foreground/50"
+							>Card updated
+							{const days_old = Math.floor(
+								(Date.now() - new Date(prints.iso).getTime()) / (1000 * 60 * 60 * 24)
+							)}
+							{#if days_old <= 0}
+								less than a day ago.
+							{:else if days_old === 1}
+								yesterday.
+							{:else}
+								{days_old} days ago.
+							{/if}
+						</span>
 					{/if}
 				{/if}
-			{/if}
-		</Button>
-	</div>
-	<div class="absolute z-200 flex w-full flex-col bg-secondary" class:hidden={!open}>
-		<div class="h-full w-full p-0.5 pt-0">
-			<div class="flex h-full w-full flex-col gap-2 bg-background p-2">
-				<span class="w-full text-xl">Database Settings - {status.data}</span>
 				{#if status.data === 'local'}
 					{#if !settings.database.useLocal}
 						<span class="text-destructive">Unable to connect to remote.</span>
@@ -80,7 +86,7 @@
 				{#if settings.database.useLocal}
 					<Button
 						onclick={() => {
-							open = false;
+							isOpen = false;
 							set_local(false);
 						}}
 						intent="destructive">prefer remote</Button
@@ -88,14 +94,13 @@
 				{:else}
 					<Button
 						onclick={() => {
-							open = false;
+							isOpen = false;
 							set_local(true);
 						}}
 						intent="secondary">go local</Button
 					>
 				{/if}
-			</div>
-		</div>
-		<div class="flex justify-between"></div>
-	</div>
-</div>
+			</Card.Body>
+		</Card.Root>
+	</Popover.Content>
+</Popover.Root>
