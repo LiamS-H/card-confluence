@@ -65,24 +65,6 @@ pub struct CardConfluenceBrowser {
     store: Arc<dyn ObjectStore>,
 }
 
-// 1. Define the structural binding for the JS object
-#[wasm_bindgen]
-extern "C" {
-    pub type DBFileHandles;
-
-    #[wasm_bindgen(method, getter)]
-    pub fn cards(this: &DBFileHandles) -> FileSystemFileHandle;
-
-    #[wasm_bindgen(method, getter)]
-    pub fn prints(this: &DBFileHandles) -> FileSystemFileHandle;
-
-    #[wasm_bindgen(method, getter)]
-    pub fn rulings(this: &DBFileHandles) -> FileSystemFileHandle;
-
-    #[wasm_bindgen(method, getter)]
-    pub fn sets(this: &DBFileHandles) -> FileSystemFileHandle;
-}
-
 fn error_map<E: std::fmt::Debug>(u: E) -> JsValue {
     JsValue::from_str(format!("{:?}", u).as_str())
 }
@@ -219,9 +201,9 @@ impl CardConfluenceBrowser {
 
     pub async fn cards_plan_from_card_ids(
         &self,
-        card_id: Vec<String>,
+        card_ids: Vec<String>,
     ) -> Result<HashedPlan, JsValue> {
-        let plan = build_cards_detail_plan(&self.context, card_id)
+        let plan = build_cards_detail_plan(&self.context, card_ids)
             .await
             .map_err(error_map)?;
         self.hash_plan(plan).map_err(error_map)
