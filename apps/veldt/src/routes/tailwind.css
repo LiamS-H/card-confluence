@@ -14,6 +14,7 @@
 
 	--color-background: #020100;
 	--color-foreground: #fdfffc;
+	--color-muted-foreground: #9d9f9c;
 
 	--color-default: var(--color-background);
 	--color-default-foreground: var(--color-foreground);
