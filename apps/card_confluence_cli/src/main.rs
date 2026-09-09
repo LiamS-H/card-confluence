@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use dotenvy::dotenv;
 use object_store::{
-    aws::AmazonS3Builder, local::LocalFileSystem, prefix::PrefixStore, ObjectStore,
+    ObjectStore, aws::AmazonS3Builder, local::LocalFileSystem, prefix::PrefixStore,
 };
 use std::sync::Arc;
 
@@ -29,6 +29,13 @@ enum Commands {
     /// Query the latest parquet data via interactive TUI
     Query {
         text: Option<String>,
+        /// Use R2 for latest parquet data
+        #[arg(long, env = "QUERY_USE_R2")]
+        r2: bool,
+    },
+
+    Card {
+        text: String,
         /// Use R2 for latest parquet data
         #[arg(long, env = "QUERY_USE_R2")]
         r2: bool,
@@ -79,6 +86,16 @@ async fn main() -> Result<()> {
     match cli.command {
         Commands::Seed { mode } => {
             commands::seed::exec(mode, json_store, parquet_store).await?;
+        }
+        Commands::Card { text, r2 } => {
+            let target_store = if r2 {
+                eprintln!("Using remote latest store.");
+                get_r2_from_env_prefix("LATEST")?
+            } else {
+                eprintln!("Using local latest store.");
+                parquet_store
+            };
+            commands::card::exec(target_store, text).await?;
         }
         Commands::Query { text, r2 } => {
             let target_store = if r2 {
