@@ -1,18 +1,19 @@
-use datafusion::common::DFSchema;
-use datafusion::common::metadata::FieldMetadata;
-use datafusion::functions::core::expr_ext::FieldAccessor;
-use datafusion::functions::expr_fn::named_struct;
-use datafusion::logical_expr::{Expr as DFExpr, LogicalPlan, LogicalPlanBuilder, col, lit, not};
-use datafusion::prelude::{JoinType, SessionContext};
-use datafusion::scalar::ScalarValue;
-use datafusion_functions_aggregate::expr_fn::{array_agg, first_value, min};
-use datafusion_functions_nested::expr_fn::make_array;
-
 use crate::query_parser::parser::ScryfallExpr;
 use crate::query_parser::planner::predicates::PredicateField;
 
+pub mod detail_plan;
 pub mod expressions;
+pub mod expr;
+pub mod filter_plan;
 pub mod predicates;
+pub mod query_plan;
+pub mod simple_plans;
+
+pub use detail_plan::build_cards_detail_plan;
+pub use expr::{expr_to_df_expr, needs_prints_table, needs_sets_table};
+pub use filter_plan::build_filter_plan;
+pub use query_plan::build_query_plan;
+pub use simple_plans::{build_rulings_plan, build_sets_plan};
 
 #[derive(Debug)]
 pub struct PlanError(pub String);
@@ -98,140 +99,6 @@ fn extract_options_recursive(
     }
 }
 
-pub async fn build_query_plan(
-    ctx: &SessionContext,
-    expr: &ScryfallExpr,
-) -> Result<LogicalPlan, PlanError> {
-    let (expr, options) = extract_options(expr)?;
-
-    let cards_plan = ctx.table("cards").await?.into_unoptimized_plan();
-    let prints_plan = ctx.table("prints").await?.into_unoptimized_plan();
-
-    let mut builder = LogicalPlanBuilder::from(cards_plan);
-
-    builder = builder.join(
-        prints_plan,
-        JoinType::Inner,
-        (vec!["cards.oracle_id"], vec!["prints.oracle_id"]),
-        None,
-    )?;
-
-    if needs_sets_table(&expr)? {
-        let sets_plan = ctx.table("sets").await?.into_unoptimized_plan();
-        builder = builder.join(
-            sets_plan,
-            JoinType::Inner,
-            (vec!["prints.set_code"], vec!["sets.code"]),
-            None,
-        )?;
-    }
-
-    let schema = builder.schema().clone();
-    builder = builder.filter(expr_to_df_expr(&expr, &schema)?)?;
-
-    let order = options.order.unwrap_or("cmc".to_owned());
-    let ascending = match options.dir {
-        Some(dir) => match dir.as_str() {
-            "asc" | "ascending" => Some(true),
-            "desc" | "descending" => Some(false),
-            other => return Err(PlanError(format!("Unknown direction: {other}"))),
-        },
-        None => None,
-    };
-
-    let unique = options.unique.as_deref().unwrap_or("cards");
-    match unique {
-        "cards" => {
-            let prefer_expr = if let Some(prefer) = options.prefer {
-                let sort_expr = match prefer.as_str() {
-                    "oldest" => col("prints.released_at").sort(true, true),
-                    "newest" => col("prints.released_at").sort(false, true),
-                    "cheapest" => col("prints.prices").field("usd").sort(true, true),
-                    other => return Err(PlanError(format!("Unknown prefer mode: {other}"))),
-                };
-                vec![sort_expr]
-            } else {
-                vec![]
-            };
-
-            let mut aggr_exprs =
-                vec![first_value(col("prints.scryfall_id"), prefer_expr).alias("first_print")];
-            let mut sort_exprs = vec![];
-
-            match order.as_str() {
-                "cmc" => {
-                    sort_exprs.push(col("cards.cmc").sort(ascending.unwrap_or(true), true));
-                    sort_exprs.push(col("cards.name").sort(true, true));
-                }
-                "usd" | "eur" | "tix" => {
-                    let sort_col = format!("sort_{}", order);
-                    aggr_exprs.push(min(col("prints.prices").field(&order)).alias(&sort_col));
-                    sort_exprs.push(col(sort_col).sort(ascending.unwrap_or(true), false));
-                    sort_exprs.push(col("cards.name").sort(true, true));
-                }
-                "release" | "released" | "date" | "year" => {
-                    let first_col = "first_release".to_owned();
-                    aggr_exprs.push(min(col("prints.released_at")).alias(&first_col));
-                    sort_exprs.push(col(&first_col).sort(ascending.unwrap_or(false), false));
-                    sort_exprs.push(col("cards.name").sort(true, true));
-                }
-                other => return Err(PlanError(format!("Unknown order field: {other}"))),
-            }
-
-            builder = builder.aggregate(
-                vec![
-                    col("cards.oracle_id"),
-                    col("cards.name"),
-                    col("cards.mana_cost"),
-                    col("cards.cmc"),
-                ],
-                aggr_exprs,
-            )?;
-
-            builder = builder.sort(sort_exprs)?;
-
-            builder = builder.project(vec![
-                col("cards.oracle_id"),
-                col("cards.name"),
-                col("cards.mana_cost"),
-                make_array(vec![col("first_print")]).alias("matched_prints"),
-            ])?;
-        }
-        "prints" => {
-            let mut sort_exprs = vec![];
-            match order.as_str() {
-                "cmc" => {
-                    sort_exprs.push(col("cards.cmc").sort(ascending.unwrap_or(true), true));
-                    sort_exprs.push(col("cards.name").sort(true, true));
-                    sort_exprs.push(col("prints.released_at").sort(false, true));
-                }
-                "usd" | "eur" | "tix" => {
-                    sort_exprs.push(
-                        col("prints.prices")
-                            .field(&order)
-                            .sort(ascending.unwrap_or(true), false),
-                    );
-                    sort_exprs.push(col("cards.name").sort(true, true));
-                    sort_exprs.push(col("prints.released_at").sort(false, true));
-                }
-                other => return Err(PlanError(format!("Unknown order field: {other}"))),
-            }
-
-            builder = builder.sort(sort_exprs)?;
-
-            builder = builder.project(vec![
-                col("cards.oracle_id"),
-                col("cards.name"),
-                col("cards.mana_cost"),
-                make_array(vec![col("prints.scryfall_id")]).alias("matched_prints"),
-            ])?;
-        }
-        other => return Err(PlanError(format!("Unknown unique mode: {other}"))),
-    }
-
-    Ok(builder.build()?)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -277,7 +144,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_build_query_plan_order_usd_unique_cards() {
-        let ctx = SessionContext::new();
+        let ctx = datafusion::prelude::SessionContext::new();
 
         // Register mock tables
         use datafusion::arrow::datatypes::{DataType, Field, Schema};
@@ -327,7 +194,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_build_query_plan_order_usd_unique_prints() {
-        let ctx = SessionContext::new();
+        let ctx = datafusion::prelude::SessionContext::new();
 
         // Register mock tables
         use datafusion::arrow::datatypes::{DataType, Field, Schema};
@@ -376,7 +243,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_build_filter_plan() {
-        let ctx = SessionContext::new();
+        let ctx = datafusion::prelude::SessionContext::new();
 
         use datafusion::arrow::array::{BooleanArray, Float64Array, StringArray};
         use datafusion::arrow::datatypes::{DataType, Field, Schema};
@@ -460,240 +327,5 @@ mod tests {
         assert_eq!(matched_values[0], false); // id3
         assert_eq!(matched_values[1], true); // id1
         assert_eq!(matched_values[2], false); // id4
-    }
-}
-
-fn schema_as_flat_struct(table: &str, schema: &DFSchema) -> DFExpr {
-    let kv_pairs: Vec<_> = schema
-        .fields()
-        .iter()
-        .flat_map(|f| {
-            let name = f.name();
-            [
-                DFExpr::Literal(
-                    ScalarValue::Utf8(Some(name.clone())),
-                    Some(FieldMetadata::from(f.metadata())),
-                ),
-                col(format!("{table}.{name}")),
-            ]
-        })
-        .collect();
-
-    named_struct(kv_pairs)
-}
-
-fn schemas_as_cols(table: &str, schema: &DFSchema) -> Vec<DFExpr> {
-    schema
-        .fields()
-        .iter()
-        .map(|f| col(format!("{}.{}", table, f.name())))
-        .collect()
-}
-
-pub async fn build_cards_detail_plan(
-    ctx: &SessionContext,
-    ids: Vec<String>,
-) -> Result<LogicalPlan, PlanError> {
-    let cards_table = ctx.table("cards").await?;
-    let cards_schema = cards_table.schema().clone();
-    let cards_plan = cards_table.into_unoptimized_plan();
-
-    let prints_table = ctx.table("prints").await?;
-    let prints_schema = prints_table.schema().clone();
-    let prints_plan = prints_table.into_unoptimized_plan();
-
-    let sets_table = ctx.table("sets").await?;
-    let sets_schema = sets_table.schema().clone();
-    let sets_plan = sets_table.into_unoptimized_plan();
-
-    let mut builder = LogicalPlanBuilder::from(cards_plan);
-
-    let id_exprs: Vec<_> = ids.into_iter().map(lit).collect();
-    let filter_expr = col("oracle_id").in_list(id_exprs, false);
-    builder = builder.filter(filter_expr)?;
-
-    builder = builder.join(
-        prints_plan,
-        JoinType::Inner,
-        (vec!["cards.oracle_id"], vec!["prints.oracle_id"]),
-        None,
-    )?;
-
-    builder = builder.join(
-        sets_plan,
-        JoinType::Inner,
-        (vec!["prints.set_code"], vec!["sets.code"]),
-        None,
-    )?;
-
-    let sets_struct = schema_as_flat_struct("sets", &sets_schema);
-
-    let mut prints_kv_pairs: Vec<_> = prints_schema
-        .fields()
-        .iter()
-        .flat_map(|f| {
-            let name = f.name();
-            [
-                DFExpr::Literal(
-                    ScalarValue::Utf8(Some(name.clone())),
-                    Some(FieldMetadata::from(f.metadata())),
-                ),
-                col(format!("prints.{name}")),
-            ]
-        })
-        .collect();
-
-    prints_kv_pairs.push(DFExpr::Literal(
-        ScalarValue::Utf8(Some("set".to_string())),
-        None,
-    ));
-    prints_kv_pairs.push(sets_struct);
-
-    let print_with_set_struct = named_struct(prints_kv_pairs);
-
-    builder = builder.aggregate(
-        schemas_as_cols("cards", &cards_schema),
-        vec![array_agg(print_with_set_struct).alias("prints")],
-    )?;
-
-    Ok(builder.build()?)
-}
-
-pub async fn build_filter_plan(
-    ctx: &SessionContext,
-    ids: Vec<String>,
-    expr: &ScryfallExpr,
-) -> Result<LogicalPlan, PlanError> {
-    let (expr, _options) = extract_options(expr)?;
-
-    let values = ids
-        .into_iter()
-        .enumerate()
-        .map(|(i, id)| vec![lit(i as i64), lit(id)])
-        .collect::<Vec<_>>();
-
-    if values.is_empty() {
-        return Ok(LogicalPlanBuilder::empty(false).build()?);
-    }
-
-    let values_plan = LogicalPlanBuilder::values(values)?
-        .project(vec![
-            col("column1").alias("index"),
-            col("column2").alias("input_id"),
-        ])?
-        .build()?;
-
-    let cards_plan = ctx.table("cards").await?.into_unoptimized_plan();
-    let prints_plan = ctx.table("prints").await?.into_unoptimized_plan();
-
-    let mut query_builder = LogicalPlanBuilder::from(cards_plan);
-
-    query_builder = query_builder.join(
-        prints_plan,
-        JoinType::Inner,
-        (vec!["cards.oracle_id"], vec!["prints.oracle_id"]),
-        None,
-    )?;
-
-    if needs_sets_table(&expr)? {
-        let sets_plan = ctx.table("sets").await?.into_unoptimized_plan();
-        query_builder = query_builder.join(
-            sets_plan,
-            JoinType::Inner,
-            (vec!["prints.set_code"], vec!["sets.code"]),
-            None,
-        )?;
-    }
-
-    let schema = query_builder.schema().clone();
-    query_builder = query_builder.filter(expr_to_df_expr(&expr, &schema)?)?;
-
-    let query_plan = query_builder
-        .project(vec![col("cards.oracle_id").alias("matched_id")])?
-        .distinct()?
-        .build()?;
-
-    let mut builder = LogicalPlanBuilder::from(values_plan);
-    builder = builder.join(
-        query_plan,
-        JoinType::Left,
-        (vec!["input_id"], vec!["matched_id"]),
-        None,
-    )?;
-
-    builder = builder.sort(vec![col("index").sort(true, true)])?;
-
-    builder = builder.project(vec![col("matched_id").is_not_null().alias("matched")])?;
-
-    Ok(builder.build()?)
-}
-
-pub async fn build_rulings_plan(
-    ctx: &SessionContext,
-    ids: Vec<String>,
-) -> Result<LogicalPlan, PlanError> {
-    let plan = ctx.table("rulings").await?.into_unoptimized_plan();
-
-    let mut builder = LogicalPlanBuilder::from(plan);
-
-    let id_exprs: Vec<_> = ids.into_iter().map(lit).collect();
-    let filter_expr = col("oracle_id").in_list(id_exprs, false);
-
-    builder = builder.filter(filter_expr)?;
-
-    Ok(builder.build()?)
-}
-
-pub async fn build_sets_plan(
-    ctx: &SessionContext,
-    codes: Vec<String>,
-) -> Result<LogicalPlan, PlanError> {
-    let plan = ctx.table("sets").await?.into_unoptimized_plan();
-
-    let mut builder = LogicalPlanBuilder::from(plan);
-
-    if codes.len() > 0 {
-        let id_exprs: Vec<_> = codes.into_iter().map(lit).collect();
-        let filter_expr = col("oracle_id").in_list(id_exprs, false);
-
-        builder = builder.filter(filter_expr)?;
-    }
-
-    Ok(builder.build()?)
-}
-
-pub fn needs_prints_table(expr: &ScryfallExpr) -> Result<bool, PlanError> {
-    match expr {
-        ScryfallExpr::Predicate(p) => {
-            Ok(PredicateField::try_from(p.field.as_str())?.needs_print_table(&p.value))
-        }
-        ScryfallExpr::And(l, r) | ScryfallExpr::Or(l, r) => {
-            Ok(needs_prints_table(l)? || needs_prints_table(r)?)
-        }
-        ScryfallExpr::Not(inner) => needs_prints_table(inner),
-        ScryfallExpr::True => Ok(false),
-    }
-}
-
-pub fn needs_sets_table(expr: &ScryfallExpr) -> Result<bool, PlanError> {
-    match expr {
-        ScryfallExpr::Predicate(p) => {
-            PredicateField::try_from(p.field.as_str()).map(|f| f.needs_set_table(&p.value))
-        }
-        ScryfallExpr::And(l, r) | ScryfallExpr::Or(l, r) => {
-            Ok(needs_sets_table(l)? || needs_sets_table(r)?)
-        }
-        ScryfallExpr::Not(inner) => needs_sets_table(inner),
-        ScryfallExpr::True => Ok(false),
-    }
-}
-
-pub fn expr_to_df_expr(expr: &ScryfallExpr, schema: &DFSchema) -> Result<DFExpr, PlanError> {
-    match expr {
-        ScryfallExpr::Predicate(pred) => pred.to_df_expr(),
-        ScryfallExpr::And(l, r) => Ok(expr_to_df_expr(l, schema)?.and(expr_to_df_expr(r, schema)?)),
-        ScryfallExpr::Or(l, r) => Ok(expr_to_df_expr(l, schema)?.or(expr_to_df_expr(r, schema)?)),
-        ScryfallExpr::Not(inner) => Ok(not(expr_to_df_expr(inner, schema)?)),
-        ScryfallExpr::True => Ok(lit(true)),
     }
 }
