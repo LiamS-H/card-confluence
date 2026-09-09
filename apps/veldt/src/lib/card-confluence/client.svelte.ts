@@ -20,6 +20,8 @@ import { tableFromIPC } from '@uwdata/flechette';
 import type {
 	Card,
 	Print,
+	Set as MTGSet,
+	Ruling,
 	CompletionOption,
 	Completion,
 	MetaData
@@ -63,7 +65,8 @@ type ClientResponse<T> =
 export type QueryResponse = ClientResponse<QueryResult>;
 
 export type DetailedCard = Card & {
-	prints: Print[];
+	prints: (Print & { set: MTGSet })[];
+	rulings: Ruling[] | null;
 };
 export type CardResponse = ClientResponse<DetailedCard>;
 export type RulingsResponse = ClientResponse<{

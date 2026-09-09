@@ -27,7 +27,7 @@
 
 <Dialog.Root bind:open={() => !!oracle_id, on_close}>
 	<Dialog.Content
-		class="h-11/12 max-h-11/12 w-full min-w-48 px-2 sm:min-w-xl sm:pt-8 md:min-w-3xl md:px-4 md:pt-16 lg:min-w-5xl"
+		class="h-11/12 max-h-11/12 w-full min-w-48 p-0 pt-9 sm:min-w-xl md:min-w-3xl lg:min-w-5xl"
 	>
 		{#if card}
 			{#if card.loading}

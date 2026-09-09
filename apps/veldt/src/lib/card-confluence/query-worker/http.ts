@@ -11,7 +11,6 @@ import {
 } from './shared';
 import { get_remote_metadata } from '../db-meta';
 const PUBLIC_PARQUET_LATEST = import.meta.env.VITE_PUBLIC_PARQUET_LATEST;
-console.log('[vite]', import.meta.env.VITE_PUBLIC_PARQUET_LATEST);
 
 async function initBrowser(): Promise<CardConfluenceBrowser> {
 	setWorkerStatus({ state: 'loading', data: 'remote' });

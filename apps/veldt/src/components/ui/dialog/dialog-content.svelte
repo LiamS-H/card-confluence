@@ -27,7 +27,7 @@
 		bind:ref
 		data-slot="dialog-content"
 		class={cn(
-			`fixed top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 border-2 border-foreground bg-background p-3 text-foreground ring-1 ring-foreground/10 duration-100 outline-none data-closed:animate-out
+			`fixed top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 border-2 border-foreground bg-background p-3 px-0 text-foreground ring-1 ring-foreground/10 duration-100 outline-none data-closed:animate-out
             data-closed:fade-out-0 data-closed:zoom-out-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 sm:max-w-sm`,
 			className
 		)}
@@ -41,7 +41,6 @@
 						variant="outline"
 						intent="destructive"
 						class="absolute -top-0.5 -right-0.5"
-						size="xs"
 						{...props}
 					>
 						X
