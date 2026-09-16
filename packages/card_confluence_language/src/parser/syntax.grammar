@@ -84,7 +84,7 @@ Operator {
   Gt  { ">" }
   Eq  { "=" }
   Colon { ":" }
-  
+
   NotOp { "-" }
 
 }

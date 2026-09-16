@@ -1,271 +1,262 @@
 import {
-    type Completion,
-    type CompletionResult,
-    type CompletionSection,
-    type CompletionSource,
-} from "@codemirror/autocomplete";
+	type Completion,
+	type CompletionResult,
+	type CompletionSection,
+	type CompletionSource
+} from '@codemirror/autocomplete';
 
-import { predicateFromView } from "../utils/predicate-from-view";
-import { syntaxTree } from "@codemirror/language";
-import { EditorSelection } from "@codemirror/state";
+import { predicateFromView } from '../utils/predicate-from-view';
+import { syntaxTree } from '@codemirror/language';
+import { EditorSelection } from '@codemirror/state';
 
-import { queryContextFacet } from "../query-context";
+import { queryContextFacet } from '../query-context';
 import {
-    detailFromKeyword,
-    isKeyword,
-    KEYWORDS,
-    nodeFromKeyword,
-    predicateTypeFromKeyword,
-} from "./completion";
+	detailFromKeyword,
+	isKeyword,
+	KEYWORDS,
+	nodeFromKeyword,
+	predicateTypeFromKeyword
+} from './completion';
 
-const BEGIN_OPERATORS = [":", "<", ">", "=", "!"] as const;
+const BEGIN_OPERATORS = [':', '<', '>', '=', '!'] as const;
 
-const OPERATORS = [":", "=", "<", ">", "<=", ">=", "!="] as const;
-const ASSERT_OPERATORS = [":", "="] as const;
+const OPERATORS = [':', '=', '<', '>', '<=', '>=', '!='] as const;
+const ASSERT_OPERATORS = [':', '='] as const;
 
 // function argRec(argument: string, commit: boolean, from: number, to?: number) {}
 
 export const completeCardConfluence: CompletionSource = async (context) => {
-    if (!context.view) return null;
+	if (!context.view) return null;
 
-    const view = context.view;
+	const view = context.view;
 
-    const pos = context.pos;
+	const pos = context.pos;
 
-    const pred = predicateFromView(view, pos);
+	const pred = predicateFromView(view, pos);
 
-    const query_context = context.state.facet(queryContextFacet);
+	const query_context = context.state.facet(queryContextFacet);
 
-    if (!pred) {
-        const cursor = syntaxTree(view.state).cursorAt(pos, -1);
+	if (!pred) {
+		const cursor = syntaxTree(view.state).cursorAt(pos, -1);
 
-        if (cursor.name === "Query") {
-            const result: CompletionResult = {
-                from: cursor.node.from,
-                options: KEYWORDS.map((kw): Completion => {
-                    const { detail, info } = detailFromKeyword(kw);
-                    return {
-                        label: kw,
-                        detail,
-                        info,
-                    };
-                }),
-                commitCharacters: BEGIN_OPERATORS,
-            };
-            return result;
-        }
+		if (cursor.name === 'Query') {
+			const result: CompletionResult = {
+				from: cursor.node.from,
+				options: KEYWORDS.map((kw): Completion => {
+					const { detail, info } = detailFromKeyword(kw);
+					return {
+						label: kw,
+						detail,
+						info
+					};
+				}),
+				commitCharacters: BEGIN_OPERATORS
+			};
+			return result;
+		}
 
-        if (cursor.name === "BareWord") {
-            const word = view.state.sliceDoc(cursor.node.from, cursor.node.to);
-            const matches = KEYWORDS.filter((kw) => kw.includes(word));
-            if (matches.length == 0) {
-                return query_context.complete(pos);
-            }
+		if (cursor.name === 'BareWord') {
+			const word = view.state.sliceDoc(cursor.node.from, cursor.node.to);
+			const matches = KEYWORDS.filter((kw) => kw.includes(word));
+			if (matches.length == 0) {
+				return query_context.complete(pos);
+			}
 
-            const result: CompletionResult = {
-                from: cursor.node.from,
-                to: cursor.node.to,
-                options: KEYWORDS.map((kw): Completion => {
-                    const boost = kw.startsWith(word) ? 1 : -1;
-                    const { detail, info } = detailFromKeyword(kw);
-                    return {
-                        label: kw,
-                        boost,
-                        detail,
-                        info,
-                    };
-                }),
-                commitCharacters: BEGIN_OPERATORS,
-            };
+			const result: CompletionResult = {
+				from: cursor.node.from,
+				to: cursor.node.to,
+				options: KEYWORDS.map((kw): Completion => {
+					const boost = kw.startsWith(word) ? 1 : -1;
+					const { detail, info } = detailFromKeyword(kw);
+					return {
+						label: kw,
+						boost,
+						detail,
+						info
+					};
+				}),
+				commitCharacters: BEGIN_OPERATORS
+			};
 
-            if (isKeyword(word)) {
-                const node = nodeFromKeyword(word);
-                const operators =
-                    node.operator === "assign"
-                        ? [":"]
-                        : node.operator === "assert"
-                          ? ASSERT_OPERATORS
-                          : OPERATORS;
-                result.options = result.options.concat(
-                    operators.map(
-                        (tag: string): Completion => ({
-                            label: word + tag,
-                            displayLabel: tag,
-                            // boost: results === 1 ? 2 : 0,
-                        }),
-                    ),
-                );
-            }
-            return result;
-        }
-        return null;
-    }
+			if (isKeyword(word)) {
+				const node = nodeFromKeyword(word);
+				const operators =
+					node.operator === 'assign'
+						? [':']
+						: node.operator === 'assert'
+							? ASSERT_OPERATORS
+							: OPERATORS;
+				result.options = result.options.concat(
+					operators.map((tag: string): Completion => ({
+						label: word + tag,
+						displayLabel: tag
+						// boost: results === 1 ? 2 : 0,
+					}))
+				);
+			}
+			return result;
+		}
+		return null;
+	}
 
-    const { kw_start, keyword, op_start, val_start, value, predicate_end } =
-        pred;
+	const { kw_start, keyword, op_start, val_start, value, predicate_end } = pred;
 
-    const cursor_keyword = keyword;
+	const cursor_keyword = keyword;
 
-    if (pos <= op_start) {
-        const result: CompletionResult = {
-            from: kw_start,
-            to: op_start,
-            options: KEYWORDS.map((kw) => {
-                const boost = kw.startsWith(kw) ? 1 : -1;
-                const { detail, info } = detailFromKeyword(kw);
-                return {
-                    label: kw,
-                    boost,
-                    detail,
-                    info,
-                };
-            }),
-        };
-        if (isKeyword(cursor_keyword)) {
-            const apply: Completion["apply"] = (view, completion) => {
-                view.dispatch(
-                    view.state.update({
-                        changes: {
-                            from: op_start,
-                            to: val_start,
-                            insert: completion.displayLabel,
-                        },
-                        selection: EditorSelection.cursor(
-                            op_start + (completion.displayLabel?.length ?? 0),
-                        ),
-                        userEvent: "completion.apply",
-                    }),
-                );
-            };
-            const node = nodeFromKeyword(cursor_keyword);
-            const operators =
-                node.operator === "assign"
-                    ? [":"]
-                    : node.operator === "assert"
-                      ? ASSERT_OPERATORS
-                      : OPERATORS;
-            result.options = result.options.concat(
-                operators.map(
-                    (op: string): Completion => ({
-                        label: cursor_keyword + op,
-                        displayLabel: op,
-                        apply,
-                    }),
-                ),
-            );
-        }
-        return result;
-    }
-    if (pos < val_start) {
-        return {
-            from: op_start,
-            to: val_start,
-            options: OPERATORS.map((op) => ({
-                label: op,
-            })),
-            filter: false,
-        };
-    }
+	if (pos <= op_start) {
+		const result: CompletionResult = {
+			from: kw_start,
+			to: op_start,
+			options: KEYWORDS.map((kw) => {
+				const boost = kw.startsWith(kw) ? 1 : -1;
+				const { detail, info } = detailFromKeyword(kw);
+				return {
+					label: kw,
+					boost,
+					detail,
+					info
+				};
+			})
+		};
+		if (isKeyword(cursor_keyword)) {
+			const apply: Completion['apply'] = (view, completion) => {
+				view.dispatch(
+					view.state.update({
+						changes: {
+							from: op_start,
+							to: val_start,
+							insert: completion.displayLabel
+						},
+						selection: EditorSelection.cursor(op_start + (completion.displayLabel?.length ?? 0)),
+						userEvent: 'completion.apply'
+					})
+				);
+			};
+			const node = nodeFromKeyword(cursor_keyword);
+			const operators =
+				node.operator === 'assign'
+					? [':']
+					: node.operator === 'assert'
+						? ASSERT_OPERATORS
+						: OPERATORS;
+			result.options = result.options.concat(
+				operators.map((op: string): Completion => ({
+					label: cursor_keyword + op,
+					displayLabel: op,
+					apply
+				}))
+			);
+		}
+		return result;
+	}
+	if (pos < val_start) {
+		return {
+			from: op_start,
+			to: val_start,
+			options: OPERATORS.map((op) => ({
+				label: op
+			})),
+			filter: false
+		};
+	}
 
-    if (value.at(1) === "/" && value.at(-1) === "/") {
-        return null;
-    }
+	if (value.at(1) === '/' && value.at(-1) === '/') {
+		return null;
+	}
 
-    if (!isKeyword(cursor_keyword)) {
-        return null;
-    }
+	if (!isKeyword(cursor_keyword)) {
+		return null;
+	}
 
-    const pred_type = predicateTypeFromKeyword(cursor_keyword);
-    const context_completion = await query_context.complete(pos);
+	const pred_type = predicateTypeFromKeyword(cursor_keyword);
+	const context_completion = await query_context.complete(pos);
 
-    const sections = new Map<string, CompletionSection>();
-    let options: Completion[] = context_completion.options.map((option) => {
-        const { label, detail, info, group } = option;
-        if (!group)
-            return {
-                label,
-                detail,
-                info,
-            };
-        return {
-            label,
-            detail,
-            info,
-            section: sections.getOrInsert(group, { name: group }),
-        };
-    });
-    if (["cmc", "power", "toughness"].includes(pred_type)) {
-        options = context_completion.options.map((option) => {
-            const num = Number.parseFloat(option.label);
-            if (Number.isNaN(num)) {
-                return option;
-            }
-            // 99 is max, but there are some negative numbers in un-sets
-            return { ...option, boost: 90 - num };
-        });
-    }
+	const sections = new Map<string, CompletionSection>();
+	let options: Completion[] = context_completion.options.map((option) => {
+		const { label, detail, info, group } = option;
+		if (!group)
+			return {
+				label,
+				detail,
+				info
+			};
+		return {
+			label,
+			detail,
+			info,
+			section: sections.getOrInsert(group, { name: group })
+		};
+	});
+	if (['cmc', 'power', 'toughness'].includes(pred_type)) {
+		options = context_completion.options.map((option) => {
+			const num = Number.parseFloat(option.label);
+			if (Number.isNaN(num)) {
+				return option;
+			}
+			// 99 is max, but there are some negative numbers in un-sets
+			return { ...option, boost: 90 - num };
+		});
+	}
 
-    if (!options) return null;
+	if (!options) return null;
 
-    let val;
-    let { from, to } = context_completion;
-    let commitCharacters: string[] = [];
-    let apply: Completion["apply"];
-    if (value.length > 1 && value.at(0) === '"' && value.at(-1) === '"') {
-        val = value.substring(1, value.length - 1);
-        from = from + 1;
-        to = from - 1;
-    } else {
-        val = value;
-        commitCharacters = [" "];
-        apply = (view, completion) => {
-            if (completion.label.includes(" ")) {
-                completion.label = `"${completion.label}"`;
-            }
-            view.dispatch(
-                view.state.update({
-                    changes: {
-                        from,
-                        to,
-                        insert: completion.label,
-                    },
-                    selection: EditorSelection.cursor(
-                        from + completion.label.length,
-                    ),
-                    userEvent: "completion.apply",
-                }),
-            );
-        };
-    }
+	let val;
+	let { from, to } = context_completion;
+	let commitCharacters: string[] = [];
+	let apply: Completion['apply'];
+	if (value.length > 1 && value.at(0) === '"' && value.at(-1) === '"') {
+		val = value.substring(1, value.length - 1);
+		from = from + 1;
+		to = from - 1;
+	} else {
+		val = value;
+		commitCharacters = [' '];
+		apply = (view, completion) => {
+			if (completion.label.includes(' ')) {
+				completion.label = `"${completion.label}"`;
+			}
+			view.dispatch(
+				view.state.update({
+					changes: {
+						from,
+						to,
+						insert: completion.label
+					},
+					selection: EditorSelection.cursor(from + completion.label.length),
+					userEvent: 'completion.apply'
+				})
+			);
+		};
+	}
 
-    const result: CompletionResult = {
-        from,
-        to,
-        options,
-        commitCharacters,
-    };
+	const result: CompletionResult = {
+		from,
+		to,
+		options,
+		commitCharacters
+	};
 
-    switch (pred_type) {
-        case "name":
-            result.commitCharacters = undefined;
-            result.options.forEach((n) => (n.apply = apply));
-            break;
-        case "keyword":
-            result.options.forEach((k) => (k.apply = apply));
-            break;
-        case "format":
-            result.options.forEach((f) => (f.apply = apply));
-            break;
-        case "artist":
-            result.options.forEach((a) => (a.apply = apply));
-            break;
-        case "lang":
-            result.options.forEach((a) => (a.apply = apply));
-            break;
-        case "set":
-            result.options.forEach((a) => (a.apply = apply));
-            break;
-    }
+	switch (pred_type) {
+		case 'name':
+			result.commitCharacters = undefined;
+			result.options.forEach((n) => (n.apply = apply));
+			break;
+		case 'keyword':
+			result.options.forEach((k) => (k.apply = apply));
+			break;
+		case 'format':
+			result.options.forEach((f) => (f.apply = apply));
+			break;
+		case 'artist':
+			result.options.forEach((a) => (a.apply = apply));
+			break;
+		case 'lang':
+			result.options.forEach((a) => (a.apply = apply));
+			break;
+		case 'set':
+			result.options.forEach((a) => (a.apply = apply));
+			break;
+	}
 
-    return result;
+	return result;
 };
