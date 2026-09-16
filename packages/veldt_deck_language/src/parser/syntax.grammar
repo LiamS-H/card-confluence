@@ -1,0 +1,59 @@
+@top Program { (Statement)* }
+
+@skip { space | LineComment }
+
+Statement { DomainDefinition | TagDefinition | GroupDefinition | ViewDefinition }
+
+Query { queryContent }
+
+DomainDefinition {
+  DomainKeyword "[" Query "]"
+}
+
+Params {
+  "(" (ParamItem ("," ParamItem)*)? ")"
+}
+
+ParamItem {
+  Identifier ":" Identifier
+}
+
+TagDefinition {
+  TagKeyword Identifier Params? "[" Query? "]"
+}
+
+GroupDefinition {
+  GroupKeyword Identifier Params? (
+    "{" (GroupItem ","?)* "}" |
+    "[" (GroupItem ","?)* "]"
+  )
+}
+
+GroupItem {
+  Identifier | TagDefinition | GroupDefinition
+}
+
+ViewDefinition {
+  ViewKeyword Identifier Params? "{" (ViewItem ","?)* "}"
+}
+
+
+ViewItem {
+  Identifier | TagDefinition | GroupDefinition
+}
+
+
+@external tokens scanQueryContent from "./tokens" { queryContent }
+
+@tokens {
+  identifier { $[a-zA-Z_\-] $[a-zA-Z0-9_\-]* }
+  "[" "]" "{" "}" "(" ")" "," ":"
+  space { $[ \t\n\r]+ }
+  LineComment { "#" ![\\n]* }
+}
+
+TagKeyword { @specialize<identifier, "tag"> }
+ViewKeyword { @specialize<identifier, "view"> }
+GroupKeyword { @specialize<identifier, "group"> }
+DomainKeyword { @specialize<identifier, "domain"> }
+Identifier { identifier }

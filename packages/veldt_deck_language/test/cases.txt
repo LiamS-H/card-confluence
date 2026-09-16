@@ -10,9 +10,8 @@ Program(Statement(TagDefinition(TagKeyword, Identifier, Query(Predicate(FieldNam
 
 view myview {
   tag local [ c:white ],
-  match draw*
 }
 
 ==>
 
-Program(Statement(ViewDefinition(ViewKeyword, Identifier, ViewItem(TagDefinition(TagKeyword, Identifier, Query(Predicate(FieldName, Operator(Colon), Value)))), ViewItem(MatchDefinition(MatchKeyword, TagBlob)))))
+Program(Statement(ViewDefinition(ViewKeyword, Identifier, ViewItem(TagDefinition(TagKeyword, Identifier, Query(Predicate(FieldName, Operator(Colon), Value)))), )))
