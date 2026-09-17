@@ -9,8 +9,16 @@
 	import type { DeckZone } from '@repo/schema-sync';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { get_veldt_settings } from '$lib/settings.svelte';
 
-	let query = $derived(page.url.searchParams.get('q') ?? '');
+	const { doc_parsed } = use_deck_cards();
+
+	const {
+		cards: { variant }
+	} = get_veldt_settings();
+
+	let search_query = $derived(page.url.searchParams.get('q') ?? '');
 
 	function onDocChange(new_query: string) {
 		const params = new URL(page.url).searchParams;
@@ -28,7 +36,13 @@
 			replaceState: true
 		});
 	}
+	const query = $derived(doc_parsed.domain + ' ' + search_query);
 	let data = use_query(() => ({ query }), 500);
+	$effect(() => {
+		const query = doc_parsed.domain + ' ' + (page.url.searchParams.get('q') ?? '');
+		console.log('querying now', query);
+		data.query_now({ query });
+	});
 	const { response } = $derived(data);
 
 	let card_columns = $state(4);
@@ -38,7 +52,7 @@
 </script>
 
 <div class="flex h-full flex-col">
-	<Search doc={query} {onDocChange} />
+	<Search doc={search_query} {onDocChange} />
 	<div class="sticky flex justify-between pt-px">
 		<div class="flex items-center px-2">
 			{#if response.loading}
@@ -67,7 +81,7 @@
 				variant="outline"
 				intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
 			>
-				add to
+				+ to
 				{zone}
 			</Button>
 		</div>
@@ -76,9 +90,14 @@
 	</div>
 	{#if !response.loading && !response.error}
 		<div class="relative flex-1">
-			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
+			<VirtualGrid
+				itemHeight={variant === 'img' ? undefined : 40}
+				items={response.result.rows}
+				columns={card_columns}
+				overscan={10}
+			>
 				{#snippet item({ index, viewportRow, col })}
-					<div class="p-1">
+					<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
 						<RowResult
 							result={response.result.rows[index] as QueryResultRow}
 							key={`${viewportRow}-${col}`}

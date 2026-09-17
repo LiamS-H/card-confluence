@@ -2,75 +2,47 @@
 	// TODO: don't love the preview layout, ideal ux would be a codemirror state extension, put a little + next to the tag you are editing to expand the preview beneath
 	// show a little ticker beneath the tag you are editing which shows error when error and + expand otherwise
 	import { onMount } from 'svelte';
-	import { EditorState } from '@codemirror/state';
-	import { EditorView } from '@codemirror/view';
-	import { veldtDeck, tagAtCursor, type Tag } from 'codemirror-lang-veldt-deck';
-	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
-	import { query_client, type QueryResultRow } from '$lib';
-	import { yCollab } from 'y-codemirror.next';
-	import * as Y from 'yjs';
-	import { veldtSetup } from '$lib/codemirror';
+	import { type QueryResultRow } from '$lib';
 	import { use_query } from '$lib';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import RowResult from '$components/query/row-result.svelte';
 	import { Button } from '$components/ui/button';
 	import CardImg from '$components/card-img';
 	import * as Card from '$components/ui/card';
+	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
 
-	const { doc, jump_to_query } = $props<{ doc: Y.Text; jump_to_query: (query: string) => void }>();
+	const { jump_to_query } = $props<{
+		jump_to_query: (query: string) => void;
+	}>();
+
+	const deck = use_deck_cards();
 
 	let editorContainer: HTMLDivElement;
-	let view: EditorView;
 
-	let tag: Tag | null = $state(null);
-	const query = $derived(tag === null ? '' : (tag as Tag).query);
+	const query = $derived.by(() => {
+		if (deck.cursor_tag === null) return '';
+		return (deck.doc_obj.domain ?? '') + ' ' + deck.cursor_tag.query;
+	});
 	let data = use_query(() => ({ query }), 500);
 	const { response } = $derived(data);
 
+	// Trigger an immediate query when the cursor moves to a tag
+	$effect(() => {
+		const ct = deck.cursor_tag;
+		if (ct) {
+			data.query_now({ query: (deck.doc_obj.domain ?? '') + ' ' + ct.query });
+		}
+	});
+
 	onMount(() => {
-		const undoManager = new Y.UndoManager(doc);
-		const state = EditorState.create({
-			doc: doc.toJSON(),
-			extensions: [
-				veldtSetup,
-				veldtDeck(),
-				cardconfluenceWithContext({
-					complete: async (pos: number) => {
-						const tag = tagAtCursor(view.state, pos);
-						if (tag === null || tag.queryPos === null) {
-							return { from: pos, to: pos, options: [] };
-						}
-						const offset = pos - tag.queryPos;
-
-						const { from, to, options } = await query_client.autocomplete(
-							{
-								query: tag.query
-							},
-							tag.queryPos
-						);
-
-						return { options, from: from + offset, to: to + offset };
-					}
-				}),
-				yCollab(doc, null, { undoManager }),
-				EditorView.updateListener.of((view) => {
-					const newTag = tagAtCursor(view.state, view.state.selection.main.head);
-					tag = newTag;
-				}),
-				EditorView.theme({
-					'&': { height: '100%' },
-					'.cm-scroller': { overflow: 'auto' }
-				})
-			]
-		});
-
-		view = new EditorView({
-			state,
-			parent: editorContainer
-		});
+		// get_view() is idempotent — creates once, returns the same instance on re-mount.
+		// The view keeps running (yCollab, onDeckUpdate) even when detached from the DOM.
+		const view = deck.get_view();
+		editorContainer.appendChild(view.dom);
 
 		return () => {
-			view.destroy();
+			// Detach from DOM but do NOT destroy — view stays alive for background updates.
+			editorContainer.removeChild(view.dom);
 		};
 	});
 
@@ -84,7 +56,7 @@
 	<div bind:this={editorContainer} class="w-full"></div>
 
 	<div class="absolute top-2 right-2">
-		{#if previewOpen && query !== ''}
+		{#if previewOpen && deck.cursor_tag}
 			<div
 				class="flex min-h-107 min-w-96 resize flex-col overflow-hidden [direction:rtl]"
 				bind:offsetWidth={previewW}
@@ -122,22 +94,21 @@
 					<span
 						class="flex flex-1 items-center justify-center bg-foreground text-xl text-background"
 					>
-						{tag?.name}
+						{deck.cursor_tag.name}
 					</span>
+					{const tag_query = deck.cursor_tag.query.trim()}
 					<Button
-						disabled={query.trim() === ''}
+						disabled={tag_query === ''}
 						onclick={() => {
-							jump_to_query(query.trim());
+							jump_to_query(tag_query);
 						}}>search +</Button
 					>
 
 					<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
 				</div>
 			</div>
-		{:else if !previewOpen}
-			<Button onclick={() => (previewOpen = true)} intent={tag ? 'primary' : 'default'}
-				>preview</Button
-			>
+		{:else if !previewOpen && deck.cursor_tag}
+			<Button onclick={() => (previewOpen = true)}>preview</Button>
 		{/if}
 	</div>
 </div>

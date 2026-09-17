@@ -5,7 +5,7 @@
 	import type { Snippet } from 'svelte';
 
 	export const buttonVariants = tv({
-		base: 'group relative overflow-hidden transition-colors disabled:opacity-50 disabled:pointer-events-none',
+		base: 'group relative overflow-hidden transition-colors aria-disabled:opacity-50 aria-disabled:pointer-events-none',
 		variants: {
 			intent: {
 				default: 'border-foreground text-foreground bg-black',

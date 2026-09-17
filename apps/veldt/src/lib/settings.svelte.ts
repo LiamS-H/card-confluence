@@ -1,3 +1,4 @@
+//TODO: This localStorage implementation should represent local settings, other setting should be stored on the base yjs for the user
 import { Channel } from './utils/channel';
 
 const key = 'VeldtSettings';
@@ -8,6 +9,9 @@ export interface VeldtSettings {
 		useLocal: boolean;
 		askEachDownload: boolean;
 	};
+	cards: {
+		variant: 'img' | 'tile';
+	};
 }
 
 export function get_default_veldt_settings(): VeldtSettings {
@@ -15,6 +19,9 @@ export function get_default_veldt_settings(): VeldtSettings {
 		database: {
 			useLocal: false,
 			askEachDownload: true
+		},
+		cards: {
+			variant: 'img'
 		}
 	};
 }

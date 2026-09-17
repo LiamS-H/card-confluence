@@ -1,0 +1,67 @@
+<script lang="ts">
+	import { use_card } from '$lib';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import CardInfo from '$components/card-dialog/card-info.svelte';
+	import PrintInfo from '$components/card-dialog/print-info.svelte';
+	import CardInfoError from '$components/card-dialog/card-info-error.svelte';
+	import CardInfoSkeleton from '$components/card-dialog/card-info-skeleton.svelte';
+	import * as Dialog from '$components/ui/dialog';
+
+	let oracle_id = $derived(page.url.searchParams.get('card') ?? null);
+	let print_id = $derived(page.url.searchParams.get('print') ?? null);
+
+	const { card } = $derived.by(() => {
+		if (!oracle_id) return { card: null };
+		return use_card(() => oracle_id);
+	});
+
+	function on_change(open: boolean) {
+		if (open) return;
+		const params = new URL(page.url).searchParams;
+		params.delete('card');
+		params.delete('print');
+		goto(`${page.url.pathname}?${params.toString()}`, {
+			keepFocus: true,
+			noScroll: true,
+			replaceState: true
+		});
+	}
+</script>
+
+<Dialog.Root bind:open={() => !!oracle_id, on_change}>
+	<Dialog.Content
+		class="h-11/12 max-h-11/12 w-full min-w-48 p-0 pt-9 sm:min-w-xl md:min-w-3xl lg:min-w-5xl"
+	>
+		{#if card}
+			{#if card.loading}
+				<Dialog.Title class="sr-only">Selected Card Loading</Dialog.Title>
+				<Dialog.Description class="sr-only"
+					>Info for a card you selected is currently loading.</Dialog.Description
+				>
+				<CardInfoSkeleton />
+			{:else if card.error}
+				<Dialog.Title class="sr-only">Selected Card Error</Dialog.Title>
+				<Dialog.Description class="sr-only">{card.message}</Dialog.Description>
+				<CardInfoError message={card.message} />
+			{:else}
+				<Dialog.Description class="sr-only">{card.result.name}</Dialog.Description>
+				{#if print_id}
+					<Dialog.Title class="sr-only">Selected Print</Dialog.Title>
+					{const print_index = card.result.prints.findIndex((s) => s.scryfall_id === print_id)}
+					{#if print_index !== -1}
+						<PrintInfo card={card.result} {print_index} />
+					{:else}
+						<Dialog.Title class="sr-only">Selected Print Error</Dialog.Title>
+						<CardInfoError
+							message={`Couldn't find print:${print_id} on oracle_id:${card.result.oracle_id}`}
+						/>
+					{/if}
+				{:else}
+					<Dialog.Title class="sr-only">Selected Card</Dialog.Title>
+					<CardInfo card={card.result} />
+				{/if}
+			{/if}
+		{/if}
+	</Dialog.Content>
+</Dialog.Root>

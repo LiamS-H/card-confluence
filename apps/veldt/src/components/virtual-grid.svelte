@@ -3,13 +3,23 @@
 
 	type Props<T> = {
 		items: T[];
+		itemWidth?: number | undefined;
+		itemHeight?: number | undefined;
 		columns: number;
 		aspectRatio?: number; // width / height, default 5/7
 		overscan?: number;
 		item?: Snippet<[{ index: number; item: T; row: number; col: number; viewportRow: number }]>;
 	};
 
-	let { items, columns, aspectRatio = 5 / 7, overscan = 2, item }: Props<T> = $props();
+	let {
+		items,
+		columns,
+		aspectRatio = 5 / 7,
+		overscan = 2,
+		item,
+		itemWidth: setItemWidth,
+		itemHeight: setItemHeight
+	}: Props<T> = $props();
 
 	let scroller: HTMLDivElement;
 	let scrollTop = $state(0);
@@ -25,8 +35,8 @@
 		return () => ro.disconnect();
 	});
 
-	const itemWidth = $derived(viewportWidth / columns);
-	const itemHeight = $derived(itemWidth / aspectRatio);
+	const itemWidth = $derived(setItemWidth ?? viewportWidth / columns);
+	const itemHeight = $derived(setItemHeight ?? (setItemWidth ?? itemWidth) / aspectRatio);
 	const totalRows = $derived(Math.ceil(items.length / columns));
 	const totalHeight = $derived(totalRows * itemHeight);
 

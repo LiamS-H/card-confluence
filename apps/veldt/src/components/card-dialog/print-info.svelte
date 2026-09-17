@@ -1,4 +1,6 @@
 <script lang="ts">
+	// TODO: make this accept null as print_index, could be used for minimal db version that doesn't download print info at all
+	// combine with dialog not using unused card info
 	import { type DetailedCard } from '$lib';
 	import * as Accordion from '$components/ui/accordion';
 	import { Button } from '$components/ui/button';
@@ -12,9 +14,6 @@
 	} from '$lib/card-confluence/utils';
 
 	const { card, print_index }: { card: DetailedCard; print_index: number } = $props();
-	$effect(() => {
-		console.log(card.rulings);
-	});
 
 	const active_print = $derived(card.prints[print_index]);
 </script>

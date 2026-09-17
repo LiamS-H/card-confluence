@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { EditorState } from '@codemirror/state';
 	import { EditorView } from '@codemirror/view';
 	import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
@@ -14,6 +14,7 @@
 	let view: EditorView;
 
 	onMount(() => {
+		console.log('mounting');
 		// 1. Create the state
 		const state = EditorState.create({
 			doc: doc,
@@ -49,6 +50,17 @@
 		return () => {
 			view.destroy();
 		};
+	});
+
+	$effect(() => {
+		const c_view = untrack(() => view);
+
+		// Only dispatch if the prop doc differs from CodeMirror's current text
+		if (c_view && doc !== c_view.state.doc.toString()) {
+			c_view.dispatch({
+				changes: { from: 0, to: c_view.state.doc.length, insert: doc }
+			});
+		}
 	});
 </script>
 

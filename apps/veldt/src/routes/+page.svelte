@@ -8,8 +8,7 @@
 	import Card from '$components/card-img/card.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
-	import { CardDialog, CardInfo } from '$components/card-dialog';
-	import * as Dialog from '$components/ui/dialog';
+	import { CardDialog } from '$components/card-dialog';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
 	let active_card_id = $derived(page.url.searchParams.get('card') ?? null);
@@ -41,7 +40,6 @@
 	print_id={active_print_id}
 	on_close={() => {
 		const params = new URL(page.url).searchParams;
-		params.set('q', query);
 		params.delete('card');
 		params.delete('print');
 		goto(resolve(`/?${params.toString()}`), {
@@ -88,10 +86,8 @@
 						>
 							{#snippet children({ card, print, width })}
 								{const params = new URL(page.url).searchParams}
-								{@const _ =
-									(params.set('q', query),
-									params.set('card', card.oracle_id),
-									params.set('print', print.scryfall_id))}
+								{const _ =
+									(params.set('card', card.oracle_id), params.set('print', print.scryfall_id))}
 								<a href={`/?${params.toString()}`}>
 									<Card {card} {print} {width} />
 								</a>

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$components/ui/button';
 	import Card from '$components/card-img/card.svelte';
-	import { use_deck_cards } from '$lib/sync/use-cards.svelte';
+	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
 	import type { Card as CardObj, Print } from '@card-confluence/wasm-browser';
 
 	const props: { card: CardObj; print: Print; width: number | string } = $props();
@@ -17,13 +17,15 @@
 		>
 			main +
 		</Button>
-		<Button
-			onclick={() => {
-				deck.move_cards(props.card.oracle_id, 'considering', 'sideboard', 1);
-			}}
-		>
-			side +
-		</Button>
+		{#if deck.settings.sideboard}
+			<Button
+				onclick={() => {
+					deck.move_cards(props.card.oracle_id, 'considering', 'sideboard', 1);
+				}}
+			>
+				side +
+			</Button>
+		{/if}
 		<Button
 			intent="destructive"
 			onclick={() => {

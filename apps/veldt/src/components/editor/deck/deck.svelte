@@ -1,60 +1,30 @@
 <script lang="ts">
-	import { use_deck_cards } from '$lib/sync/use-cards.svelte';
-	import RowResult from '$components/query/row-result.svelte';
-	import ConsideringCard from '$components/editor/deck/considering-card.svelte';
-	import DeckCard from '$components/editor/deck-card.svelte';
+	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import View from './view.svelte';
 
 	const deck = use_deck_cards();
-	const { main_deck, considering, sideboard } = $derived(deck);
 
 	const width = $state(200);
+
+	const view: string | null = $state(deck.doc_parsed.views[0] ?? null);
 </script>
 
-<div class="flex flex-col gap-2">
-	<div class="border-2 border-foreground">
-		{#each main_deck as deck_card (deck_card.oracle_id)}
-			<RowResult
-				result={{
-					matched_prints: [deck_card.instances[0].scryfall_id],
-					oracle_id: deck_card.oracle_id
-				}}
-				key={deck_card.oracle_id}
-			>
-				{#snippet children({ card, print })}
-					<DeckCard {card} {print} {width} zone="mainboard" />
-				{/snippet}
-			</RowResult>
-		{/each}
+<div class="flex w-full flex-col gap-2">
+	<div class="flex flex-col">
+		<View {width} cards={deck.main_deck} view={deck.doc_parsed.objects.get(view) as any} />
 	</div>
-
-	<div class="border-2 border-foreground">
-		{#each sideboard as deck_card (deck_card.oracle_id)}
-			<RowResult
-				result={{
-					matched_prints: [deck_card.instances[0].scryfall_id],
-					oracle_id: deck_card.oracle_id
-				}}
-				key={deck_card.oracle_id}
-			>
-				{#snippet children({ card, print })}
-					<DeckCard {card} {print} {width} zone="sideboard" />
-				{/snippet}
-			</RowResult>
-		{/each}
-	</div>
-	<div class="border-2 border-foreground">
-		{#each considering as deck_card (deck_card.oracle_id)}
-			<RowResult
-				result={{
-					matched_prints: [deck_card.instances[0].scryfall_id],
-					oracle_id: deck_card.oracle_id
-				}}
-				key={deck_card.oracle_id}
-			>
-				{#snippet children({ card, print })}
-					<ConsideringCard {card} {print} {width} />
-				{/snippet}
-			</RowResult>
-		{/each}
+	{#if deck.settings.sideboard}
+		<div class="flex w-full flex-col">
+			<div class="border-y-2 border-secondary text-secondary">
+				<span>sideboard</span>
+			</div>
+			<View {width} cards={deck.sideboard} view={deck.doc_parsed.objects.get(view) as any} />
+		</div>
+	{/if}
+	<div class="flex w-full flex-col">
+		<div class="w-full border-y-2 border-primary text-primary">
+			<span>considering</span>
+		</div>
+		<View {width} cards={deck.considering} view={deck.doc_parsed.objects.get(view) as any} />
 	</div>
 </div>

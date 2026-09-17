@@ -19,6 +19,11 @@ export function use_query(getQuery: () => QueryRequest, debounce: number) {
 	return {
 		get response() {
 			return query_client.queries.get(key) ?? { loading: true, error: false };
+		},
+		query_now: (query: QueryRequest) => {
+			const next_key = query_to_string(query);
+			key = next_key;
+			query_client.ensure_query(query);
 		}
 	};
 }
