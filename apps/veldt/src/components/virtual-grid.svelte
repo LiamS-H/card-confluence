@@ -8,7 +8,9 @@
 		columns: number;
 		aspectRatio?: number; // width / height, default 5/7
 		overscan?: number;
-		item?: Snippet<[{ index: number; item: T; row: number; col: number; viewportRow: number }]>;
+		item?: Snippet<
+			[{ index: number; item: T; row: number; col: number; viewportRow: number; width: number }]
+		>;
 	};
 
 	let {
@@ -57,6 +59,7 @@
 					item: items[index],
 					row,
 					col,
+					width: itemWidth,
 					x: col * itemWidth,
 					y: row * itemHeight,
 					viewportRow: row - start
@@ -81,13 +84,7 @@
 				style:height="{itemHeight}px"
 				style:transform="translate({v.x}px, {v.y}px)"
 			>
-				{@render item?.({
-					index: v.index,
-					item: v.item,
-					row: v.row,
-					col: v.col,
-					viewportRow: v.viewportRow
-				})}
+				{@render item?.(v)}
 			</div>
 		{/each}
 	</div>

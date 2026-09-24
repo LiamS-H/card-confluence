@@ -26,7 +26,7 @@ import type {
 	Completion,
 	MetaData
 } from '@card-confluence/wasm-browser';
-import { get_veldt_settings, type VeldtSettings } from '$lib/settings.svelte';
+import { get_local_settings, type LocalSettings } from '$lib/local-settings.svelte';
 import { compare_metadata, get_opfs_metadata, get_remote_metadata } from './db-meta';
 import { download_db } from './download-worker/factory';
 import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
@@ -81,7 +81,7 @@ class QueryClient {
 	private epoch = $state(0);
 	db_status = $state<DBStatus>({
 		state: 'loading',
-		data: get_veldt_settings().database.useLocal ? 'local' : 'remote'
+		data: get_local_settings().database.useLocal ? 'local' : 'remote'
 	});
 	private initialized = false;
 
@@ -118,7 +118,7 @@ class QueryClient {
 		type Config = { local: true; update: MetaData | null } | { local: false; update: null } | null;
 		let last_config: null | Config = null;
 
-		async function handle_settings(settings: VeldtSettings) {
+		async function handle_settings(settings: LocalSettings) {
 			const [remote_meta, remote_error] = await get_remote_metadata(PUBLIC_PARQUET_LATEST);
 			const [local_meta, local_error] = await get_opfs_metadata();
 
@@ -207,7 +207,7 @@ class QueryClient {
 		// no memory leak since this is a singleton class attached to the browser.
 		$effect.root(() => {
 			$effect(() => {
-				const settings = $state.snapshot(get_veldt_settings());
+				const settings = $state.snapshot(get_local_settings());
 				handle_settings(settings);
 			});
 		});

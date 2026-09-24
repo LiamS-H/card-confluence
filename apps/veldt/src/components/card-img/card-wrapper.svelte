@@ -22,6 +22,6 @@
 	const rounding = $derived(alpha ? 'rounded-[8.5%/5.2%]' : 'rounded-[6%/4%]');
 </script>
 
-<div class={`relative aspect-5/7 overflow-clip ${rounding}`} style={`${dim}:${size}px`}>
+<div class={`relative aspect-5/7 overflow-clip ${rounding}`} style={`${dim}:${size}`}>
 	{@render children()}
 </div>

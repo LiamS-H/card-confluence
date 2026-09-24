@@ -3,7 +3,7 @@ import { sync_client } from './client';
 import * as Y from 'yjs';
 
 export function use_deck_meta(id: () => string) {
-	const root = sync_client.get_root();
+	const root = sync_client.decks_root;
 	let deck = $state<DeckStruct | undefined>(root.get(id()));
 
 	const out = $derived<{ error: string } | { error: null; deck: DeckSerialized }>(
@@ -49,7 +49,7 @@ export function use_deck_meta(id: () => string) {
 }
 
 export function use_deck_yjs(id: () => string) {
-	const root = sync_client.get_root();
+	const root = sync_client.decks_root;
 	let deck = $state<DeckStruct | undefined>(undefined);
 
 	const out = $derived<{ error: string } | { error: null; deck: DeckStruct }>(

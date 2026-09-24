@@ -1,3 +1,6 @@
-import Card from './card.svelte';
+import CardImage from './index.svelte';
+import CardImageError from './error.svelte';
+import CardImageLoading from './loading.svelte';
+import CardIllustration from './illustration.svelte';
 
-export default Card;
+export { CardImage, CardImageError, CardImageLoading, CardIllustration };

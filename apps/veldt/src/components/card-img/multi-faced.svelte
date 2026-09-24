@@ -1,8 +1,16 @@
 <script lang="ts">
 	import type { Illustration as IIllustration } from '@card-confluence/wasm-browser';
 	import Illustration from './illustration.svelte';
+	import { Button } from '$components/ui/button';
+	import { Flip } from '@material-symbols-svg/svelte/sharp';
+	import type { CardActionProps } from './index.svelte';
 
-	const { illustrations, alt }: { illustrations: IIllustration[]; alt: string } = $props();
+	const {
+		illustrations,
+		alt,
+		href,
+		onclick
+	}: { illustrations: IIllustration[]; alt: string } & CardActionProps = $props();
 	let face = $state(0);
 
 	function next_face() {
@@ -10,5 +18,10 @@
 	}
 </script>
 
-<button class="absolute top-2 right-2" onclick={next_face}>flip</button>
-<Illustration illustration={illustrations[face]} {alt} />
+<Button class="absolute top-2 right-2" variant="ghost" onclick={next_face} size="icon">
+	<Flip />
+</Button>
+
+<svelte:element this={href ? 'a' : 'button'} {href} {onclick} role={href ? 'link' : undefined}>
+	<Illustration illustration={illustrations[face]} {alt} />
+</svelte:element>

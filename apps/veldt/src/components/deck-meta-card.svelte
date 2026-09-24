@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { use_deck_meta } from '$lib';
-	import Button from './button.svelte';
+	import { Button } from '$components/ui/button';
 
 	const { id, edit }: { id: string; edit: boolean } = $props();
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Popover as PopoverPrimitive } from 'bits-ui';
-	import Button from '$components/button.svelte';
+	import { Button } from '$components/ui/button';
 
 	let {
 		ref = $bindable(null),

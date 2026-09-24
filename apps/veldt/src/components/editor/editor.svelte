@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { DeckStruct } from '@repo/schema-sync';
 	import { sync_client } from '$lib/sync/client';
-	import Input from '$components/input.svelte';
-	import TagDoc from './tag/tag-doc.svelte';
+	import { Input } from '$components/ui/input';
+	import Document from './document/document.svelte';
 	import { Button } from '$components/ui/button';
 	import Deck from './deck/deck.svelte';
 	import { use_deck_cards_provider } from '$lib/sync/use-deck-cards.svelte';
@@ -71,7 +71,7 @@
 			value={title_string}
 			oninput={(event) => {
 				const newValue = event.currentTarget.value;
-				sync_client.get_doc().transact(() => {
+				sync_client.doc.transact(() => {
 					title.delete(0, title.length);
 					title.insert(0, newValue);
 				});
@@ -90,7 +90,7 @@
 			</Button>
 		{/each}
 		{#if view === 'tags'}
-			<TagDoc {jump_to_query} />
+			<Document {jump_to_query} />
 		{:else if view === 'deck'}
 			<Deck />
 		{:else if view === 'card +'}

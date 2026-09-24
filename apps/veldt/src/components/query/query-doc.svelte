@@ -14,8 +14,6 @@
 	let view: EditorView;
 
 	onMount(() => {
-		console.log('mounting');
-		// 1. Create the state
 		const state = EditorState.create({
 			doc: doc,
 			selection: { anchor: doc.length },
@@ -55,7 +53,6 @@
 	$effect(() => {
 		const c_view = untrack(() => view);
 
-		// Only dispatch if the prop doc differs from CodeMirror's current text
 		if (c_view && doc !== c_view.state.doc.toString()) {
 			c_view.dispatch({
 				changes: { from: 0, to: c_view.state.doc.length, insert: doc }

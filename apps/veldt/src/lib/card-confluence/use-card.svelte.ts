@@ -1,6 +1,6 @@
 import { query_client } from '$lib';
 
-export function use_card(getId: () => string, debounce?: number, key?: string) {
+export function use_card(getId: () => string, debounce?: number, key?: string | undefined) {
 	const id = $derived(getId());
 	key ??= crypto.randomUUID();
 	let timeout: NodeJS.Timeout;

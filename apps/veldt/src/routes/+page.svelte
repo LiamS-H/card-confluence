@@ -1,11 +1,9 @@
 <script lang="ts">
 	import { use_query } from '$lib';
-	import { type QueryResultRow } from '$lib';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import RowResult from '$components/query/row-result.svelte';
-	import Card from '$components/card-img/card.svelte';
+	import { ResultCard } from '$components/card';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import { CardDialog } from '$components/card-dialog';
@@ -78,21 +76,9 @@
 	{#if !response.loading && !response.error}
 		<div class="relative h-full flex-1">
 			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
-				{#snippet item({ index, viewportRow, col })}
+				{#snippet item({ viewportRow, col, item })}
 					<div class="p-1">
-						<RowResult
-							result={response.result.rows[index] as QueryResultRow}
-							key={`${viewportRow}-${col}`}
-						>
-							{#snippet children({ card, print, width })}
-								{const params = new URL(page.url).searchParams}
-								{const _ =
-									(params.set('card', card.oracle_id), params.set('print', print.scryfall_id))}
-								<a href={`/?${params.toString()}`}>
-									<Card {card} {print} {width} />
-								</a>
-							{/snippet}
-						</RowResult>
+						<ResultCard result={item} key={`${viewportRow}-${col}`} width="100%" />
 					</div>
 				{/snippet}
 			</VirtualGrid>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Illustration } from '@card-confluence/wasm-browser';
-	import Error from './error.svelte';
+	import ErrorInner from './error-inner.svelte';
 
 	export type IllustrationProps = {
 		illustration: Illustration;
@@ -27,7 +27,7 @@
 		src={image_uri}
 		onload={async (e) => {
 			try {
-				await e.currentTarget.decode();
+				await (e.currentTarget as HTMLImageElement).decode();
 			} catch {
 				//
 			} finally {
@@ -36,5 +36,5 @@
 		}}
 	/>
 {:else}
-	<Error message={`failed to find image. ${alt}`} />
+	<ErrorInner message={`failed to find image. ${alt}`} />
 {/if}

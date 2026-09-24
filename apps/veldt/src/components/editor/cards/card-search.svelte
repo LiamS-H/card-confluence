@@ -1,22 +1,22 @@
 <script lang="ts">
 	import { use_query } from '$lib';
-	import { type QueryResultRow } from '$lib';
-	import RowResult from '$components/query/row-result.svelte';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import { Button } from '$components/ui/button';
-	import DeckSearchCard from '$components/editor/deck-card.svelte';
 	import type { DeckZone } from '@repo/schema-sync';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
-	import { get_veldt_settings } from '$lib/settings.svelte';
+	import { get_local_settings } from '$lib/local-settings.svelte';
+	import { query_with_domain } from '$lib/utils';
+	import { ResultCard } from '$components/card';
+	import CardOptionsDeck from '../card-options-deck.svelte';
 
-	const { doc_parsed } = use_deck_cards();
+	const { doc_state, settings } = use_deck_cards();
 
 	const {
 		cards: { variant }
-	} = get_veldt_settings();
+	} = get_local_settings();
 
 	let search_query = $derived(page.url.searchParams.get('q') ?? '');
 
@@ -36,19 +36,22 @@
 			replaceState: true
 		});
 	}
-	const query = $derived(doc_parsed.domain + ' ' + search_query);
+	const query = $derived(query_with_domain(doc_state.parsed, search_query));
 	let data = use_query(() => ({ query }), 500);
+
 	$effect(() => {
-		const query = doc_parsed.domain + ' ' + (page.url.searchParams.get('q') ?? '');
-		console.log('querying now', query);
+		const query = query_with_domain(doc_state.parsed, page.url.searchParams.get('q') ?? '');
 		data.query_now({ query });
 	});
 	const { response } = $derived(data);
 
 	let card_columns = $state(4);
-	const add_zones: DeckZone[] = ['considering', 'mainboard', 'sideboard'];
+	const add_zones: DeckZone[] = $derived(
+		settings.sideboard ? ['considering', 'mainboard', 'sideboard'] : ['considering', 'mainboard']
+	);
+
 	let add_zone_index = $state(0);
-	let zone: DeckZone = $derived(add_zones[add_zone_index]);
+	let zone: DeckZone = $derived(add_zones[add_zone_index % add_zones.length]);
 </script>
 
 <div class="flex h-full flex-col">
@@ -96,16 +99,13 @@
 				columns={card_columns}
 				overscan={10}
 			>
-				{#snippet item({ index, viewportRow, col })}
+				{#snippet item({ item, viewportRow, col })}
 					<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
-						<RowResult
-							result={response.result.rows[index] as QueryResultRow}
-							key={`${viewportRow}-${col}`}
-						>
-							{#snippet children({ card, print, width })}
-								<DeckSearchCard {card} {print} {width} {zone} />
+						<ResultCard result={item} key={`${viewportRow}-${col}`} width="100%">
+							{#snippet options({ card, print })}
+								<CardOptionsDeck {card} {print} {zone} />
 							{/snippet}
-						</RowResult>
+						</ResultCard>
 					</div>
 				{/snippet}
 			</VirtualGrid>

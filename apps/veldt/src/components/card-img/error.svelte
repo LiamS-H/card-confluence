@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import CardWrapper, { type CardSizeProps } from './card-wrapper.svelte';
+	import ErrorInner from './error-inner.svelte';
 
-	const { message }: { message: string } = $props();
-	onMount(() => {
-		console.error('[card]', message);
-	});
+	const { message, ...size }: CardSizeProps & { message: string } = $props();
 </script>
 
-<p>Error: {message}</p>
+<CardWrapper {...size}>
+	<ErrorInner {message} />
+</CardWrapper>

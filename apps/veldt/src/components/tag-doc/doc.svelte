@@ -1,47 +1,50 @@
 <script lang="ts">
 	// TODO: don't love the preview layout, ideal ux would be a codemirror state extension, put a little + next to the tag you are editing to expand the preview beneath
 	// show a little ticker beneath the tag you are editing which shows error when error and + expand otherwise
-	import { onMount } from 'svelte';
 	import { type QueryResultRow } from '$lib';
 	import { use_query } from '$lib';
 	import VirtualGrid from '$components/virtual-grid.svelte';
-	import RowResult from '$components/query/row-result.svelte';
 	import { Button } from '$components/ui/button';
-	import CardImg from '$components/card-img';
 	import * as Card from '$components/ui/card';
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { TagDocState } from './state.svelte';
+	import { ResultCard } from '$components/card';
 
-	const { jump_to_query } = $props<{
-		jump_to_query: (query: string) => void;
+	const { jump_to_query, doc_state } = $props<{
+		jump_to_query?: ((query: string) => void) | undefined;
+		doc_state: TagDocState;
 	}>();
-
-	const deck = use_deck_cards();
 
 	let editorContainer: HTMLDivElement;
 
 	const query = $derived.by(() => {
-		if (deck.cursor_tag === null) return '';
-		return (deck.doc_obj.domain ?? '') + ' ' + deck.cursor_tag.query;
+		if (doc_state.cursor_tag === null) return '';
+		return (doc_state.parsed.domain ?? '') + ' ' + doc_state.cursor_tag.query;
 	});
 	let data = use_query(() => ({ query }), 500);
 	const { response } = $derived(data);
 
-	// Trigger an immediate query when the cursor moves to a tag
+	// TODO: replace the fragile name, with a scope (will require refactor of cursor_tag)
+	// this will fix the bug where the view doesn't update immediately when switching between tags of the same name
+	// svelte-ignore state_referenced_locally
+	let last_tag_label = doc_state.cursor_tag ? doc_state.cursor_tag.name : null;
 	$effect(() => {
-		const ct = deck.cursor_tag;
-		if (ct) {
-			data.query_now({ query: (deck.doc_obj.domain ?? '') + ' ' + ct.query });
+		const current_tag = doc_state.cursor_tag;
+		if (current_tag === null) {
+			last_tag_label = null;
+			return;
 		}
+		if (current_tag.name === last_tag_label) {
+			return;
+		}
+		last_tag_label = current_tag.name;
+		data.query_now({ query: (doc_state.parsed.domain ?? '') + ' ' + current_tag.query });
 	});
 
-	onMount(() => {
-		// get_view() is idempotent — creates once, returns the same instance on re-mount.
-		// The view keeps running (yCollab, onDeckUpdate) even when detached from the DOM.
-		const view = deck.get_view();
+	$effect(() => {
+		const view = doc_state.view;
 		editorContainer.appendChild(view.dom);
 
 		return () => {
-			// Detach from DOM but do NOT destroy — view stays alive for background updates.
 			editorContainer.removeChild(view.dom);
 		};
 	});
@@ -56,7 +59,7 @@
 	<div bind:this={editorContainer} class="w-full"></div>
 
 	<div class="absolute top-2 right-2">
-		{#if previewOpen && deck.cursor_tag}
+		{#if previewOpen && doc_state.cursor_tag}
 			<div
 				class="flex min-h-107 min-w-96 resize flex-col overflow-hidden [direction:rtl]"
 				bind:offsetWidth={previewW}
@@ -76,14 +79,11 @@
 							<VirtualGrid items={response.result.rows} columns={previewColumns} overscan={2}>
 								{#snippet item({ index, viewportRow, col })}
 									<div class="p-1">
-										<RowResult
+										<ResultCard
+											width="100%"
 											result={response.result.rows[index] as QueryResultRow}
 											key={`${viewportRow}-${col}`}
-										>
-											{#snippet children({ card, print, width })}
-												<CardImg {card} {print} {width} />
-											{/snippet}
-										</RowResult>
+										/>
 									</div>
 								{/snippet}
 							</VirtualGrid>
@@ -94,20 +94,22 @@
 					<span
 						class="flex flex-1 items-center justify-center bg-foreground text-xl text-background"
 					>
-						{deck.cursor_tag.name}
+						{doc_state.cursor_tag.name}
 					</span>
-					{const tag_query = deck.cursor_tag.query.trim()}
-					<Button
-						disabled={tag_query === ''}
-						onclick={() => {
-							jump_to_query(tag_query);
-						}}>search +</Button
-					>
+					{#if jump_to_query !== undefined}
+						{const tag_query = doc_state.cursor_tag.query.trim()}
+						<Button
+							disabled={tag_query === ''}
+							onclick={() => {
+								jump_to_query(tag_query);
+							}}>search +</Button
+						>
 
-					<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
+						<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
+					{/if}
 				</div>
 			</div>
-		{:else if !previewOpen && deck.cursor_tag}
+		{:else if !previewOpen && doc_state.cursor_tag}
 			<Button onclick={() => (previewOpen = true)}>preview</Button>
 		{/if}
 	</div>

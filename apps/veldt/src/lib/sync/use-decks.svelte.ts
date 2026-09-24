@@ -3,7 +3,7 @@ import { sync_client } from './client';
 import * as Y from 'yjs';
 
 export function use_decks() {
-	const root = sync_client.get_root();
+	const root = sync_client.decks_root;
 	let decks = $state(Array.from(root.keys()));
 
 	$effect(() => {

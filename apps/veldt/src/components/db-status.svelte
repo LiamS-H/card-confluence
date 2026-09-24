@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { query_client } from '$lib';
 	import { Button } from '$components/ui/button';
-	import { get_veldt_settings, set_veldt_settings } from '$lib/settings.svelte';
+	import { get_local_settings, set_local_settings } from '$lib/local-settings.svelte';
 	import * as Popover from '$components/ui/popover';
 	import * as Card from '$components/ui/card';
 
@@ -9,10 +9,10 @@
 
 	let isOpen = $state(false);
 
-	const settings = get_veldt_settings();
+	const settings = get_local_settings();
 
 	function set_local(useLocal: boolean) {
-		set_veldt_settings({
+		set_local_settings({
 			...settings,
 			database: { ...settings.database, useLocal }
 		});
@@ -28,11 +28,11 @@
 				variant={isOpen ? 'fixed' : 'outline'}
 				onclick={() => (isOpen = !isOpen)}
 			>
-				data
+				{status.data}
 			</Button>
 		{/snippet}
 	</Popover.Trigger>
-	<Popover.Content align="end">
+	<Popover.Content>
 		<Card.Root intent={'secondary'}>
 			<Card.Body>
 				<span class="w-full text-xl">Database Location - {status.data} </span>

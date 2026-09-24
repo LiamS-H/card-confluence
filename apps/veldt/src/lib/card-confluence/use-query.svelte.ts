@@ -1,8 +1,8 @@
 import { query_client, query_to_string, type QueryRequest } from '$lib';
 
-export function use_query(getQuery: () => QueryRequest, debounce: number) {
+export function use_query(getQuery: () => QueryRequest, debounce: number, manual_key?: string) {
 	let timeout: NodeJS.Timeout;
-	let key = $state(query_to_string(getQuery()));
+	let key = $state(manual_key || query_to_string(getQuery()));
 
 	$effect(() => {
 		query_client.track_invalidations();

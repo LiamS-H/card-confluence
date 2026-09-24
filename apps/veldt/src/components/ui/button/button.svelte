@@ -1,50 +1,6 @@
-<script lang="ts" module>
-	import { type VariantProps, tv } from 'tailwind-variants';
-	import { cn, type WithElementRef } from '$lib/utils.js';
-	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
-	import type { Snippet } from 'svelte';
-
-	export const buttonVariants = tv({
-		base: 'group relative overflow-hidden transition-colors aria-disabled:opacity-50 aria-disabled:pointer-events-none',
-		variants: {
-			intent: {
-				default: 'border-foreground text-foreground bg-black',
-				primary: 'border-primary  text-primary bg-black',
-				secondary: 'border-secondary text-secondary bg-black',
-				destructive: 'border-destructive text-destructive bg-black'
-			},
-			variant: {
-				full: 'border-2',
-				outline: 'border-2',
-				fixed: 'border-2'
-			},
-			size: {
-				xs: 'text-sm px-2 py-0.5',
-				sm: 'text-base px-3 py-1',
-				md: 'text-xl px-3 py-1',
-				lg: 'text-2xl px-3 py-1'
-			}
-		},
-
-		defaultVariants: {
-			intent: 'default',
-			variant: 'outline',
-			size: 'md'
-		}
-	});
-
-	export type ButtonVariants = VariantProps<typeof buttonVariants>;
-
-	export type ButtonProps = WithElementRef<HTMLButtonAttributes> &
-		WithElementRef<HTMLAnchorAttributes> & {
-			children: Snippet;
-			intent?: ButtonVariants['intent'];
-			variant?: ButtonVariants['variant'];
-			size?: ButtonVariants['size'];
-		};
-</script>
-
 <script lang="ts">
+	import { type ButtonProps, buttonVariants } from './button.types.ts';
+	import { cn } from '$lib/utils.js';
 	let {
 		class: className,
 		intent,
@@ -65,13 +21,19 @@
 		destructive: 'bg-destructive'
 	};
 
-	const spanTranslate = $derived(
-		variant === 'fixed'
-			? 'translate-x-0'
-			: variant === 'full'
-				? 'translate-x-0 group-hover:translate-x-full'
-				: '-translate-x-full group-hover:translate-x-0'
-	);
+	const spanTranslate = $derived.by(() => {
+		switch (variant) {
+			case 'fixed': {
+				return 'translate-x-0';
+			}
+			case 'full': {
+				return 'translate-x-0 group-hover:translate-x-full';
+			}
+			default: {
+				return '-translate-x-full group-hover:translate-x-0';
+			}
+		}
+	});
 </script>
 
 <svelte:element
@@ -88,10 +50,10 @@
 	{...restProps}
 >
 	<span
-		class="absolute inset-y-0 left-[-10%] z-0 w-[120%] skew-x-12 transition-transform duration-300
-            {bgMap[intent ?? 'default']} {spanTranslate}"
+		class={`${bgMap[intent ?? 'default']} ${spanTranslate} absolute inset-y-0 left-[-10%] z-0
+            w-[120%] skew-x-12 transition-transform duration-300`}
 	></span>
-	<span class="relative z-10 mix-blend-difference">
+	<span class="item-center relative z-10 flex justify-center mix-blend-difference">
 		{@render children()}
 	</span>
 </svelte:element>

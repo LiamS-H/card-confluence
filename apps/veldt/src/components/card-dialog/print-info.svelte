@@ -1,3 +1,7 @@
+<script lang="ts" module>
+	let value = $state<string[]>(['face-0', 'face-1']);
+</script>
+
 <script lang="ts">
 	// TODO: make this accept null as print_index, could be used for minimal db version that doesn't download print info at all
 	// combine with dialog not using unused card info
@@ -19,7 +23,7 @@
 </script>
 
 <div class="flex h-full flex-col items-center gap-2 overflow-y-auto md:flex-row md:items-start">
-	<Accordion.Root type="multiple">
+	<Accordion.Root bind:value type="multiple">
 		{const faces = card.card_faces ?? [card]}
 		{#each faces as face, i}
 			<Accordion.Item value={`face-${i}`}>
