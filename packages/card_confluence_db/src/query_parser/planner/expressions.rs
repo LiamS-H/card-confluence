@@ -187,6 +187,29 @@ pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
     }
 }
 
+pub fn array_text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
+    let arr_str = datafusion_functions_nested::expr_fn::array_to_string(col(column), lit(","));
+    if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
+        let regex = &value[1..value.len() - 1];
+        let udf: std::sync::Arc<datafusion::logical_expr::ScalarUDF> = datafusion::functions::regex::regexp_like();
+        return match op {
+            Op::Colon | Op::Eq => Ok(udf.call(vec![arr_str, lit(regex), lit("i")])),
+            Op::Ne => Ok(not(udf.call(vec![arr_str, lit(regex), lit("i")]))),
+            other => Err(PlanError(format!(
+                "Operator {other:?} is not valid for regex on array field '{column}'"
+            ))),
+        };
+    }
+    match op {
+        Op::Colon | Op::Eq => Ok(arr_str.ilike(lit(format!("%{value}%")))),
+        Op::Ne => Ok(not(arr_str.ilike(lit(format!("%{value}%"))))),
+        other => Err(PlanError(format!(
+            "Operator {other:?} is not valid for array field '{column}'"
+        ))),
+    }
+}
+
+
 pub fn exact_pred(column: &str, value: &str) -> Result<DFExpr, PlanError> {
     Ok(text_col(column).eq(lit(value.to_string())))
 }

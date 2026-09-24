@@ -55,8 +55,11 @@ impl Predicate {
             PredicateField::Color => color_pred(&column_name?, &pred.op, &pred.value, false),
             PredicateField::Identity => color_pred(&column_name?, &pred.op, &pred.value, true),
             PredicateField::OracleId => exact_pred("cards.oracle_id", &pred.value),
-            PredicateField::Produces | PredicateField::OracleTag | PredicateField::Keyword => {
+            PredicateField::Produces | PredicateField::OracleTag => {
                 Ok(array_contains_expr(&column_name?, lit(pred.value.clone())))
+            }
+            PredicateField::Keyword => {
+                crate::query_parser::planner::expressions::array_text_pred(&column_name?, &pred.op, &pred.value)
             }
             PredicateField::Format => format_pred(&pred.value),
 
