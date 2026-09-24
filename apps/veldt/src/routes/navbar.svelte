@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { type Pathname } from '$app/types';
 	import { Button } from '$components/ui/button';
-	import DbStatus from '$components/db-status.svelte';
 
 	// import { authClient } from '$lib';
 	// const session = authClient.useSession();
@@ -48,8 +47,7 @@
 <nav class="flex h-10 w-full items-center justify-between">
 	<a href={resolve('/')} class="ml-1 text-2xl font-bold">veldt.cards</a>
 	<ul class="flex">
-		<DbStatus />
-		{#each [{ label: 'cards', path: '/' }, { label: 'decks', path: '/decks' }] as const as route (route)}
+		{#each [{ label: 'cards', path: '/' }, { label: 'decks', path: '/decks' }, { label: 'settings', path: '/settings' }] as const as route (route)}
 			{@render navItem(route)}
 		{/each}
 		<!-- {#if $session.data}
