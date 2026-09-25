@@ -9,6 +9,7 @@
 	import { TagDocState } from './state.svelte';
 	import { ResultCard } from '$components/card';
 	import { use_settings } from '$lib/settings';
+	import { query_with_domain } from '$lib/utils';
 
 	const { jump_to_query, doc_state } = $props<{
 		jump_to_query?: ((query: string) => void) | undefined;
@@ -38,7 +39,7 @@
 			return;
 		}
 		last_tag_label = current_tag.name;
-		data.query_now({ query: (doc_state.parsed.domain ?? '') + ' ' + current_tag.query });
+		data.query_now({ query: query_with_domain(doc_state.parsed, current_tag.query) });
 	});
 
 	$effect(() => {
@@ -63,7 +64,7 @@
 <div class="relative">
 	<div bind:this={editorContainer} class="w-full"></div>
 
-	<div class="absolute top-2 right-2">
+	<div class="absolute top-2 right-2 z-2000">
 		{#if previewOpen && doc_state.cursor_tag}
 			<div
 				class="flex min-h-107 min-w-96 resize flex-col overflow-hidden [direction:rtl]"
@@ -110,9 +111,8 @@
 								jump_to_query(tag_query);
 							}}>search +</Button
 						>
-
-						<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
 					{/if}
+					<Button intent="destructive" onclick={() => (previewOpen = false)}>close</Button>
 				</div>
 			</div>
 		{:else if !previewOpen && doc_state.cursor_tag}
