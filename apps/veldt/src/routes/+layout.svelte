@@ -9,7 +9,7 @@
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
 <div class="grid min-h-dvh grid-rows-[auto_1fr] bg-background text-foreground">
-	<header>
+	<header class="sticky top-0 z-20 bg-background">
 		<Navbar />
 	</header>
 
