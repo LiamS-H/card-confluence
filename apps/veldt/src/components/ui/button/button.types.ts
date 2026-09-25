@@ -7,10 +7,10 @@ export const buttonVariants = tv({
 	base: 'group relative overflow-hidden transition-colors aria-disabled:opacity-50 aria-disabled:pointer-events-none',
 	variants: {
 		intent: {
-			default: 'border-foreground text-foreground bg-black',
-			primary: 'border-primary  text-primary bg-black',
-			secondary: 'border-secondary text-secondary bg-black',
-			destructive: 'border-destructive text-destructive bg-black'
+			default: 'border-foreground text-foreground',
+			primary: 'border-primary  text-primary',
+			secondary: 'border-secondary text-secondary',
+			destructive: 'border-destructive text-destructive'
 		},
 		variant: {
 			full: 'border-2',
