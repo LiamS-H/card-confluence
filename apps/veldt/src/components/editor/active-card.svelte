@@ -2,10 +2,7 @@
 	import { use_card } from '$lib';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import CardInfo from '$components/card-dialog/card-info.svelte';
-	import PrintInfo from '$components/card-dialog/print-info.svelte';
-	import CardInfoError from '$components/card-dialog/card-info-error.svelte';
-	import CardInfoSkeleton from '$components/card-dialog/card-info-skeleton.svelte';
+	import { CardInfo, CardInfoError, CardInfoLoading } from '$components/card-dialog';
 	import * as Dialog from '$components/ui/dialog';
 
 	let oracle_id = $derived(page.url.searchParams.get('card') ?? null);
@@ -39,28 +36,16 @@
 				<Dialog.Description class="sr-only"
 					>Info for a card you selected is currently loading.</Dialog.Description
 				>
-				<CardInfoSkeleton />
+				<CardInfoLoading />
 			{:else if card.error}
 				<Dialog.Title class="sr-only">Selected Card Error</Dialog.Title>
 				<Dialog.Description class="sr-only">{card.message}</Dialog.Description>
 				<CardInfoError message={card.message} />
 			{:else}
+				<Dialog.Title class="sr-only">Selected Card</Dialog.Title>
 				<Dialog.Description class="sr-only">{card.result.name}</Dialog.Description>
-				{#if print_id}
-					<Dialog.Title class="sr-only">Selected Print</Dialog.Title>
-					{const print_index = card.result.prints.findIndex((s) => s.scryfall_id === print_id)}
-					{#if print_index !== -1}
-						<PrintInfo card={card.result} {print_index} />
-					{:else}
-						<Dialog.Title class="sr-only">Selected Print Error</Dialog.Title>
-						<CardInfoError
-							message={`Couldn't find print:${print_id} on oracle_id:${card.result.oracle_id}`}
-						/>
-					{/if}
-				{:else}
-					<Dialog.Title class="sr-only">Selected Card</Dialog.Title>
-					<CardInfo card={card.result} />
-				{/if}
+				{const print_index = card.result.prints.findIndex((s) => s.scryfall_id === print_id)}
+				<CardInfo card={card.result} {print_index} />
 			{/if}
 		{/if}
 	</Dialog.Content>
