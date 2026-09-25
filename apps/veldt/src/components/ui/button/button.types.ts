@@ -13,8 +13,8 @@ export const buttonVariants = tv({
 			destructive: 'border-destructive text-destructive'
 		},
 		variant: {
-			full: 'border-2',
-			outline: 'border-2',
+			full: 'border-2 bg-background',
+			outline: 'border-2 bg-background',
 			fixed: 'border-2',
 			ghost: 'border-0'
 		},
