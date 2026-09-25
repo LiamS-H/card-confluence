@@ -65,7 +65,7 @@
 				</div>
 
 				<div
-					class="flex h-full min-h-75 flex-1 flex-col gap-1 overflow-y-auto rounded border border-foreground/20 p-2"
+					class="flex h-full min-h-75 flex-1 flex-col gap-1 overflow-y-auto border border-foreground/20 p-2"
 				>
 					{#each filteredTemplates as [id, tpl] (id)}
 						{const active = $derived(id === active_id)}
@@ -95,7 +95,7 @@
 			</div>
 
 			<!-- Editor -->
-			<div class="flex w-full flex-col gap-4 rounded border border-foreground/20 p-4 md:w-2/3">
+			<div class="flex w-full flex-col gap-4 border border-foreground/20 p-4 md:w-2/3">
 				{#if active_id}
 					{@const tpl = templates[active_id]}
 					<div class="flex flex-wrap items-center justify-between gap-2">
@@ -114,7 +114,7 @@
 					/>
 				{:else}
 					<div
-						class="flex h-full items-center justify-center rounded border-2 border-dashed border-foreground/20 p-8 text-muted-foreground"
+						class="flex h-full items-center justify-center border-2 border-dashed border-foreground/20 p-8 text-muted-foreground"
 					>
 						Select a template to edit or create a new one.
 					</div>
