@@ -35,11 +35,16 @@ class TagQuery {
 		);
 	});
 
-	constructor(tag: Tag) {
+	constructor(tag: Tag, eager: boolean) {
 		this.tag = tag;
+		let first_time = true;
 
 		this.cleanupRoot = $effect.root(() => {
-			this.data = use_query(() => ({ query: this.tag.query }), 10000, `${tag.scope}:${tag.label}`);
+			this.data = use_query(() => ({ query: this.tag.query }), 500, `${tag.scope}:${tag.label}`);
+			if (first_time && eager) {
+				this.data.query_now({ query: this.tag.query });
+			}
+			first_time = false;
 		});
 	}
 
@@ -78,7 +83,8 @@ export class TagDocState {
 				}),
 				yCollab(ytext, null, { undoManager }),
 				onDeckUpdate((parsed) => {
-					this.set_doc_parsed(parsed);
+					this._doc_parsed = parsed;
+					this.on_doc_parsed();
 				}),
 				EditorView.updateListener.of((update) => {
 					if (update.docChanged || update.selectionSet) {
@@ -92,14 +98,15 @@ export class TagDocState {
 			]
 		});
 		this._view = new EditorView({ state });
-		this.set_doc_parsed(this._view.state.field(deckStateField));
+		this._doc_parsed = this._view.state.field(deckStateField);
+		this.on_doc_parsed(true);
 	}
 
 	[Symbol.dispose]() {
 		this._view?.destroy();
 	}
 
-	private on_doc_parsed() {
+	private on_doc_parsed(eager?: boolean) {
 		const deck = this.parsed;
 		for (const key of this._tags_fetched.keys()) {
 			const obj = deck.objects.get(key);
@@ -119,14 +126,9 @@ export class TagDocState {
 			}
 			this._tags_fetched.set(
 				key,
-				new TagQuery({ ...obj, query: query_with_domain(deck, obj.query) })
+				new TagQuery({ ...obj, query: query_with_domain(deck, obj.query) }, eager ?? false)
 			);
 		}
-	}
-
-	private set_doc_parsed(deck: Deck) {
-		this._doc_parsed = deck;
-		this.on_doc_parsed();
 	}
 
 	get view(): EditorView {

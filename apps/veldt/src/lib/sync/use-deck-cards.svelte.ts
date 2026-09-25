@@ -2,13 +2,7 @@ import * as Y from 'yjs';
 import { getContext, setContext } from 'svelte';
 import { sync_client } from '$lib';
 
-import type {
-	DeckStruct,
-	DeckCard,
-	DeckZone,
-	OracleCard,
-	OracleCardSerialized
-} from '@repo/schema-sync';
+import type { DeckStruct, DeckCard, DeckZone, OracleCardSerialized } from '@repo/schema-sync';
 import { DeckMutationInterface } from '@repo/schema-sync';
 import { TagDocState } from '$components/tag-doc';
 
@@ -128,8 +122,5 @@ export function use_deck_cards_provider(getDeck: () => DeckStruct): DeckCardInte
 
 export function use_deck_cards(): DeckCardInterface {
 	const context = getContext(DECK_CARD_INTERFACE_KEY) as DeckCardInterface;
-	if (!context) {
-		throw Error('context undefined');
-	}
 	return context;
 }

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { Button } from '$components/ui/button';
+	import { use_settings } from '$lib/settings';
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
 	import type { Card as CardObj, Print } from '@card-confluence/wasm-browser';
 	import type { DeckZone } from '@repo/schema-sync';
-	import { get_local_settings } from '$lib/local-settings.svelte';
 
 	const props: {
 		card: CardObj;
@@ -17,9 +17,10 @@
 	);
 
 	const toggle_mode = $derived(deck.settings.singleton && !mult_in_singleton);
+
 	const {
-		cards: { variant }
-	} = get_local_settings();
+		cards: { deckVariant: variant }
+	} = use_settings();
 </script>
 
 <div class="flex">

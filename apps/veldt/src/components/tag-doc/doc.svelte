@@ -8,6 +8,7 @@
 	import * as Card from '$components/ui/card';
 	import { TagDocState } from './state.svelte';
 	import { ResultCard } from '$components/card';
+	import { use_settings } from '$lib/settings';
 
 	const { jump_to_query, doc_state } = $props<{
 		jump_to_query?: ((query: string) => void) | undefined;
@@ -53,6 +54,10 @@
 	let previewW: number | undefined = $state();
 	let previewH = $state();
 	const previewColumns = $derived(Math.max(1, Math.floor((previewW ?? 428) / 200)));
+
+	const {
+		cards: { deckVariant: variant }
+	} = use_settings();
 </script>
 
 <div class="relative">
@@ -80,6 +85,7 @@
 								{#snippet item({ index, viewportRow, col })}
 									<div class="p-1">
 										<ResultCard
+											{variant}
 											width="100%"
 											result={response.result.rows[index] as QueryResultRow}
 											key={`${viewportRow}-${col}`}
@@ -97,7 +103,7 @@
 						{doc_state.cursor_tag.name}
 					</span>
 					{#if jump_to_query !== undefined}
-						{const tag_query = doc_state.cursor_tag.query.trim()}
+						{const tag_query = $derived(doc_state.cursor_tag.query.trim())}
 						<Button
 							disabled={tag_query === ''}
 							onclick={() => {

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { query_client } from '$lib';
 	import { Button } from '$components/ui/button';
-	import { get_local_settings, set_local_settings } from '$lib/local-settings.svelte';
+	import { get_local_settings, set_local_settings } from '$lib/settings';
 	import * as Popover from '$components/ui/popover';
 	import * as Card from '$components/ui/card';
 

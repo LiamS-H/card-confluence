@@ -8,8 +8,7 @@
 	const {
 		illustrations,
 		alt,
-		href,
-		onclick
+		...actions
 	}: { illustrations: IIllustration[]; alt: string } & CardActionProps = $props();
 	let face = $state(0);
 
@@ -22,6 +21,4 @@
 	<Flip />
 </Button>
 
-<svelte:element this={href ? 'a' : 'button'} {href} {onclick} role={href ? 'link' : undefined}>
-	<Illustration illustration={illustrations[face]} {alt} />
-</svelte:element>
+<Illustration {...actions} illustration={illustrations[face]} {alt} />

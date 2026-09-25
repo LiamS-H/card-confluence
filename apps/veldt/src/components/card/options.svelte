@@ -5,7 +5,6 @@
 	// check against the domain of a deck so that suggestions contain only decks you would want to add it to
 	// add to new deck option in list of decks
 	import type { Card as CardObj, Print } from '@card-confluence/wasm-browser';
-	import { get_local_settings } from '$lib/local-settings.svelte';
 	import { sync_client, use_deck_meta, use_decks } from '$lib';
 
 	import { Button } from '$components/ui/button';
@@ -21,9 +20,6 @@
 		card: CardObj;
 		print: Print;
 	} = $props();
-	const {
-		cards: { variant }
-	} = get_local_settings();
 
 	let isOpen = $state(false);
 	const decks = use_decks();

@@ -29,14 +29,11 @@
 {:else}
 	<CardWrapper alpha={print.set_code === 'lea'} {...size}>
 		{#if print.illustrations.length === 1}
-			<svelte:element
-				this={href ? 'a' : 'button'}
-				{href}
-				{onclick}
-				role={href ? 'link' : undefined}
-			>
-				<Illustration illustration={print.illustrations[0]} alt={card.name} />
-			</svelte:element>
+			<Illustration
+				{...{ href, onclick } as CardActionProps}
+				illustration={print.illustrations[0]}
+				alt={card.name}
+			/>
 		{:else}
 			<MultiFaced
 				{...{ href, onclick } as CardActionProps}

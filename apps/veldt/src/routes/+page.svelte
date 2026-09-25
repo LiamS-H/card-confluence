@@ -7,6 +7,7 @@
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import { CardDialog } from '$components/card-dialog';
+	import { use_settings } from '$lib/settings';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
 	let active_card_id = $derived(page.url.searchParams.get('card') ?? null);
@@ -31,6 +32,10 @@
 	const { response } = $derived(data);
 
 	let card_columns = $state(4);
+
+	const {
+		cards: { searchVariant: variant }
+	} = use_settings();
 </script>
 
 <CardDialog
@@ -75,10 +80,15 @@
 	</div>
 	{#if !response.loading && !response.error}
 		<div class="relative h-full flex-1">
-			<VirtualGrid items={response.result.rows} columns={card_columns} overscan={10}>
+			<VirtualGrid
+				itemHeight={variant === 'img-full' ? undefined : 40}
+				items={response.result.rows}
+				columns={card_columns}
+				overscan={10}
+			>
 				{#snippet item({ viewportRow, col, item })}
 					<div class="p-1">
-						<ResultCard result={item} key={`${viewportRow}-${col}`} width="100%" />
+						<ResultCard {variant} result={item} key={`${viewportRow}-${col}`} width="100%" />
 					</div>
 				{/snippet}
 			</VirtualGrid>

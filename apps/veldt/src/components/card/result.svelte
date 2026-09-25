@@ -4,25 +4,26 @@
 	import { CardTile, CardTileError, CardTileLoading } from '$components/card-tile';
 	import RowResult from '$components/query/row-result.svelte';
 	import type { QueryResultRow } from '$lib';
-	import { get_local_settings } from '$lib/local-settings.svelte';
 	import type { Card as CardObj, Print } from '@card-confluence/wasm-browser';
 	import type { Snippet } from 'svelte';
 	import Options from './options.svelte';
+	import type { CardVariant } from '$lib/settings/settings-local.svelte';
 
 	const {
 		result,
 		key,
 		width,
-		options: _options
+		options: _options,
+		variant,
+		onclick
 	}: {
 		result: QueryResultRow;
 		key?: string;
 		width: string | number;
 		options?: Snippet<[{ card: CardObj; print: Print }]>;
+		variant: CardVariant;
+		onclick?: undefined | (() => void);
 	} = $props();
-	const {
-		cards: { variant }
-	} = get_local_settings();
 </script>
 
 {#snippet options({ card, print }: { card: CardObj; print: Print })}
@@ -41,13 +42,23 @@
 			params.set('print', print.scryfall_id);
 			return `${page.url.pathname}?${params.toString()}`;
 		})}
+		{const actions = $derived.by(() => {
+			if (onclick) {
+				return { onclick };
+			}
+			return { href };
+		})}
 
-		{#if variant === 'img'}
+		{#if variant === 'img-full'}
 			<div class="relative" style:width>
-				<CardImage {href} {card} {print} {width} />
-				<div class="absolute -bottom-1 -left-1 z-10">
+				<CardImage {...actions} {card} {print} {width} />
+				<div class="absolute bottom-0 left-0 z-10">
 					{@render options({ card, print })}
 				</div>
+			</div>
+		{:else if variant === 'img'}
+			<div class="relative mb-[-125%]" style:width>
+				<CardImage {...actions} {card} {print} {width} />
 			</div>
 		{:else if variant === 'tile'}
 			<div class="flex w-fit" style:width>
@@ -60,7 +71,9 @@
 	{/snippet}
 
 	{#snippet loading()}
-		{#if variant === 'img'}
+		{#if variant === 'img-full'}
+			<CardImageLoading {width} />
+		{:else if variant === 'img'}
 			<CardImageLoading {width} />
 		{:else if variant === 'tile'}
 			<CardTileLoading {width} />
@@ -68,7 +81,9 @@
 	{/snippet}
 
 	{#snippet error({ message })}
-		{#if variant === 'img'}
+		{#if variant === 'img-full'}
+			<CardImageError {message} {width} />
+		{:else if variant === 'img'}
 			<CardImageError {message} {width} />
 		{:else if variant === 'tile'}
 			<CardTileError {width} {message} />

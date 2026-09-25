@@ -5,18 +5,18 @@
 	import { Button } from '$components/ui/button';
 	import type { DeckZone } from '@repo/schema-sync';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
-	import { get_local_settings } from '$lib/local-settings.svelte';
 	import { query_with_domain } from '$lib/utils';
 	import { ResultCard } from '$components/card';
 	import CardOptionsDeck from '../card-options-deck.svelte';
+	import { use_settings } from '$lib/settings';
 
 	const { doc_state, settings } = use_deck_cards();
 
 	const {
-		cards: { variant }
-	} = get_local_settings();
+		cards: { searchVariant: variant }
+	} = use_settings();
 
 	let search_query = $derived(page.url.searchParams.get('q') ?? '');
 
@@ -33,15 +33,21 @@
 		goto(`${page.url.pathname}/?${params.toString()}`, {
 			keepFocus: true,
 			noScroll: true,
-			replaceState: true
+			replaceState: true,
+			state: { from_search_box: true }
 		});
 	}
 	const query = $derived(query_with_domain(doc_state.parsed, search_query));
 	let data = use_query(() => ({ query }), 500);
 
-	$effect(() => {
-		const query = query_with_domain(doc_state.parsed, page.url.searchParams.get('q') ?? '');
-		data.query_now({ query });
+	afterNavigate(() => {
+		// skip navigations we triggered ourselves via onDocChange
+		// @ts-expect-error
+		if (page.state.from_search_box) return;
+
+		console.log('[cards] instant query');
+		const new_query = query_with_domain(doc_state.parsed, page.url.searchParams.get('q') ?? '');
+		data.query_now({ query: new_query });
 	});
 	const { response } = $derived(data);
 
@@ -94,14 +100,14 @@
 	{#if !response.loading && !response.error}
 		<div class="relative flex-1">
 			<VirtualGrid
-				itemHeight={variant === 'img' ? undefined : 40}
+				itemHeight={variant === 'img-full' ? undefined : 40}
 				items={response.result.rows}
 				columns={card_columns}
 				overscan={10}
 			>
 				{#snippet item({ item, viewportRow, col })}
 					<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
-						<ResultCard result={item} key={`${viewportRow}-${col}`} width="100%">
+						<ResultCard {variant} result={item} key={`${viewportRow}-${col}`} width="100%">
 							{#snippet options({ card, print })}
 								<CardOptionsDeck {card} {print} {zone} />
 							{/snippet}
