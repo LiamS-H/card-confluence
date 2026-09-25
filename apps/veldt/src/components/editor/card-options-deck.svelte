@@ -70,6 +70,8 @@
 		>
 			-
 		</Button>
+	{/if}
+	{#if !toggle_mode || counts[props.zone] !== 1 || counts.total !== 1}
 		{const is_image = variant === 'img'}
 		{#if counts.considering > 0}
 			<span
@@ -95,8 +97,6 @@
 				>C</span
 			>
 		{/if}
-	{/if}
-	{#if !toggle_mode || counts[props.zone] !== 1 || counts.total !== 1}
 		<Button
 			size={variant === 'img' ? 'md' : 'xs'}
 			onclick={() => {
