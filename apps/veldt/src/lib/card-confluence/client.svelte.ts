@@ -1,7 +1,5 @@
 import { browser, dev } from '$app/environment';
-// import LocalQueryWorker from '$lib/card-confluence/local-worker?worker';
-import HTTPQueryWorker from '$lib/card-confluence/query-worker/http?worker';
-import LocalQueryWorker from '$lib/card-confluence/query-worker/local?worker';
+import QueryWorker from '$lib/card-confluence/query-worker?worker';
 import type {
 	DBStatus,
 	QueryWorkerMessage,
@@ -26,9 +24,8 @@ import type {
 	Completion,
 	MetaData
 } from '@card-confluence/wasm-browser';
-import { get_local_settings, type LocalSettings } from '$lib/local-settings.svelte';
+import { get_local_settings, type LocalSettings } from '$lib/settings';
 import { compare_metadata, get_opfs_metadata, get_remote_metadata } from './db-meta';
-import { download_db } from './download-worker/factory';
 import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
 
 export type { Print };
@@ -114,97 +111,74 @@ class QueryClient {
 			await cache_clear();
 		}
 
-		let worker: Worker;
-		type Config = { local: true; update: MetaData | null } | { local: false; update: null } | null;
-		let last_config: null | Config = null;
+		// Single unified worker, spawned once. Mode switches and downloads are now
+		// just postMessage calls into it — no more terminate/recreate cycle.
+		const worker = new QueryWorker();
+		worker.onerror = (e) => {
+			console.error(
+				'[cc-client] worker failed to start. can happen when env variables are missing.',
+				e
+			);
+		};
 
-		async function handle_settings(settings: LocalSettings) {
+		let last_use_local: boolean | null = null;
+
+		async function check_for_update(settings: LocalSettings) {
 			const [remote_meta, remote_error] = await get_remote_metadata(PUBLIC_PARQUET_LATEST);
 			const [local_meta, local_error] = await get_opfs_metadata();
 
-			function get_config(): Config {
-				if (local_error && remote_error) return null;
-				if (remote_error) {
-					return { local: true, update: null };
-				}
-				if (settings.database.useLocal === false) return { local: false, update: null };
-				// useLocal is true:
-				if (local_error) return { local: true, update: remote_meta };
-				const compare = compare_metadata(local_meta, remote_meta);
-				if (compare.sources.length === 0) return { local: true, update: null };
-
-				return { local: true, update: compare };
-			}
-			const config = get_config();
-
-			if (config === null) {
-				throw Error('DB connection error fatal.');
-			}
-			if (
-				last_config &&
-				config.local === last_config.local &&
-				!config.update === !last_config.update
-			) {
-			}
-			const { local } = config;
-
-			if (worker) {
-				console.log('[cc-client] deleting worker.');
-				worker.postMessage({ action: 'destroy' } as QueryWorkerMessage);
-				const { promise, resolve } = Promise.withResolvers();
-				worker.onmessage = resolve;
-				await promise;
-				worker.terminate();
-			}
-
-			if (!local) {
-				console.log('[cc-client] spawning http worker.');
-				worker = new HTTPQueryWorker();
-
-				worker.onerror = (e) => {
-					console.error(
-						'[cc-client] failed to start. can happen when env variables are missing.',
-						e
-					);
-				};
+			if (remote_error) {
+				// Can't reach remote metadata right now — nothing to compare against,
+				// stay on whatever mode we're already in.
+				console.warn('[cc-client] unable to check for remote updates.', remote_error);
 				return;
 			}
-			if (!config.update) {
-				console.log('[cc-client] spawning local worker.');
-				worker = new LocalQueryWorker();
-
-				worker.onerror = (e) => {
-					console.error(
-						'[cc-client] failed to start. can happen when env variables are missing.',
-						e
-					);
-				};
+			if (local_error) {
+				// No local db yet. set_mode('local') will have already surfaced an
+				// error via worker status if this was supposed to be a local session;
+				// nothing more to do here.
 				return;
 			}
-			console.log('[cc-client] spawning temporary http worker.');
-			worker = new HTTPQueryWorker();
-			worker.onerror = (e) => {
-				console.error('[cc-client] failed to start. can happen when env variables are missing.', e);
-			};
-			if (settings.database.askEachDownload) {
-				// we ask the user if they wish to download, and await a response
-			}
-			console.log('[cc-client] spawning download worker');
-			await download_db(config.update);
-			worker.postMessage({ action: 'destroy' } as QueryWorkerMessage);
-			const { promise, resolve } = Promise.withResolvers();
-			worker.onmessage = resolve;
-			await promise;
-			worker.terminate();
-			console.log('[cc-client] spawning local worker to take over.');
-			worker = new LocalQueryWorker();
 
-			worker.onerror = (e) => {
-				console.error('[cc-client] failed to start. can happen when env variables are missing.', e);
-			};
+			const compare = compare_metadata(local_meta, remote_meta);
+			if (compare.sources.length === 0) {
+				console.log('[cc-client] local db is up to date.');
+				return;
+			}
+
+			// TODO: when settings.database.askEachDownload is true, prompt the user
+			// here and only continue if they confirm. For now downloads proceed
+			// automatically.
+			console.log('[cc-client] update available:', compare.sources.length, 'source(s).');
+			worker.postMessage({ action: 'download', sources: compare.sources } as QueryWorkerMessage);
 		}
 
-		// no memory leak since this is a singleton class attached to the browser.
+		async function handle_settings(settings: LocalSettings) {
+			console.log();
+			const use_local = settings.database.useLocal !== false;
+
+			// Eagerly tell the worker which mode to use straight from settings — no
+			// metadata fetch on the startup path. The worker resolves whatever
+			// metadata it actually needs internally (new_http needs remote meta,
+			// new_opfs needs local meta), so queries can start flowing immediately.
+			if (use_local !== last_use_local) {
+				last_use_local = use_local;
+				worker.postMessage({
+					action: 'set-mode',
+					mode: use_local ? 'local' : 'http'
+				} as QueryWorkerMessage);
+			}
+
+			// Update-checking is a background concern: it doesn't gate queries,
+			// which are already being served by set-mode above. If an update is
+			// found, the worker's own download flow (free_local -> ensure_http ->
+			// download -> set_mode('local')) takes care of switching over.
+			if (use_local) {
+				void check_for_update(settings);
+			}
+		}
+
+		// no memory leak since this is a singleton class attached to the tab.
 		$effect.root(() => {
 			$effect(() => {
 				const settings = $state.snapshot(get_local_settings());

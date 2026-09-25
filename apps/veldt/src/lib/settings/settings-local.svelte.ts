@@ -1,8 +1,9 @@
-//TODO: This localStorage implementation should represent local settings, other setting should be stored on the base yjs for the user
-import { Channel } from './utils/channel';
+import { Channel } from '$lib/utils/channel';
 
 const key = 'LocalSettings';
 export const LocalSettingsChannel = new Channel<LocalSettings>(key);
+
+export type CardVariant = 'img' | 'img-full' | 'tile';
 
 export interface LocalSettings {
 	database: {
@@ -10,7 +11,8 @@ export interface LocalSettings {
 		askEachDownload: boolean;
 	};
 	cards: {
-		variant: 'img' | 'tile';
+		deckVariant: CardVariant;
+		searchVariant: 'img-full' | 'tile';
 	};
 }
 
@@ -21,7 +23,8 @@ export function get_default_local_settings(): LocalSettings {
 			askEachDownload: true
 		},
 		cards: {
-			variant: 'img'
+			deckVariant: 'img',
+			searchVariant: 'img-full'
 		}
 	};
 }

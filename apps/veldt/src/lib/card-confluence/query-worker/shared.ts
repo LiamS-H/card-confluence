@@ -1,14 +1,12 @@
-import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
-
-import init, {
+// TODO: Rename this file, and restructure. shared comes from when there were two different worker files
+import {
 	CardConfluenceBrowser,
 	type Completion,
-	type CompletionPlan,
-	type MetaData
+	type MetaData,
+	type MetaDataSource
 } from '@card-confluence/wasm-browser';
-import { QueryEventsChannel, QueryReqChannel } from '../channels';
+import { QueryEventsChannel } from '../channels';
 import {
-	cache_clear,
 	cache_store_get,
 	cache_store_insert,
 	local_cache,
@@ -58,14 +56,22 @@ export type QueryWorkerEvent =
 			type: 'db-check';
 	  }
 	| {
-			// will add more info to db status for the version and type of connection
-			// each client will maintain a svelte state object tracking this info
 			type: 'db-status';
 			status: DBStatus;
 	  }
 	| {
 			type: 'error-fatal';
 			message: string;
+	  }
+	| {
+			type: 'download-progress';
+			downloaded: number;
+			total: number;
+	  }
+	| {
+			type: 'download-complete';
+			success: boolean;
+			error?: string;
 	  };
 
 export type QueryWorkerResponse =
@@ -114,9 +120,10 @@ export type QueryWorkerRequest =
 			ids: string[];
 	  };
 
-export type QueryWorkerMessage = {
-	action: 'destroy';
-};
+export type QueryWorkerMessage =
+	| { action: 'destroy' }
+	| { action: 'set-mode'; mode: 'http' | 'local' }
+	| { action: 'download'; sources: MetaDataSource[] };
 
 export async function handle_query_request(
 	browser: CardConfluenceBrowser,
@@ -213,32 +220,3 @@ export async function handle_query_request(
 
 	return message;
 }
-
-QueryEventsChannel.onmessage(async (event) => {
-	// This needs a whole overhaul because we need to split the downloading and switching of databases,
-	//
-	if (event.data.type === 'db-check') {
-		QueryEventsChannel.postMessage({ type: 'db-status', status: worker_status });
-	}
-	// QueryEventsChannel.postMessage({ type: 'db-status', status: 'downloading' });
-	// (await local_browser).free();
-	// const intermediate_browser_promise = CardConfluenceBrowser.new_http(PUBLIC_PARQUET_LATEST);
-
-	// const { resolve, reject, promise } = Promise.withResolvers<CardConfluenceBrowser>();
-	// local_browser = promise;
-
-	// const reset = cache_clear();
-
-	// const [handles] = await Promise.all([sync_local_parquet(), reset]);
-	// // const [handles] = await Promise.all([get_local_parquet(), reset]);
-	// if ('type' in handles) {
-	// 	const message = `Error ${handles.type}:${handles.message} TODO: Handle gracefully ;)`;
-	// 	reject(message);
-	// 	QueryEventsChannel.postMessage({ type: 'error-fatal', message: 'failed to get file handle' });
-	// 	throw Error(message);
-	// }
-	// QueryEventsChannel.postMessage({ type: 'db-status', status: 'syncing' });
-	// const intermediate_browser = await intermediate_browser_promise;
-	// resolve(intermediate_browser);
-	// QueryEventsChannel.postMessage({ type: 'db-status', status: 'synced' });
-});

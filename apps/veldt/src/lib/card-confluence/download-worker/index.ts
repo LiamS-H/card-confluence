@@ -13,30 +13,43 @@ export type DownloadResponse =
 	| {
 			status: 'success';
 	  }
+	| {
+			status: 'progress';
+			downloaded: number;
+			total: number;
+	  }
 	| ({
 			status: 'error';
 	  } & (OPFSError | JSONError | FetchError));
 
-async function download_sources(request: DownloadRequest): Promise<DownloadResponse> {
-	const tasks = request.sources.map((source) =>
-		download_to_opfs(`${PUBLIC_PARQUET_LATEST}/${source.path}`, source.path)
-	);
+async function download_sources(request: DownloadRequest): Promise<void> {
+	const all_paths = [
+		...request.sources.map((source) => source.path),
+		'metadata.json'
+	];
+	const total = all_paths.length;
+	let downloaded = 0;
 
-	tasks.push(download_to_opfs(`${PUBLIC_PARQUET_LATEST}/metadata.json`, 'metadata.json'));
+	for (const path of all_paths) {
+		const url = path === 'metadata.json'
+			? `${PUBLIC_PARQUET_LATEST}/metadata.json`
+			: `${PUBLIC_PARQUET_LATEST}/${path}`;
 
-	const results = await Promise.all(tasks);
+		const error = await download_to_opfs(url, path);
 
-	const firstError = results.find((error) => error !== null);
+		if (error) {
+			postMessage({ status: 'error', ...error } satisfies DownloadResponse);
+			return;
+		}
 
-	if (firstError) {
-		return { status: 'error', ...firstError };
+		downloaded++;
+		postMessage({ status: 'progress', downloaded, total } satisfies DownloadResponse);
 	}
 
-	return { status: 'success' };
+	postMessage({ status: 'success' } satisfies DownloadResponse);
 }
 
 onmessage = async (event) => {
 	console.log('[download] starting download');
-	const message = await download_sources(event.data);
-	postMessage(message);
+	await download_sources(event.data);
 };
