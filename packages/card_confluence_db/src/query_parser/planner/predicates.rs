@@ -6,7 +6,7 @@ use crate::query_parser::{
         PlanError,
         expressions::{
             array_contains_expr, color_pred, exact_pred, flexible_numeric_pred, format_pred,
-            is_pred, numeric_pred, powtou_pred, text_pred,
+            is_pred, mana_pred, numeric_pred, powtou_pred, text_pred, uuid_pred,
         },
     },
 };
@@ -32,11 +32,7 @@ impl Predicate {
         match field {
             // Oracle-side (cards.*)
             PredicateField::Type => text_pred(&"cards.type_line", &pred.op, &pred.value),
-            PredicateField::Mana => crate::query_parser::planner::expressions::mana_pred(
-                &"cards.mana_cost",
-                &pred.op,
-                &pred.value,
-            ),
+            PredicateField::Mana => mana_pred(&"cards.mana_cost", &pred.op, &pred.value),
             PredicateField::Oracle | PredicateField::Name | PredicateField::Layout => {
                 text_pred(&column_name?, &pred.op, &pred.value)
             }
@@ -54,13 +50,16 @@ impl Predicate {
             PredicateField::PowTou => powtou_pred(&pred.op, &pred.value),
             PredicateField::Color => color_pred(&column_name?, &pred.op, &pred.value, false),
             PredicateField::Identity => color_pred(&column_name?, &pred.op, &pred.value, true),
-            PredicateField::OracleId => exact_pred("cards.oracle_id", &pred.value),
-            PredicateField::Produces | PredicateField::OracleTag => {
+            PredicateField::Produces => color_pred(&column_name?, &pred.op, &pred.value, false),
+            PredicateField::OracleId => uuid_pred(&column_name?, &pred.value),
+            PredicateField::OracleTag => {
                 Ok(array_contains_expr(&column_name?, lit(pred.value.clone())))
             }
-            PredicateField::Keyword => {
-                crate::query_parser::planner::expressions::array_text_pred(&column_name?, &pred.op, &pred.value)
-            }
+            PredicateField::Keyword => crate::query_parser::planner::expressions::array_text_pred(
+                &column_name?,
+                &pred.op,
+                &pred.value,
+            ),
             PredicateField::Format => format_pred(&pred.value),
 
             // Print-side (prints.*)
@@ -75,7 +74,7 @@ impl Predicate {
             PredicateField::CollectorNumber
             | PredicateField::Rarity
             | PredicateField::Lang
-            | PredicateField::ScryfallId => exact_pred(&column_name?, &pred.value),
+            | PredicateField::ScryfallId => uuid_pred(&column_name?, &pred.value),
 
             PredicateField::Game => {
                 Ok(array_contains_expr("prints.games", lit(pred.value.clone())))
