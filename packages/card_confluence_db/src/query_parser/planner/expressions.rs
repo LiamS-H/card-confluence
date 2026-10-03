@@ -4,12 +4,24 @@ use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions::string::expr_fn::lower; // use this "lower(col(1))"
 use datafusion::logical_expr::{Expr as DFExpr, ScalarUDF, col, lit, not, try_cast};
 use datafusion::scalar::ScalarValue;
+use uuid::Uuid;
 
 use crate::query_parser::lexer::Op;
 use crate::query_parser::planner::PlanError;
 
 pub fn text_col(column: &str) -> DFExpr {
     lower(col(column))
+}
+
+pub fn uuid_pred(column: &str, value: &str) -> Result<DFExpr, PlanError> {
+    Ok(col(column).eq(lit(ScalarValue::FixedSizeBinary(
+        16,
+        Some(
+            Uuid::parse_str(value)
+                .map_err(|e| PlanError(e.to_string()))?
+                .into(),
+        ),
+    ))))
 }
 
 pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
@@ -70,13 +82,15 @@ pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
         use datafusion::functions::expr_fn::{regexp_replace, replace};
         use datafusion::functions::unicode::expr_fn::character_length;
         let replaced = regexp_replace(
-            col(column), 
-            lit(r"\{[^}]*[WUBRGP][^}]*\}"), 
-            lit("@"), 
-            Some(lit("gi"))
+            col(column),
+            lit(r"\{[^}]*[WUBRGP][^}]*\}"),
+            lit("@"),
+            Some(lit("gi")),
         );
-        let blocks = character_length(replaced.clone()) - character_length(replace(replaced, lit("@"), lit("")));
-        let card_generic = cast_expr(col("cards.cmc"), arrow_schema::DataType::Int64) - cast_expr(blocks, arrow_schema::DataType::Int64);
+        let blocks = character_length(replaced.clone())
+            - character_length(replace(replaced, lit("@"), lit("")));
+        let card_generic = cast_expr(col("cards.cmc"), arrow_schema::DataType::Int64)
+            - cast_expr(blocks, arrow_schema::DataType::Int64);
         Some(card_generic)
     } else {
         None
@@ -102,7 +116,7 @@ pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
         }
         Op::Eq | Op::Colon => {
             let mut expr = col("cards.cmc").eq(lit(req_cmc as f64));
-            
+
             if let Some(ge) = &generic_expr {
                 expr = expr.and(ge.clone().eq(lit(generic as i64)));
             }
@@ -111,7 +125,7 @@ pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
                 let pattern = format!("(?i)(?:.*?\\{{[^}}]*{}[^}}]*\\}}){{{}}}", color, count);
                 expr = expr.and(regexp_like_expr(column, &pattern));
             }
-            
+
             for c in "WUBRGCXYS".chars() {
                 if !colored.contains_key(&c) {
                     let pattern = format!("(?i)\\{{[^}}]*{}[^}}]*\\}}", c);
@@ -126,7 +140,7 @@ pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
             } else {
                 col("cards.cmc").lt_eq(lit(req_cmc as f64))
             };
-            
+
             if let Some(ge) = &generic_expr {
                 // If the query asks for generic mana, the card cannot have more generic mana than requested (already handled by <= CMC and color rules?)
                 // Actually, if m<=2u, generic <= 2.
@@ -146,7 +160,7 @@ pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
         }
         Op::Ne => {
             let mut eq_expr = col("cards.cmc").eq(lit(req_cmc as f64));
-            
+
             if let Some(ge) = &generic_expr {
                 eq_expr = eq_expr.and(ge.clone().eq(lit(generic as i64)));
             }
@@ -191,7 +205,8 @@ pub fn array_text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, Pla
     let arr_str = datafusion_functions_nested::expr_fn::array_to_string(col(column), lit(","));
     if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
         let regex = &value[1..value.len() - 1];
-        let udf: std::sync::Arc<datafusion::logical_expr::ScalarUDF> = datafusion::functions::regex::regexp_like();
+        let udf: std::sync::Arc<datafusion::logical_expr::ScalarUDF> =
+            datafusion::functions::regex::regexp_like();
         return match op {
             Op::Colon | Op::Eq => Ok(udf.call(vec![arr_str, lit(regex), lit("i")])),
             Op::Ne => Ok(not(udf.call(vec![arr_str, lit(regex), lit("i")]))),
@@ -208,7 +223,6 @@ pub fn array_text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, Pla
         ))),
     }
 }
-
 
 pub fn exact_pred(column: &str, value: &str) -> Result<DFExpr, PlanError> {
     Ok(text_col(column).eq(lit(value.to_string())))

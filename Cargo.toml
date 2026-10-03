@@ -43,7 +43,8 @@ datafusion = { version = "52", default-features = false, features = [
     "array_expressions",
 ] }
 datafusion-proto = { version = "52" }
-arrow_convert = { version = "0.11.4" }
+arrow_convert = { version = "0.11.4", features = ["uuid"] }
+uuid = { version = "1.26.1", features = ["serde"] }
 object_store = { version = "0.12.4" }
 url = { version = "2.5.7" }
 datafusion-functions-nested = { version = "52.4" }

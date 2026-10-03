@@ -5,6 +5,7 @@ use datafusion::logical_expr::{Expr as DFExpr, LogicalPlan, LogicalPlanBuilder, 
 use datafusion::prelude::{JoinType, SessionContext};
 use datafusion::scalar::ScalarValue;
 use datafusion_functions_aggregate::expr_fn::array_agg;
+use uuid::Uuid;
 
 use crate::query_parser::planner::PlanError;
 
@@ -39,7 +40,7 @@ fn schemas_as_cols(table: &str, schema: &DFSchema) -> Vec<DFExpr> {
 
 pub async fn build_cards_detail_plan(
     ctx: &SessionContext,
-    ids: Vec<String>,
+    ids: Vec<Uuid>,
 ) -> Result<LogicalPlan, PlanError> {
     let cards_table = ctx.table("cards").await?;
     let cards_schema = cards_table.schema().clone();
@@ -62,7 +63,10 @@ pub async fn build_cards_detail_plan(
     // keeps this fast — without it, prints_agg/rulings_agg have no way to
     // know they only need one card's worth of rows, and end up scanning and
     // grouping the entire table before the join ever narrows anything down.
-    let id_exprs: Vec<_> = ids.into_iter().map(lit).collect();
+    let id_exprs: Vec<_> = ids
+        .into_iter()
+        .map(|id| lit(ScalarValue::FixedSizeBinary(16, Some(id.into()))))
+        .collect();
     let cards_filter = col("oracle_id").in_list(id_exprs.clone(), false);
     let prints_filter = col("prints.oracle_id").in_list(id_exprs.clone(), false);
     let rulings_filter = col("rulings.oracle_id").in_list(id_exprs, false);

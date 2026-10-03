@@ -2,8 +2,8 @@ use crate::query_parser::parser::ScryfallExpr;
 use crate::query_parser::planner::predicates::PredicateField;
 
 pub mod detail_plan;
-pub mod expressions;
 pub mod expr;
+pub mod expressions;
 pub mod filter_plan;
 pub mod predicates;
 pub mod query_plan;
@@ -101,6 +101,8 @@ fn extract_options_recursive(
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
     use crate::query_parser::lexer::tokenize;
     use crate::query_parser::parser::parse;
@@ -245,23 +247,41 @@ mod tests {
     async fn test_build_filter_plan() {
         let ctx = datafusion::prelude::SessionContext::new();
 
-        use datafusion::arrow::array::{BooleanArray, Float64Array, StringArray};
+        use datafusion::arrow::array::{
+            BooleanArray, FixedSizeBinaryBuilder, Float64Array, StringArray,
+        };
         use datafusion::arrow::datatypes::{DataType, Field, Schema};
         use datafusion::arrow::record_batch::RecordBatch;
         use datafusion::datasource::MemTable;
         use std::sync::Arc;
 
+        // Manually create 16-byte arrays to simulate UUID bytes
+        let id1: [u8; 16] = *b"0000000000000id1";
+        let id2: [u8; 16] = *b"0000000000000id2";
+        let id3: [u8; 16] = *b"0000000000000id3";
+        let id4: [u8; 16] = *b"0000000000000id4";
+
+        let sid1: [u8; 16] = *b"000000000000sid1";
+        let sid2: [u8; 16] = *b"000000000000sid2";
+        let sid3: [u8; 16] = *b"000000000000sid3";
+
         let cards_schema = Arc::new(Schema::new(vec![
-            Field::new("oracle_id", DataType::Utf8, false),
+            Field::new("oracle_id", DataType::FixedSizeBinary(16), false),
             Field::new("name", DataType::Utf8, false),
             Field::new("cmc", DataType::Float64, true),
             Field::new("mana_cost", DataType::Utf8, true),
         ]));
 
+        let mut oracle_id_builder = FixedSizeBinaryBuilder::with_capacity(3, 16);
+        oracle_id_builder.append_value(id1).unwrap();
+        oracle_id_builder.append_value(id2).unwrap();
+        oracle_id_builder.append_value(id3).unwrap();
+        let oracle_id_array = Arc::new(oracle_id_builder.finish());
+
         let cards_data = RecordBatch::try_new(
             cards_schema.clone(),
             vec![
-                Arc::new(StringArray::from(vec!["id1", "id2", "id3"])),
+                oracle_id_array.clone(),
                 Arc::new(StringArray::from(vec!["Card 1", "Card 2", "Card 3"])),
                 Arc::new(Float64Array::from(vec![1.0, 2.0, 3.0])),
                 Arc::new(StringArray::from(vec![
@@ -280,14 +300,21 @@ mod tests {
         .unwrap();
 
         let prints_schema = Arc::new(Schema::new(vec![
-            Field::new("oracle_id", DataType::Utf8, false),
-            Field::new("scryfall_id", DataType::Utf8, false),
+            Field::new("oracle_id", DataType::FixedSizeBinary(16), false),
+            Field::new("scryfall_id", DataType::FixedSizeBinary(16), false),
         ]));
+
+        let mut scryfall_id_builder = FixedSizeBinaryBuilder::with_capacity(3, 16);
+        scryfall_id_builder.append_value(sid1).unwrap();
+        scryfall_id_builder.append_value(sid2).unwrap();
+        scryfall_id_builder.append_value(sid3).unwrap();
+        let scryfall_id_array = Arc::new(scryfall_id_builder.finish());
+
         let prints_data = RecordBatch::try_new(
             prints_schema.clone(),
             vec![
-                Arc::new(StringArray::from(vec!["id1", "id2", "id3"])),
-                Arc::new(StringArray::from(vec!["sid1", "sid2", "sid3"])),
+                oracle_id_array, // Re-use the built oracle_id array
+                scryfall_id_array,
             ],
         )
         .unwrap();
@@ -298,7 +325,13 @@ mod tests {
         )
         .unwrap();
 
-        let ids = vec!["id3".to_string(), "id1".to_string(), "id4".to_string()];
+        // Convert the raw 16-byte arrays to ScalarValue::FixedSizeBinary
+        let ids = vec![
+            Uuid::from_bytes(id3),
+            Uuid::from_bytes(id1),
+            Uuid::from_bytes(id4),
+        ];
+
         let expr = p("cmc < 2.5"); // matches id1 and id2
         // id3: cmc=3 (false)
         // id1: cmc=1 (true)

@@ -10,7 +10,7 @@
 	import CardOptionsDeck from '../card-options-deck.svelte';
 	import ConsideringOptions from './considering-options.svelte';
 	import { use_settings } from '$lib/settings';
-	import { clickOutside } from '$lib/actions/click-outside';
+	import { string_to_uuid, type UUIDString } from '$lib/utils/uuid';
 
 	const {
 		cards,
@@ -30,7 +30,9 @@
 			if (obj.object === 'tag') {
 				const fetched = doc_state.tags_fetched.get(key);
 				if (!fetched) continue;
-				const filtered = cards.filter((c) => fetched.matchedIds.has(c.oracle_id));
+				const filtered = cards.filter((c) => {
+					return fetched.matchedIds.has(c.oracle_id as UUIDString);
+				});
 				if (filtered.length === 0) continue;
 				out.push({
 					id: key,
@@ -47,12 +49,7 @@
 	} = use_settings();
 </script>
 
-<div
-	style={`columns: ${width}px`}
-	use:clickOutside={() => {
-		active = null;
-	}}
->
+<div style={`columns: ${width}px`}>
 	{#each tags as tag}
 		<div class="flex w-fit break-inside-avoid flex-col overflow-y-hidden">
 			{#if variant === 'img-full'}
@@ -63,8 +60,8 @@
 							{variant}
 							{width}
 							result={{
-								matched_prints: [deck_card.instances[0].scryfall_id],
-								oracle_id: deck_card.oracle_id
+								matched_prints: string_to_uuid(deck_card.instances[0].scryfall_id) as Uint8Array,
+								oracle_id: string_to_uuid(deck_card.oracle_id) as Uint8Array
 							}}
 							key={deck_card.oracle_id}
 						>
@@ -72,13 +69,36 @@
 								{#if zone === 'considering'}
 									<ConsideringOptions {card} {print} />
 								{:else}
-									<CardOptionsDeck {card} {print} {zone} />
+									<CardOptionsDeck {variant} {card} {print} {zone} />
 								{/if}
 							{/snippet}
 						</ResultCard>
 					{/each}
 				</div>
-			{:else}
+			{:else if variant === 'tile'}
+				<span>{tag.tag.label}</span>
+				<div class="flex w-fit flex-col">
+					{#each tag.cards.toReversed() as deck_card (deck_card.oracle_id)}
+						<ResultCard
+							{variant}
+							{width}
+							result={{
+								matched_prints: string_to_uuid(deck_card.instances[0].scryfall_id) as Uint8Array,
+								oracle_id: string_to_uuid(deck_card.oracle_id) as Uint8Array
+							}}
+							key={deck_card.oracle_id}
+						>
+							{#snippet options({ card, print })}
+								{#if zone === 'considering'}
+									<ConsideringOptions {card} {print} />
+								{:else}
+									<CardOptionsDeck {variant} {card} {print} {zone} />
+								{/if}
+							{/snippet}
+						</ResultCard>
+					{/each}
+				</div>
+			{:else if variant === 'img'}
 				<span>{tag.tag.label}</span>
 				<div class="flex w-fit flex-col">
 					{#each tag.cards as deck_card (deck_card.oracle_id)}
@@ -93,8 +113,8 @@
 							variant={isActive ? 'img-full' : 'img'}
 							{width}
 							result={{
-								matched_prints: [deck_card.instances[0].scryfall_id],
-								oracle_id: deck_card.oracle_id
+								matched_prints: string_to_uuid(deck_card.instances[0].scryfall_id) as Uint8Array,
+								oracle_id: string_to_uuid(deck_card.oracle_id) as Uint8Array
 							}}
 							key={deck_card.oracle_id}
 						>
@@ -102,7 +122,7 @@
 								{#if zone === 'considering'}
 									<ConsideringOptions {card} {print} />
 								{:else}
-									<CardOptionsDeck {card} {print} {zone} />
+									<CardOptionsDeck {variant} {card} {print} {zone} />
 								{/if}
 							{/snippet}
 						</ResultCard>

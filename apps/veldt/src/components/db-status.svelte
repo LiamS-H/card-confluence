@@ -28,7 +28,11 @@
 				variant={isOpen ? 'fixed' : 'outline'}
 				onclick={() => (isOpen = !isOpen)}
 			>
-				{status.data}
+				{#if status.data === 'remote' && settings.database.useLocal}
+					local downloading
+				{:else}
+					{status.data}
+				{/if}
 			</Button>
 		{/snippet}
 	</Popover.Trigger>

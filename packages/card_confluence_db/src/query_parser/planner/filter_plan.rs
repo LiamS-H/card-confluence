@@ -1,13 +1,15 @@
 use datafusion::logical_expr::{LogicalPlan, LogicalPlanBuilder, col, lit};
 use datafusion::prelude::{JoinType, SessionContext};
+use datafusion::scalar::ScalarValue;
+use uuid::Uuid;
 
 use crate::query_parser::parser::ScryfallExpr;
-use crate::query_parser::planner::{PlanError, extract_options};
 use crate::query_parser::planner::expr::{expr_to_df_expr, needs_sets_table};
+use crate::query_parser::planner::{PlanError, extract_options};
 
 pub async fn build_filter_plan(
     ctx: &SessionContext,
-    ids: Vec<String>,
+    ids: Vec<Uuid>,
     expr: &ScryfallExpr,
 ) -> Result<LogicalPlan, PlanError> {
     let (expr, _options) = extract_options(expr)?;
@@ -15,7 +17,12 @@ pub async fn build_filter_plan(
     let values = ids
         .into_iter()
         .enumerate()
-        .map(|(i, id)| vec![lit(i as i64), lit(id)])
+        .map(|(i, id)| {
+            vec![
+                lit(i as i64),
+                lit(ScalarValue::FixedSizeBinary(16, Some(id.into()))),
+            ]
+        })
         .collect::<Vec<_>>();
 
     if values.is_empty() {

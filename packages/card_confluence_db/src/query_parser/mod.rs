@@ -5,6 +5,7 @@ pub mod planner;
 
 use datafusion::logical_expr::LogicalPlan;
 use datafusion::prelude::SessionContext;
+use uuid::Uuid;
 
 /// Top-level error type, wrapping the three internal stages.
 #[derive(Debug)]
@@ -59,7 +60,7 @@ pub async fn parse_query(ctx: &SessionContext, input: &str) -> Result<LogicalPla
 
 pub async fn parse_filter_plan(
     ctx: &SessionContext,
-    ids: Vec<String>,
+    ids: Vec<Uuid>,
     input: &str,
 ) -> Result<LogicalPlan, ScryfallError> {
     // Stage 1 – Lex

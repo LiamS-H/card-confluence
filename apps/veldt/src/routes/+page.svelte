@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { use_query } from '$lib';
+	import { use_query, type QueryResultRow } from '$lib';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -8,10 +8,13 @@
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import { CardDialog } from '$components/card-dialog';
 	import { use_settings } from '$lib/settings';
+	import { string_to_uuid } from '$lib/utils/uuid';
 
 	let query = $derived(page.url.searchParams.get('q') ?? '');
-	let active_card_id = $derived(page.url.searchParams.get('card') ?? null);
-	let active_print_id = $derived(page.url.searchParams.get('print') ?? null);
+	const url_card = $derived(page.url.searchParams.get('card'));
+	const url_print = $derived(page.url.searchParams.get('print'));
+	let active_card_id = $derived(url_card ? string_to_uuid(url_card) : null);
+	let active_print_id = $derived(url_print ? string_to_uuid(url_print) : null);
 
 	function onDocChange(new_query: string) {
 		const params = new URL(page.url).searchParams;
@@ -82,13 +85,18 @@
 		<div class="relative h-full flex-1">
 			<VirtualGrid
 				itemHeight={variant === 'img-full' ? undefined : 40}
-				items={response.result.rows}
+				length={response.result.rows.length}
 				columns={card_columns}
 				overscan={10}
 			>
-				{#snippet item({ viewportRow, col, item })}
+				{#snippet item({ viewportRow, col, index })}
 					<div class="p-1">
-						<ResultCard {variant} result={item} key={`${viewportRow}-${col}`} width="100%" />
+						<ResultCard
+							{variant}
+							result={response.result.rows.at(index) as QueryResultRow}
+							key={`${viewportRow}-${col}`}
+							width="100%"
+						/>
 					</div>
 				{/snippet}
 			</VirtualGrid>

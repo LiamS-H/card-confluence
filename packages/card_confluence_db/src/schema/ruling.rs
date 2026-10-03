@@ -7,7 +7,8 @@ use tsify::Tsify;
 )]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Ruling {
-    pub oracle_id: String,
+    #[tsify(type = "Uint8Array")]
+    pub oracle_id: uuid::Uuid,
     pub source: String,
     /// ISO 8601 date string: "YYYY-MM-DD"
     pub published_at: String,

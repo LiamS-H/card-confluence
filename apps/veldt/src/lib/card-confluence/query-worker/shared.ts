@@ -21,10 +21,6 @@ export type DBStatus =
 			data: 'local' | 'remote';
 	  }
 	| {
-			state: 'downloading';
-			data: 'local';
-	  }
-	| {
 			state: 'processing';
 			data: 'local';
 	  }
@@ -71,7 +67,7 @@ export type QueryWorkerEvent =
 	| {
 			type: 'download-complete';
 			success: boolean;
-			error?: string;
+			error?: { type: string; message?: string };
 	  };
 
 export type QueryWorkerResponse =
@@ -101,23 +97,13 @@ export type QueryWorkerRequest =
 	| {
 			req_id: string;
 			type: 'cards';
-			ids: string[];
+			ids: Uint8Array<ArrayBuffer>;
 	  }
 	| {
 			req_id: string;
 			type: 'completion';
 			query: QueryRequest;
 			pos: number;
-	  }
-	| {
-			req_id: string;
-			type: 'sets';
-			ids: string[];
-	  }
-	| {
-			req_id: string;
-			type: 'rulings';
-			ids: string[];
 	  };
 
 export type QueryWorkerMessage =
@@ -129,6 +115,18 @@ export async function handle_query_request(
 	browser: CardConfluenceBrowser,
 	request: QueryWorkerRequest
 ): Promise<QueryWorkerResponse> {
+	console.log('[worker] handling request', request);
+	let timer = Date.now();
+	function timed_print(text: string) {
+		const now = Date.now();
+		const dif = now - timer;
+		if (dif !== 0) {
+			console.log(`[worker] ${request.req_id.substring(0, 4)} ${dif}`, text);
+		} else {
+			console.log(`[worker] ${request.req_id.substring(0, 4)} ${text}`);
+		}
+		timer = now;
+	}
 	let message!: QueryWorkerResponse;
 	try {
 		const cache = await local_cache;
@@ -136,7 +134,9 @@ export async function handle_query_request(
 		let plan!: Uint8Array<ArrayBuffer>;
 		switch (request.type) {
 			case 'query': {
+				timed_print('starting plan build');
 				const hashedPlan = await browser.query_plan_from_query(request.query.query);
+				timed_print('plan finished');
 				key = hashedPlan.hash as unknown as Uint8Array<ArrayBuffer>;
 				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
 				break;
@@ -147,27 +147,13 @@ export async function handle_query_request(
 				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
 				break;
 			}
-			case 'sets': {
-				const hashedPlan = await browser.sets_plan_from_set_codes(request.ids);
-				key = hashedPlan.hash as unknown as Uint8Array<ArrayBuffer>;
-				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
-				break;
-			}
-			case 'rulings': {
-				const hashedPlan = await browser.rulings_plan_from_card_ids(request.ids);
-				key = hashedPlan.hash as unknown as Uint8Array<ArrayBuffer>;
-				plan = hashedPlan.plan as unknown as Uint8Array<ArrayBuffer>;
-				break;
-			}
 			case 'completion': {
-				// console.log('[worker] completion');
 				const evaluation = await browser.completion_plan_from_query(
 					request.query.query,
 					request.pos
 				);
 				plan = evaluation.plan as unknown as Uint8Array<ArrayBuffer>;
 				key = plan;
-				// console.log('[worker] planned', plan);
 				const completion = evaluation.completion;
 				message = {
 					req_id: request.req_id,
@@ -186,31 +172,36 @@ export async function handle_query_request(
 		const readTx = cache.transaction([QUERY_CACHE_TABLE], 'readonly');
 		const readStore = readTx.objectStore(QUERY_CACHE_TABLE);
 		// console.log('[worker] getting cache');
+		timed_print('checking cached');
 		let data = await cache_store_get(key, readStore);
 
 		if (data === null) {
-			console.log('[worker] cache miss');
-			console.log('[worker] evaluating plan');
+			timed_print('cache miss');
+			timed_print('evaluating plan');
 
-			// In local db, this await never suspends and we only need one transaction,
+			// In local db, these awaits never suspend and we only need one transaction,
 			// for the http store, the js event loop empties and we have to make a second transaction.
-			data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
-
-			console.log('[worker] inserting data');
+			if (request.type === 'query') {
+				data = (await browser.evaluate_query_plan(plan)) as Uint8Array<ArrayBuffer>;
+			} else {
+				data = (await browser.evaluate_plan(plan)) as Uint8Array<ArrayBuffer>;
+			}
+			timed_print(`plan evaluated, inserting data ${data.length}B`);
 
 			const writeTx = cache.transaction([QUERY_CACHE_TABLE], 'readwrite');
 			const writeStore = writeTx.objectStore(QUERY_CACHE_TABLE);
 			await cache_store_insert(key, data, writeStore);
-
-			console.log('[worker] data inserted');
+			timed_print('data inserted');
 		}
-		console.log('[worker] cache hit!');
+		timed_print('cache hit');
 		message ??= {
 			req_id: request.req_id,
 			type: 'result',
 			index: key
 		};
 	} catch (error) {
+		timed_print('encountered error');
+		console.error(String(error));
 		message = {
 			req_id: request.req_id,
 			type: 'error',

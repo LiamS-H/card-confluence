@@ -213,7 +213,7 @@ impl From<ScryfallCard> for Card {
 
         Self {
             layout: scryfall.layout,
-            oracle_id: scryfall.oracle_id.unwrap(),
+            oracle_id: scryfall.oracle_id.unwrap().parse().unwrap(),
             all_parts: scryfall
                 .all_parts
                 .map(|v| v.into_iter().map(Into::into).collect()),
@@ -253,10 +253,10 @@ impl From<ScryfallCardFace> for Illustration {
     fn from(face: ScryfallCardFace) -> Self {
         let mut artist_ids = Vec::new();
         if let Some(artist_id) = face.artist_id {
-            artist_ids.push(artist_id);
+            artist_ids.push(artist_id.parse().unwrap());
         };
         Self {
-            illustration_id: face.illustration_id,
+            illustration_id: face.illustration_id.map(|id| id.parse().unwrap()),
             artist: face.artist,
             artist_ids,
             watermark: face.watermark,
@@ -271,9 +271,12 @@ impl From<ScryfallCardFace> for Illustration {
 impl From<ScryfallCard> for Illustration {
     fn from(card: ScryfallCard) -> Self {
         Self {
-            illustration_id: card.illustration_id,
+            illustration_id: card.illustration_id.map(|id| id.parse().unwrap()),
             artist: card.artist,
-            artist_ids: card.artist_ids.unwrap_or(Vec::new()),
+            artist_ids: card
+                .artist_ids
+                .map(|ids| ids.into_iter().map(|id| id.parse().unwrap()).collect())
+                .unwrap_or(Vec::new()),
             watermark: card.watermark,
             flavor_text: card.flavor_text,
             printed_name: card.printed_name,
@@ -288,18 +291,15 @@ impl From<ScryfallCard> for Print {
     fn from(scryfall: ScryfallCard) -> Self {
         let mut illustrations = Vec::new();
 
-        // TODO: This is wrong, we want to check specifically for when one illustration is missing illustration_id and has the same artist as another face
         if scryfall.image_uris.is_some() {
-            // pushing the main image_uris first and then looking for faces is the opposite to how we did it before, not sure if it still works
             illustrations.push(scryfall.clone().into());
         } else if let Some(faces) = &scryfall.card_faces {
             for face in faces {
                 let mut is_duplicate = false;
                 if let Some(id) = &face.illustration_id {
-                    if illustrations
-                        .iter()
-                        .any(|i: &Illustration| i.illustration_id.as_ref() == Some(id))
-                    {
+                    if illustrations.iter().any(|i: &Illustration| {
+                        i.illustration_id.as_ref() == Some(&id.parse().unwrap())
+                    }) {
                         is_duplicate = true;
                     }
                 } else if let Some(artist) = &face.artist {
@@ -325,7 +325,7 @@ impl From<ScryfallCard> for Print {
 
         Self {
             oracle_id: card.oracle_id.clone(),
-            scryfall_id: scryfall.id,
+            scryfall_id: scryfall.id.parse().unwrap(),
             lang: scryfall.lang,
             arena_id: scryfall.arena_id,
             mtgo_id: scryfall.mtgo_id,
@@ -351,11 +351,13 @@ impl From<ScryfallCard> for Print {
             security_stamp: scryfall.security_stamp,
             frame: scryfall.frame,
             full_art: scryfall.full_art,
-            card_back_id: scryfall.card_back_id,
+            card_back_id: scryfall.card_back_id.map(|id| id.parse().unwrap()),
             border_color: scryfall.border_color,
             content_warning: scryfall.content_warning.unwrap_or(false),
             illustrations,
-            artist_ids: scryfall.artist_ids,
+            artist_ids: scryfall
+                .artist_ids
+                .map(|ids| ids.into_iter().map(|id| id.parse().unwrap()).collect()),
             flavor_name: scryfall.flavor_name,
             frame_effects: scryfall.frame_effects,
             image_status: scryfall.image_status,
@@ -445,7 +447,7 @@ impl From<ScryfallPurchaseUris> for PurchaseUris {
 impl From<ScryfallRelatedCard> for RelatedCard {
     fn from(scryfall: ScryfallRelatedCard) -> Self {
         Self {
-            id: scryfall.id,
+            id: scryfall.id.parse().unwrap(),
             // object: scryfall.object,
             component: scryfall.component,
             name: scryfall.name,
@@ -460,7 +462,7 @@ impl From<ScryfallSet> for Set {
             name: scryfall.name,
             set_type: scryfall.set_type,
             code: scryfall.code,
-            id: scryfall.id,
+            id: scryfall.id.parse().unwrap(),
             released_at: scryfall.released_at,
         }
     }
@@ -468,7 +470,7 @@ impl From<ScryfallSet> for Set {
 impl From<ScryfallRuling> for Ruling {
     fn from(scryfall: ScryfallRuling) -> Self {
         Self {
-            oracle_id: scryfall.oracle_id,
+            oracle_id: scryfall.oracle_id.parse().unwrap(),
             source: scryfall.source,
             published_at: scryfall.published_at,
             comment: scryfall.comment,

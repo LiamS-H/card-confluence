@@ -23,18 +23,21 @@ struct Cli {
 enum Commands {
     /// Create parquet files from Scryfall
     Seed {
-        /// Mode: cached, latest, or a specific ID
+        /// Mode: cached, latest, cached-tags, or a specific ID
         mode: Option<String>,
     },
-    /// Query the latest parquet data via interactive TUI
+    /// Query the latest parquet data via interactive TUI, or pass text to get results immediately
     Query {
+        /// the query to be ran immediately
         text: Option<String>,
         /// Use R2 for latest parquet data
         #[arg(long, env = "QUERY_USE_R2")]
         r2: bool,
     },
 
+    /// get detailed info on the first card result of a query
     Card {
+        /// the query
         text: String,
         /// Use R2 for latest parquet data
         #[arg(long, env = "QUERY_USE_R2")]

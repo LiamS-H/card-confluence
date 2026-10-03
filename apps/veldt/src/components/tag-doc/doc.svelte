@@ -10,10 +10,12 @@
 	import { ResultCard } from '$components/card';
 	import { use_settings } from '$lib/settings';
 	import { query_with_domain } from '$lib/utils';
+	import type { OptionsSnippet } from '$components/card/result.svelte';
 
-	const { jump_to_query, doc_state } = $props<{
+	const { jump_to_query, doc_state, options } = $props<{
 		jump_to_query?: ((query: string) => void) | undefined;
 		doc_state: TagDocState;
+		options?: OptionsSnippet;
 	}>();
 
 	let editorContainer: HTMLDivElement;
@@ -57,14 +59,14 @@
 	const previewColumns = $derived(Math.max(1, Math.floor((previewW ?? 428) / 200)));
 
 	const {
-		cards: { deckVariant: variant }
+		cards: { searchVariant: variant }
 	} = use_settings();
 </script>
 
 <div class="relative">
 	<div bind:this={editorContainer} class="w-full"></div>
 
-	<div class="absolute top-2 right-2 z-2000">
+	<div class="absolute top-2 right-2">
 		{#if previewOpen && doc_state.cursor_tag}
 			<div
 				class="flex min-h-107 min-w-96 resize flex-col overflow-hidden [direction:rtl]"
@@ -82,14 +84,19 @@
 						<span>0 results</span>
 					{:else}
 						<div class="min-h-96">
-							<VirtualGrid items={response.result.rows} columns={previewColumns} overscan={2}>
+							<VirtualGrid
+								length={response.result.rows.length}
+								columns={previewColumns}
+								overscan={2}
+							>
 								{#snippet item({ index, viewportRow, col })}
 									<div class="p-1">
 										<ResultCard
 											{variant}
 											width="100%"
-											result={response.result.rows[index] as QueryResultRow}
+											result={response.result.rows.at(index) as QueryResultRow}
 											key={`${viewportRow}-${col}`}
+											{options}
 										/>
 									</div>
 								{/snippet}

@@ -40,7 +40,8 @@ pub struct CardFace {
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Card {
     pub layout: String,
-    pub oracle_id: String,
+    #[tsify(type = "Uint8Array")]
+    pub oracle_id: uuid::Uuid,
 
     pub name: String,
     pub all_parts: Option<Vec<RelatedCard>>,

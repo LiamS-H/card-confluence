@@ -19,7 +19,8 @@ use tsify::Tsify;
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct RelatedCard {
     /// UUID
-    pub id: String,
+    #[tsify(type = "Uint8Array")]
+    pub id: uuid::Uuid,
     /// Always "related_card"
     // pub object: String,
     /// One of: "token", "meld_part", "meld_result", "combo_piece"

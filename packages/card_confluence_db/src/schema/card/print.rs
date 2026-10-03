@@ -12,17 +12,15 @@ use tsify::Tsify;
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Print {
     pub lang: String,
-    pub oracle_id: String,
-    pub scryfall_id: String,
+    #[tsify(type = "Uint8Array")]
+    pub oracle_id: uuid::Uuid,
+    #[tsify(type = "Uint8Array")]
+    pub scryfall_id: uuid::Uuid,
     pub arena_id: Option<i32>,
     pub mtgo_id: Option<i32>,
     pub mtgo_foil_id: Option<i32>,
     /// one per image face
     pub multiverse_ids: Option<Vec<i32>>,
-    /// some gatherer resource value unique
-    // pub resource_id: Option<String>,
-    /// deprecated because they can be constructed from other values
-    // pub related_uris: RelatedUris,
     pub tcgplayer_id: Option<i32>,
     pub tcgplayer_etched_id: Option<i32>,
     pub cardmarket_id: Option<i32>,
@@ -45,7 +43,6 @@ pub struct Print {
     pub frame_effects: Option<Vec<String>>,
     /// One of: "oval", "triangle", "acorn", "circle", "arena", "heart"
     pub security_stamp: Option<String>,
-    // pub watermark: Option<String>,
     pub frame: String,
     pub full_art: bool,
     pub image_status: String,
@@ -53,12 +50,14 @@ pub struct Print {
     pub variation: bool,
     pub variation_of: Option<String>,
 
-    pub card_back_id: Option<String>,
+    #[tsify(type = "Uint8Array | null")]
+    pub card_back_id: Option<uuid::Uuid>,
 
     pub border_color: String,
     pub content_warning: bool,
     pub illustrations: Vec<Illustration>,
-    pub artist_ids: Option<Vec<String>>,
+    #[tsify(type = "Uint8Array[]")]
+    pub artist_ids: Option<Vec<uuid::Uuid>>,
     pub purchase_uris: Option<PurchaseUris>,
     pub prices: Prices,
 }
@@ -68,9 +67,11 @@ pub struct Print {
 )]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct Illustration {
-    pub illustration_id: Option<String>,
+    #[tsify(type = "Uint8Array | null")]
+    pub illustration_id: Option<uuid::Uuid>,
     pub artist: Option<String>,
-    pub artist_ids: Vec<String>,
+    #[tsify(type = "Uint8Array[]")]
+    pub artist_ids: Vec<uuid::Uuid>,
 
     pub watermark: Option<String>,
     pub flavor_text: Option<String>,

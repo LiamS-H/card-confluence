@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { query_client, use_query } from '$lib';
+import { query_client, use_query, type QueryResultRow } from '$lib';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 
@@ -9,7 +9,6 @@ import {
 	onDeckUpdate,
 	type Deck as VeldtDeckParsed,
 	type Tag,
-	type Deck,
 	type CursorTag,
 	deckStateField
 } from 'codemirror-lang-veldt-deck';
@@ -18,6 +17,7 @@ import { yCollab } from 'y-codemirror.next';
 import { veldtSetup } from '$lib/codemirror';
 import { SvelteMap } from 'svelte/reactivity';
 import { query_with_domain } from '$lib/utils';
+import { uuid_to_string, type UUIDString } from '$lib/utils/uuid';
 
 class TagQuery {
 	tag: Tag = $state() as Tag;
@@ -26,12 +26,12 @@ class TagQuery {
 	data!: ReturnType<typeof use_query>;
 	private cleanupRoot: () => void;
 
-	matchedIds: Map<string, string[]> = $derived.by(() => {
+	matchedIds: Map<UUIDString, QueryResultRow['matched_prints']> = $derived.by(() => {
 		if (!this.data || this.data.response.loading || this.data.response.error) {
 			return new SvelteMap();
 		}
 		return new SvelteMap(
-			this.data.response.result.rows.map((r) => [r.oracle_id, r.matched_prints])
+			this.data.response.result.rows.map((r) => [uuid_to_string(r.oracle_id), r.matched_prints])
 		);
 	});
 

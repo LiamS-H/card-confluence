@@ -12,6 +12,7 @@ pub struct Set {
     /// Short set code, e.g. "ltr"
     pub code: String,
     /// UUID
-    pub id: String,
+    #[tsify(type = "Uint8Array")]
+    pub id: uuid::Uuid,
     pub released_at: Option<String>,
 }

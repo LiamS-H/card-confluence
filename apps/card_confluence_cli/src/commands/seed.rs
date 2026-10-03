@@ -10,8 +10,8 @@ pub async fn exec(
 ) -> Result<()> {
     let mode = match mode.as_deref() {
         Some("cached") => SeedMode::LatestCached,
-        Some("latest")| None | Some("")=> SeedMode::Latest,
-        Some("old-tags") => SeedMode::LatestOldTags,
+        Some("latest") | None | Some("") => SeedMode::Latest,
+        Some("cached-tags") => SeedMode::LatestOldTags,
         Some(id) => SeedMode::Specific(id.into()),
     };
 

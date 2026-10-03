@@ -12,22 +12,29 @@
 	import * as Card from '$components/ui/card';
 	import { DeckCardInterface } from '$lib/sync/use-deck-cards.svelte';
 	import type { DeckStruct } from '@repo/schema-sync';
+	import { uuid_to_string } from '$lib/utils/uuid';
+	import type { CardVariant } from '$lib/settings/settings-local.svelte';
 
 	const {
 		card,
 		print
+		// variant
 	}: {
 		card: CardObj;
 		print: Print;
+		variant: CardVariant;
 	} = $props();
 
 	let isOpen = $state(false);
 	const decks = use_decks();
 
+	const oracle_id = $derived(uuid_to_string(card.oracle_id));
+	const scryfall_id = $derived(uuid_to_string(print.scryfall_id));
+
 	function add_card_to_deck(id: string) {
 		const deck = sync_client.decks_root.get(id) as DeckStruct;
 		const int = new DeckCardInterface(deck);
-		int.mutate.add_cards(card.oracle_id, print.scryfall_id, 'considering', 1);
+		int.mutate.add_cards(oracle_id, scryfall_id, 'considering', 1);
 	}
 </script>
 
@@ -52,7 +59,7 @@
 						{const deck = $derived(use_deck_meta(() => id))}
 						{#if deck.deck.error === null}
 							<li>
-								{#if Object.hasOwn(deck.deck.deck.cards, card.oracle_id)}
+								{#if Object.hasOwn(deck.deck.deck.cards, scryfall_id)}
 									<div>
 										<span class="text-xl text-muted-foreground">{deck.deck.deck.title}</span>
 									</div>

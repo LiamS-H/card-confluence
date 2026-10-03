@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use datafusion::{
     error::DataFusionError,
+    execution::config::SessionConfig,
     prelude::{ParquetReadOptions, SessionContext},
 };
 use object_store::{ObjectStore, Result, path::Path as ObjectPath};
@@ -65,7 +66,10 @@ pub async fn get_context<T: ObjectStore>(
     // Note: The base URL must end in a trailing slash for join()
     // to treat it as a directory/base rather than a filename.
 
-    let ctx = SessionContext::new();
+    let config = SessionConfig::new()
+        .set_bool("datafusion.execution.parquet.pushdown_filters", true)
+        .set_bool("datafusion.execution.parquet.reorder_filters", true);
+    let ctx = SessionContext::new_with_config(config);
 
     let base_url = Url::parse("db://data/").unwrap();
     ctx.runtime_env()
@@ -131,17 +135,9 @@ pub async fn get_context_from_metadata(
     db_store: Arc<dyn ObjectStore>,
     metadata: MetaData,
 ) -> Result<SessionContext, DataFusionError> {
-    let ctx = SessionContext::new();
-
     let paths: TablePaths = metadata.try_into()?;
 
-    let base_url = Url::parse("db://data/").unwrap();
-    ctx.runtime_env()
-        .register_object_store(&base_url, Arc::new(db_store));
-
-    register_paths(base_url, &ctx, paths).await?;
-
-    Ok(ctx)
+    get_context(db_store, paths).await
 }
 
 pub async fn get_latest_paths(

@@ -6,6 +6,7 @@ export type FetchError =
 	  }
 	| {
 			type: 'no_internet_error';
+			message: string;
 	  };
 
 export interface JSONError {

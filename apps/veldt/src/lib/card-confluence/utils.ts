@@ -24,7 +24,7 @@ export function price_from_print(print: Print): string {
 }
 
 export interface GroupedRuling {
-	oracle_id: string;
+	oracle_id: Card['oracle_id'];
 	source: string;
 	published_at: string;
 	comments: string[];

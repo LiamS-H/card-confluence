@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { use_query } from '$lib';
+	import { use_query, type QueryResultRow } from '$lib';
 	import Search from '$components/query/query-doc.svelte';
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import { Button } from '$components/ui/button';
@@ -45,7 +45,6 @@
 		// @ts-expect-error
 		if (page.state.from_search_box) return;
 
-		console.log('[cards] instant query');
 		const new_query = query_with_domain(doc_state.parsed, page.url.searchParams.get('q') ?? '');
 		data.query_now({ query: new_query });
 	});
@@ -101,15 +100,20 @@
 		<div class="relative flex-1">
 			<VirtualGrid
 				itemHeight={variant === 'img-full' ? undefined : 40}
-				items={response.result.rows}
+				length={response.result.rows.length}
 				columns={card_columns}
 				overscan={10}
 			>
-				{#snippet item({ item, viewportRow, col })}
+				{#snippet item({ index, viewportRow, col })}
 					<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
-						<ResultCard {variant} result={item} key={`${viewportRow}-${col}`} width="100%">
-							{#snippet options({ card, print })}
-								<CardOptionsDeck {card} {print} {zone} />
+						<ResultCard
+							{variant}
+							result={response.result.rows.at(index) as QueryResultRow}
+							key={`${viewportRow}-${col}`}
+							width="100%"
+						>
+							{#snippet options({ card, print, variant })}
+								<CardOptionsDeck {card} {print} {variant} {zone} />
 							{/snippet}
 						</ResultCard>
 					</div>

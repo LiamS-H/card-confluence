@@ -4,9 +4,14 @@
 	import { goto } from '$app/navigation';
 	import { CardInfo, CardInfoError, CardInfoLoading } from '$components/card-dialog';
 	import * as Dialog from '$components/ui/dialog';
+	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { Button } from '$components/ui/button';
+	import { uuid_to_string, string_to_uuid, uuid_key } from '$lib/utils/uuid';
 
-	let oracle_id = $derived(page.url.searchParams.get('card') ?? null);
-	let print_id = $derived(page.url.searchParams.get('print') ?? null);
+	const url_card = $derived(page.url.searchParams.get('card'));
+	const url_print = $derived(page.url.searchParams.get('print'));
+	let oracle_id = $derived(url_card ? string_to_uuid(url_card) : null);
+	let print_id = $derived(url_print ? string_to_uuid(url_print) : null);
 
 	const { card } = $derived.by(() => {
 		if (!oracle_id) return { card: null };
@@ -24,6 +29,8 @@
 			replaceState: true
 		});
 	}
+
+	const deck = use_deck_cards();
 </script>
 
 <Dialog.Root bind:open={() => !!oracle_id, on_change}>
@@ -44,8 +51,26 @@
 			{:else}
 				<Dialog.Title class="sr-only">Selected Card</Dialog.Title>
 				<Dialog.Description class="sr-only">{card.result.name}</Dialog.Description>
-				{const print_index = card.result.prints.findIndex((s) => s.scryfall_id === print_id)}
+				{const print_index = card.result.prints.findIndex((s) => {
+					if (!print_id) return false;
+					return uuid_key(s.scryfall_id) === uuid_key(print_id);
+				})}
 				<CardInfo card={card.result} {print_index} />
+
+				{const print = $derived(card.result.prints[print_index] ?? null)}
+				{#if print !== null}
+					<Button
+						onclick={() => {
+							// TODO: replace this with an adequate move_cards
+							deck.mutate.add_cards(
+								uuid_to_string(card.result.oracle_id),
+								uuid_to_string(print.scryfall_id),
+								'commander',
+								1
+							);
+						}}>Make Commander</Button
+					>
+				{/if}
 			{/if}
 		{/if}
 	</Dialog.Content>

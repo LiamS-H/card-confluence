@@ -1,12 +1,9 @@
+use arrow_array::{FixedSizeBinaryArray, ListArray};
 use arrow_ipc::writer::StreamWriter;
 use card_confluence_db::{
     autocompletion::{Completion, CompletionResponse, completion_from_query},
     context::get_context_from_metadata,
-    query_parser::{
-        hash::canonicalize_for_cache,
-        parse_query,
-        planner::{build_cards_detail_plan, build_rulings_plan, build_sets_plan},
-    },
+    query_parser::{hash::canonicalize_for_cache, parse_query, planner::build_cards_detail_plan},
     schema::meta_data::MetaData,
 };
 use datafusion::{
@@ -22,11 +19,13 @@ use std::{
     sync::Arc,
 };
 use url::Url;
+use uuid::Uuid;
 use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 use crate::http_binding::PublicHTTPReadonlyStore;
 use crate::opfs_binding::OpfsReadonlyStore;
 
+pub mod compact;
 pub mod http_binding;
 pub mod opfs_binding;
 
@@ -131,20 +130,15 @@ impl CardConfluenceBrowser {
         let df = self.context.execute_logical_plan(plan).await?;
 
         let mut buffer = Vec::new();
-        {
-            let batches = df.collect().await?;
-
-            let Some(first_batch) = batches.first() else {
-                return Ok(buffer);
-            };
-
-            let mut writer = StreamWriter::try_new(&mut buffer, &first_batch.schema())?;
-
-            for batch in batches {
-                writer.write(&batch)?;
-            }
-            writer.finish()?;
+        let batches = df.collect().await?;
+        if batches.is_empty() {
+            return Ok(buffer);
         }
+        let batch = compact::compact(&batches)?;
+
+        let mut writer = StreamWriter::try_new(&mut buffer, &batch.schema())?;
+        writer.write(&batch)?;
+        writer.finish()?;
 
         Ok(buffer)
     }
@@ -154,6 +148,77 @@ impl CardConfluenceBrowser {
             logical_plan_from_bytes(&plan, &self.context.task_ctx()).map_err(error_map)?;
 
         self.execute_plan(plan).await.map_err(error_map)
+    }
+
+    async fn execute_query_plan(&self, plan: LogicalPlan) -> Result<Vec<u8>, DataFusionError> {
+        let df = self.context.execute_logical_plan(plan).await?;
+
+        let batches = df.collect().await?;
+
+        let mut total_rows = 0u32;
+        let mut cumulative_match_count = 0u32;
+
+        let mut offsets: Vec<u32> = vec![0];
+        let mut oracles: Vec<u8> = Vec::new();
+        let mut matches: Vec<u8> = Vec::new();
+
+        for batch in batches {
+            let oracle_ids = batch
+                .column(0)
+                .as_any()
+                .downcast_ref::<FixedSizeBinaryArray>()
+                .unwrap();
+            let matched_lists = batch
+                .column(1)
+                .as_any()
+                .downcast_ref::<ListArray>()
+                .unwrap();
+            let matched_values = matched_lists
+                .values()
+                .as_any()
+                .downcast_ref::<FixedSizeBinaryArray>()
+                .unwrap();
+
+            let rows_in_batch = batch.num_rows();
+            total_rows += rows_in_batch as u32;
+
+            for i in 0..rows_in_batch {
+                oracles.extend_from_slice(oracle_ids.value(i));
+
+                let start_idx = matched_lists.value_offsets()[i] as usize;
+                let end_idx = matched_lists.value_offsets()[i + 1] as usize;
+
+                let match_count = (end_idx - start_idx) as u32;
+                cumulative_match_count += match_count;
+                offsets.push(cumulative_match_count);
+
+                for j in start_idx..end_idx {
+                    matches.extend_from_slice(matched_values.value(j));
+                }
+            }
+        }
+
+        let total_capacity = 4 + (offsets.len() * 4) + oracles.len() + matches.len();
+        let mut final_buffer = Vec::with_capacity(total_capacity);
+
+        final_buffer.extend_from_slice(&total_rows.to_le_bytes());
+
+        for offset in offsets {
+            final_buffer.extend_from_slice(&offset.to_le_bytes());
+        }
+
+        // Data Arrays
+        final_buffer.extend_from_slice(&oracles);
+        final_buffer.extend_from_slice(&matches);
+
+        Ok(final_buffer)
+    }
+    /// Evaluate a query plan and returns a packed bytes array of the matching uuids
+    pub async fn evaluate_query_plan(&self, plan: Vec<u8>) -> Result<Vec<u8>, JsValue> {
+        let plan: LogicalPlan =
+            logical_plan_from_bytes(&plan, &self.context.task_ctx()).map_err(error_map)?;
+
+        self.execute_query_plan(plan).await.map_err(error_map)
     }
 
     pub async fn query_plan_from_query(&self, query: String) -> Result<HashedPlan, JsValue> {
@@ -191,28 +256,15 @@ impl CardConfluenceBrowser {
         }
     }
 
-    pub async fn sets_plan_from_set_codes(&self, sets: Vec<String>) -> Result<HashedPlan, JsValue> {
-        let plan = build_sets_plan(&self.context, sets)
-            .await
-            .map_err(error_map)?;
-        self.hash_plan(plan).map_err(error_map)
-    }
-
     pub async fn cards_plan_from_card_ids(
         &self,
-        card_ids: Vec<String>,
+        card_ids_packed: Vec<u8>,
     ) -> Result<HashedPlan, JsValue> {
+        let card_ids = card_ids_packed
+            .chunks_exact(16)
+            .filter_map(|chunk| Uuid::from_slice(chunk).ok())
+            .collect();
         let plan = build_cards_detail_plan(&self.context, card_ids)
-            .await
-            .map_err(error_map)?;
-        self.hash_plan(plan).map_err(error_map)
-    }
-
-    pub async fn rulings_plan_from_card_ids(
-        &self,
-        card_ids: Vec<String>,
-    ) -> Result<HashedPlan, JsValue> {
-        let plan = build_rulings_plan(&self.context, card_ids)
             .await
             .map_err(error_map)?;
         self.hash_plan(plan).map_err(error_map)

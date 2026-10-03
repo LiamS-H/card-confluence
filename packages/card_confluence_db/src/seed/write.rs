@@ -12,6 +12,7 @@ use parquet::arrow::arrow_writer::ArrowWriter;
 use parquet::file::properties::{EnabledStatistics, WriterProperties};
 use scryfall_rust_bindings::types::{card::ScryfallCard, ruling::ScryfallRuling, set::ScryfallSet};
 use std::{collections::HashMap, sync::Arc};
+use uuid::Uuid;
 
 use crate::context::get_latest_paths;
 use crate::schema::meta_data::{self, MetaDataSource};
@@ -74,7 +75,7 @@ pub async fn json_to_parquet(
         .await?;
 
     println!("Reading otags...");
-    let otags: HashMap<String, Vec<String>> = {
+    let otags: HashMap<Uuid, Vec<String>> = {
         let otags_json = json_store
             .get(&seed_result.otags_path)
             .await?
@@ -91,13 +92,13 @@ pub async fn json_to_parquet(
             .bytes()
             .await?;
         let mut cards: Vec<ScryfallCard> = serde_json::from_slice(&cards_json)?;
-        // cards.sort_by(|a, b| a.oracle_id.cmp(&b.oracle_id));
+        println!("Packaging cards...");
+        cards.sort_by(|a, b| a.oracle_id.cmp(&b.oracle_id));
         cards.sort_by(|a, b| {
             a.cmc
                 .unwrap_or_default()
                 .total_cmp(&b.cmc.unwrap_or_default())
         });
-        println!("Packaging cards...");
         cards
             .into_iter()
             .filter_map(|c| {
@@ -116,10 +117,12 @@ pub async fn json_to_parquet(
 
     println!("Writing cards...");
     let props = WriterProperties::builder()
+        .set_max_row_group_size(5_000)
+        .set_data_page_row_count_limit(1_000)
         .set_statistics_enabled(EnabledStatistics::Page)
         .set_bloom_filter_enabled(false)
         .set_column_bloom_filter_enabled("oracle_id".into(), true)
-        .set_column_bloom_filter_ndv("oracle_id".into(), 40_000)
+        .set_column_bloom_filter_ndv("oracle_id".into(), 5000)
         .set_column_bloom_filter_fpp("oracle_id".into(), 0.01)
         .build();
     let cards_parquet = write_parquet_chunked(transformed_cards, Some(props))?;
@@ -148,10 +151,14 @@ pub async fn json_to_parquet(
 
     println!("Writing {} prints...", prints.len());
     let props = WriterProperties::builder()
+        .set_max_row_group_size(10_000)
+        .set_data_page_row_count_limit(1_000)
         .set_statistics_enabled(EnabledStatistics::Page)
         .set_bloom_filter_enabled(false)
+        // this might not be necessary since they are already sorted
         .set_column_bloom_filter_enabled("oracle_id".into(), true)
-        .set_column_bloom_filter_ndv("oracle_id".into(), 40_000)
+        // roughly 3 oracled_ids per group, 10_000 / 3 ~= 3_500
+        .set_column_bloom_filter_ndv("oracle_id".into(), 3_500)
         .set_column_bloom_filter_fpp("oracle_id".into(), 0.01)
         .build();
     let prints_parquet = write_parquet_chunked(prints, Some(props))?;

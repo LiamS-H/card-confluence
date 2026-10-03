@@ -21,22 +21,25 @@ import type {
 	Set as MTGSet,
 	Ruling,
 	CompletionOption,
-	Completion,
-	MetaData
+	Completion
 } from '@card-confluence/wasm-browser';
 import { get_local_settings, type LocalSettings } from '$lib/settings';
+import { uuid_key, type UUIDKey } from '$lib/utils/uuid';
 import { compare_metadata, get_opfs_metadata, get_remote_metadata } from './db-meta';
 import { PUBLIC_PARQUET_LATEST } from '$env/static/public';
+import { QueryResultArrayBufferView } from './query-result';
+import type { RelativeIndexable } from '$lib/utils/array';
 
 export type { Print };
 
 export interface QueryResultRow {
-	oracle_id: string;
-	matched_prints: string[];
+	oracle_id: Card['oracle_id'];
+	/** A packed array of matching prints */
+	matched_prints: Uint8Array<ArrayBufferLike>;
 }
 
 export interface QueryResult {
-	rows: QueryResultRow[];
+	rows: RelativeIndexable<QueryResultRow>;
 }
 
 export interface QueryRequest {
@@ -66,9 +69,6 @@ export type DetailedCard = Card & {
 	rulings: Ruling[] | null;
 };
 export type CardResponse = ClientResponse<DetailedCard>;
-export type RulingsResponse = ClientResponse<{
-	oracle_id: string;
-}>;
 
 export function query_to_string(query: QueryRequest): string {
 	return query.query;
@@ -87,20 +87,24 @@ class QueryClient {
 	// key is the query as a string, value is the idx_db key
 	public queries: SvelteMap<string, QueryResponse> = new SvelteMap();
 
-	// map consumer_tag (a unique tag representing who is in line) to a card id
+	// map consumer_tag (a unique tag representing who is in line) to the key of the card it wants
 	//   we use a queue because it is performant to batch these requests,
 	//   we use a consumer_tag because consumers might change their mind before a batch comes, and this way we purge the old value.
-	private cards_queue: Map<string, string> = new Map();
+	private cards_queue: Map<string, UUIDKey> = new Map();
+	// card key -> the card's packed uuid plus how many consumer_tags currently want it.
+	//   this is what dedupes the batch: consumers wanting the same card share one entry,
+	//   and the entry only goes away once every consumer that wanted it has changed its mind.
+	private card_refs: Map<UUIDKey, { uuid: Card['oracle_id']; count: number }> = new Map();
 	private cards_batch_timeout: NodeJS.Timeout | null = null;
 
-	public cards: SvelteMap<string, CardResponse> = new SvelteMap();
-	public rulings: SvelteMap<string, CardResponse> = new SvelteMap();
+	// keyed by uuid_key(oracle_id), not the raw bytes: Maps (and svelte reactivity) compare typed arrays by reference.
+	//   use get_card() to look up by packed uuid.
+	public cards: SvelteMap<UUIDKey, CardResponse> = new SvelteMap();
 
-	// a unique id given to the request in flight
+	// maps <a unique id given to the request in flight, to a request>
 	private in_flight: Map<string, QueryWorkerRequest> = new Map();
 
 	private on_self_promotion: LockGrantedCallback<unknown> = async (lock) => {
-		// when called with ifAvailable, this will exit early and mark the client ready because there is already a leader
 		if (!lock) {
 			console.log('[cc-client] connected as follower.');
 			return false;
@@ -111,8 +115,6 @@ class QueryClient {
 			await cache_clear();
 		}
 
-		// Single unified worker, spawned once. Mode switches and downloads are now
-		// just postMessage calls into it — no more terminate/recreate cycle.
 		const worker = new QueryWorker();
 		worker.onerror = (e) => {
 			console.error(
@@ -128,15 +130,10 @@ class QueryClient {
 			const [local_meta, local_error] = await get_opfs_metadata();
 
 			if (remote_error) {
-				// Can't reach remote metadata right now — nothing to compare against,
-				// stay on whatever mode we're already in.
 				console.warn('[cc-client] unable to check for remote updates.', remote_error);
 				return;
 			}
 			if (local_error) {
-				// No local db yet. set_mode('local') will have already surfaced an
-				// error via worker status if this was supposed to be a local session;
-				// nothing more to do here.
 				return;
 			}
 
@@ -146,9 +143,10 @@ class QueryClient {
 				return;
 			}
 
-			// TODO: when settings.database.askEachDownload is true, prompt the user
-			// here and only continue if they confirm. For now downloads proceed
-			// automatically.
+			if (settings.database.askEachDownload) {
+				// TODO: prompt the user if they wish to download the latest data
+			}
+
 			console.log('[cc-client] update available:', compare.sources.length, 'source(s).');
 			worker.postMessage({ action: 'download', sources: compare.sources } as QueryWorkerMessage);
 		}
@@ -157,10 +155,6 @@ class QueryClient {
 			console.log();
 			const use_local = settings.database.useLocal !== false;
 
-			// Eagerly tell the worker which mode to use straight from settings — no
-			// metadata fetch on the startup path. The worker resolves whatever
-			// metadata it actually needs internally (new_http needs remote meta,
-			// new_opfs needs local meta), so queries can start flowing immediately.
 			if (use_local !== last_use_local) {
 				last_use_local = use_local;
 				worker.postMessage({
@@ -169,10 +163,6 @@ class QueryClient {
 				} as QueryWorkerMessage);
 			}
 
-			// Update-checking is a background concern: it doesn't gate queries,
-			// which are already being served by set-mode above. If an update is
-			// found, the worker's own download flow (free_local -> ensure_http ->
-			// download -> set_mode('local')) takes care of switching over.
 			if (use_local) {
 				void check_for_update(settings);
 			}
@@ -249,21 +239,26 @@ class QueryClient {
 					});
 					return;
 				}
-				const table = tableFromIPC(data);
-				const rows = table.toArray() as QueryResultRow[];
+				const view = new QueryResultArrayBufferView(data);
+
 				this.queries.set(req_id, {
 					loading: false,
 					error: false,
 					result: {
-						rows
+						rows: view
 					}
 				});
 				return;
 			}
 			case 'cards': {
 				if (response.type === 'error') {
-					for (const id of request.ids) {
-						this.cards.set(id, { error: true, loading: false, message: response.message });
+					for (let i = 0; i < request.ids.length; i += 16) {
+						const key = uuid_key(request.ids.subarray(i, i + 16));
+						this.cards.set(key, {
+							error: true,
+							loading: false,
+							message: response.message
+						});
 					}
 					return;
 				}
@@ -274,22 +269,32 @@ class QueryClient {
 				const data = await cache_get(response.index);
 				if (!data) {
 					const message = '[cc-client] db index returned by worker has no associated data.';
-					for (const id of request.ids) {
-						this.cards.set(id, { error: true, loading: false, message });
+					for (let i = 0; i < request.ids.length; i += 16) {
+						const key = uuid_key(request.ids.subarray(i, i + 16));
+						this.cards.set(key, { error: true, loading: false, message });
 					}
 					return;
 				}
 				const table = tableFromIPC(data);
-				// const rows = table.toArray() as QueryResultRow[];
+				// console.log('[cc-client] ipc size', data.length, 'B');
+				// let json_size = 0;
+				// for (let i = 0; i < table.numRows; i++) {
+				// 	const card = table.at(i) as DetailedCard;
+				// 	const json = JSON.stringify(card);
+				// 	json_size += json.length;
+				// }
+				// console.log('[cc-client] json size', json_size, 'B');
 
 				for (let i = 0; i < table.numRows; i++) {
 					const card = table.at(i) as DetailedCard;
-					this.cards.set(card.oracle_id, { loading: false, error: false, result: card });
+					this.cards.set(uuid_key(card.oracle_id), {
+						loading: false,
+						error: false,
+						result: card
+					});
 				}
 				return;
 			}
-			// case 'sets':
-			// case 'rulings':
 		}
 	}
 
@@ -305,15 +310,45 @@ class QueryClient {
 		}
 	}
 
+	/** point a consumer_tag at a card, dropping whatever it previously wanted. */
+	private set_card(tag: string, key: UUIDKey, uuid: Card['oracle_id']) {
+		const prev = this.cards_queue.get(tag);
+		if (prev === key) return; // consumer re-asked for the same card, nothing to do
+		if (prev !== undefined) this.remove_card(tag);
+
+		this.cards_queue.set(tag, key);
+		const ref = this.card_refs.get(key);
+		if (ref) ref.count++;
+		else this.card_refs.set(key, { uuid, count: 1 });
+	}
+
+	/** drop a consumer_tag's pending request, releasing the card if nobody else wants it. */
+	private remove_card(tag: string) {
+		const key = this.cards_queue.get(tag);
+		if (key === undefined) return;
+		this.cards_queue.delete(tag);
+
+		const ref = this.card_refs.get(key)!;
+		if (--ref.count === 0) this.card_refs.delete(key);
+		console.log('[client]', this.card_refs);
+	}
+
 	private process_cards_batch() {
 		if (this.cards_batch_timeout) clearTimeout(this.cards_batch_timeout);
 		this.cards_batch_timeout = null;
 
-		if (this.cards_queue.size === 0) return;
-		console.log('[client] requesting', this.cards_queue.size, 'cards');
+		const size = this.card_refs.size;
+		if (size === 0) return;
+		console.log('[client] requesting', size, 'cards');
 
-		const ids = [...new Set(this.cards_queue.values())];
+		const ids = new Uint8Array(size * 16);
+		let i = 0;
+		for (const { uuid } of this.card_refs.values()) {
+			ids.set(uuid, i * 16);
+			i++;
+		}
 		this.cards_queue.clear();
+		this.card_refs.clear();
 
 		const req_id = crypto.randomUUID();
 		const req = { req_id, type: 'cards', ids } as const;
@@ -326,9 +361,19 @@ class QueryClient {
 		this.cards_batch_timeout = setTimeout(() => this.process_cards_batch(), 50);
 	}
 
-	public ensure_card(card_id: string, tag: string): void {
-		if (this.cards.has(card_id)) return;
-		this.cards_queue.set(tag, card_id);
+	/** look up a card response by its packed uuid. reactive per card. */
+	public get_card(card_id: Card['oracle_id']): CardResponse | undefined {
+		return this.cards.get(uuid_key(card_id));
+	}
+
+	public ensure_card(card_id: Card['oracle_id'], tag: string): void {
+		const key = uuid_key(card_id);
+		if (this.cards.has(key)) {
+			// the consumer no longer needs whatever it queued before
+			this.remove_card(tag);
+			return;
+		}
+		this.set_card(tag, key, card_id);
 		this.request_card_batch();
 	}
 

@@ -8,6 +8,9 @@
 	import type { Snippet } from 'svelte';
 	import Options from './options.svelte';
 	import type { CardVariant } from '$lib/settings/settings-local.svelte';
+	import { uuid_to_string } from '$lib/utils/uuid';
+
+	export type OptionsSnippet = Snippet<[{ card: CardObj; print: Print; variant: CardVariant }]>;
 
 	const {
 		result,
@@ -20,7 +23,7 @@
 		result: QueryResultRow;
 		key?: string;
 		width: string | number;
-		options?: Snippet<[{ card: CardObj; print: Print }]>;
+		options?: OptionsSnippet;
 		variant: CardVariant;
 		onclick?: undefined | (() => void);
 	} = $props();
@@ -28,9 +31,9 @@
 
 {#snippet options({ card, print }: { card: CardObj; print: Print })}
 	{#if _options}
-		{@render _options({ card, print })}
+		{@render _options({ card, print, variant })}
 	{:else}
-		<Options {card} {print} />
+		<Options {card} {print} {variant} />
 	{/if}
 {/snippet}
 
@@ -38,8 +41,8 @@
 	{#snippet success({ card, print })}
 		{const href = $derived.by(() => {
 			const params = new URL(page.url).searchParams;
-			params.set('card', card.oracle_id);
-			params.set('print', print.scryfall_id);
+			params.set('card', uuid_to_string(card.oracle_id));
+			params.set('print', uuid_to_string(print.scryfall_id));
 			return `${page.url.pathname}?${params.toString()}`;
 		})}
 		{const actions = $derived.by(() => {

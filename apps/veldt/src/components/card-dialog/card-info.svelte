@@ -200,5 +200,6 @@
 				</ul>
 			</Accordion.Content>
 		</Accordion.Item>
+		<Accordion.Item value="json"></Accordion.Item>
 	</Accordion.Root>
 </div>

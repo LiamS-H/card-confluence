@@ -9,13 +9,11 @@ use std::{
 };
 
 use bytes::Bytes;
-use futures::{
-    stream::{self, BoxStream},
-};
+use futures::stream::{self, BoxStream};
 use js_sys::Uint8Array;
 use object_store::{
-    path::Path, Error, GetOptions, GetResult, GetResultPayload, ListResult, MultipartUpload,
-    ObjectMeta, ObjectStore, PutMultipartOptions, PutOptions, PutPayload, PutResult, Result,
+    Error, GetOptions, GetResult, GetResultPayload, ListResult, MultipartUpload, ObjectMeta,
+    ObjectStore, PutMultipartOptions, PutOptions, PutPayload, PutResult, Result, path::Path,
 };
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
@@ -63,6 +61,15 @@ pub struct OpfsReadonlyStore {
     /// this map on the one WASM thread, and `SendWrapper` silences the
     /// compiler.
     files: SendWrapper<RefCell<HashMap<Path, FileSystemSyncAccessHandle>>>,
+}
+
+impl Drop for OpfsReadonlyStore {
+    fn drop(&mut self) {
+        let mut map = self.files.0.borrow_mut();
+        for (_, handle) in map.drain() {
+            let _ = handle.close();
+        }
+    }
 }
 
 impl OpfsReadonlyStore {

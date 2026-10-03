@@ -1,7 +1,6 @@
 /// <reference lib="webworker" />
 
 import init, { CardConfluenceBrowser, type MetaData } from '@card-confluence/wasm-browser';
-import DownloadWorker from '$lib/card-confluence/download-worker?worker';
 
 import { QueryEventsChannel, QueryReqChannel, QueryResChannel } from '../channels';
 import {
@@ -11,12 +10,12 @@ import {
 	type QueryWorkerMessage
 } from './shared';
 import { get_remote_metadata, get_opfs_metadata } from '../db-meta';
+import { download_db } from '../download-worker/factory';
+import type { DownloadRequest } from '../download-worker';
 
 const PUBLIC_PARQUET_LATEST = import.meta.env.VITE_PUBLIC_PARQUET_LATEST;
 
-console.log('[worker] initialising wasm');
 const wasm_ready = init();
-console.log('[worker] wasm initialized');
 
 let active_browser: CardConfluenceBrowser | null = null;
 let http_browser: CardConfluenceBrowser | null = null;
@@ -25,6 +24,16 @@ let current_mode: 'http' | 'local' | null = null;
 
 let http_metadata: MetaData | null = null;
 let local_metadata: MetaData | null = null;
+
+let worker_task_queue = Promise.resolve();
+
+function enqueue_task<T>(task: () => Promise<T> | T): Promise<T> {
+	const next = worker_task_queue.then(task);
+	worker_task_queue = next.catch((err) => {
+		console.error('[worker] task failed:', err);
+	}) as Promise<any>;
+	return next;
+}
 
 async function ensure_http(): Promise<boolean> {
 	if (http_browser) return true;
@@ -72,10 +81,10 @@ function free_http() {
 	}
 }
 
-async function set_mode(mode: 'http' | 'local') {
-	await wasm_ready;
-
-	if (mode === current_mode) return;
+async function perform_set_mode(mode: 'http' | 'local') {
+	if (mode === current_mode) {
+		return;
+	}
 
 	if (mode === 'http') {
 		setWorkerStatus({ state: 'loading', data: 'remote' });
@@ -84,7 +93,6 @@ async function set_mode(mode: 'http' | 'local') {
 		active_browser = http_browser;
 		current_mode = 'http';
 		setWorkerStatus({ state: 'ready', data: 'remote', metadata: http_metadata! });
-		// Free local browser to release OPFS locks when not needed
 		free_local();
 	} else {
 		setWorkerStatus({ state: 'loading', data: 'local' });
@@ -93,18 +101,13 @@ async function set_mode(mode: 'http' | 'local') {
 		active_browser = local_browser;
 		current_mode = 'local';
 		setWorkerStatus({ state: 'ready', data: 'local', metadata: local_metadata! });
-		// Free http browser when using local
 		free_http();
 	}
 }
 
-async function handle_download(sources: import('@card-confluence/wasm-browser').MetaDataSource[]) {
-	await wasm_ready;
-
-	// Free local browser to release OPFS read locks before downloading
+async function perform_download(request: DownloadRequest) {
 	free_local();
 
-	// Ensure HTTP is active for queries during download
 	if (current_mode !== 'http') {
 		const ok = await ensure_http();
 		if (ok) {
@@ -114,118 +117,74 @@ async function handle_download(sources: import('@card-confluence/wasm-browser').
 		}
 	}
 
-	QueryEventsChannel.postMessage({
-		type: 'download-progress',
-		downloaded: 0,
-		total: sources.length
+	const download = await download_db(request, (progress) => {
+		QueryEventsChannel.postMessage({
+			...progress,
+			type: 'download-progress'
+		});
 	});
 
-	// Spawn download sub-worker
-	const worker = new DownloadWorker();
-
-	const { promise, resolve } = Promise.withResolvers<void>();
-
-	worker.onmessage = async (event: MessageEvent) => {
-		const data = event.data;
-		if (data.status === 'progress') {
-			QueryEventsChannel.postMessage({
-				type: 'download-progress',
-				downloaded: data.downloaded,
-				total: data.total
-			});
-			return;
-		}
-
-		// Terminal states: success or error
-		worker.terminate();
-
-		if (data.status === 'success') {
-			QueryEventsChannel.postMessage({ type: 'download-complete', success: true });
-			// Switch to local after successful download
-			await set_mode('local');
-		} else {
-			QueryEventsChannel.postMessage({
-				type: 'download-complete',
-				success: false,
-				error: data.message || data.type || 'Unknown download error'
-			});
-		}
-
-		resolve();
-	};
-
-	worker.onerror = (e) => {
-		console.error('[unified-worker] download sub-worker error:', e);
-		worker.terminate();
+	if (download.status === 'error') {
 		QueryEventsChannel.postMessage({
 			type: 'download-complete',
 			success: false,
-			error: String(e)
+			error: download
 		});
-		resolve();
-	};
-
-	worker.postMessage({ sources });
-
-	return promise;
-}
-
-// Queue requests that arrive before a browser is active
-const pending_requests: MessageEvent[] = [];
-let draining = false;
-
-async function drain_pending() {
-	if (draining) return;
-	draining = true;
-	while (pending_requests.length > 0) {
-		const event = pending_requests.shift()!;
-		const resp = await handle_query_request(active_browser!, event.data);
-		QueryResChannel.postMessage(resp);
+	} else {
+		QueryEventsChannel.postMessage({
+			type: 'download-complete',
+			success: true
+		});
+		perform_set_mode('local');
 	}
-	draining = false;
 }
 
-// Handle queries using active browser
 QueryReqChannel.onmessage(async (event) => {
 	await wasm_ready;
+	await worker_task_queue;
+
 	if (!active_browser) {
-		pending_requests.push(event);
+		console.warn('[worker] Dropped query: no active browser after transitions');
 		return;
 	}
-	const resp = await handle_query_request(active_browser, event.data);
-	QueryResChannel.postMessage(resp);
+
+	try {
+		const resp = await handle_query_request(active_browser, event.data);
+		QueryResChannel.postMessage(resp);
+	} catch (err) {
+		console.error('[worker] Query failed: ', err);
+	}
 });
 
-// Handle db-check events
 QueryEventsChannel.onmessage((event) => {
 	if (event.data.type === 'db-check') {
 		QueryEventsChannel.postMessage({ type: 'db-status', status: worker_status });
 	}
 });
 
-// Handle commands from client via postMessage
-onmessage = async (event) => {
+onmessage = (event) => {
 	const msg: QueryWorkerMessage = event.data;
-	switch (msg.action) {
-		case 'set-mode': {
-			await set_mode(msg.mode);
-			// Drain any requests that queued while waiting for a browser
-			if (active_browser && pending_requests.length > 0) {
-				await drain_pending();
+
+	// Enqueue these actions to prevent race conditions (e.g. OPFS lock conflicts)
+	enqueue_task(async () => {
+		await wasm_ready;
+		switch (msg.action) {
+			case 'set-mode': {
+				await perform_set_mode(msg.mode);
+				break;
 			}
-			break;
+			case 'download': {
+				await perform_download({ sources: msg.sources });
+				break;
+			}
+			case 'destroy': {
+				free_local();
+				free_http();
+				active_browser = null;
+				current_mode = null;
+				postMessage(undefined); // Acknowledge destruction safely
+				break;
+			}
 		}
-		case 'download': {
-			await handle_download(msg.sources);
-			break;
-		}
-		case 'destroy': {
-			free_local();
-			free_http();
-			active_browser = null;
-			current_mode = null;
-			postMessage(undefined);
-			break;
-		}
-	}
+	});
 };

@@ -1,6 +1,12 @@
 import { query_client } from '$lib';
+import { uuid_key } from '$lib/utils/uuid';
+import type { Card } from '@card-confluence/wasm-browser';
 
-export function use_card(getId: () => string, debounce?: number, key?: string | undefined) {
+export function use_card(
+	getId: () => Card['oracle_id'],
+	debounce?: number,
+	key?: string | undefined
+) {
 	const id = $derived(getId());
 	key ??= crypto.randomUUID();
 	let timeout: NodeJS.Timeout;
@@ -17,7 +23,7 @@ export function use_card(getId: () => string, debounce?: number, key?: string | 
 
 	return {
 		get card() {
-			return query_client.cards.get(id) ?? { loading: true, error: false };
+			return query_client.cards.get(uuid_key(id)) ?? { loading: true, error: false };
 		}
 	};
 }

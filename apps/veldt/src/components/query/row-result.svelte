@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { use_card } from '$lib';
 	import type { QueryResultRow, DetailedCard, Print } from '$lib';
+	import { match_print } from '$lib/card-confluence/query-result';
 	import type { Snippet } from 'svelte';
 	// This component wraps a card response and simplifies the parsing to split between Loading, Error, and CardRepresenation
 
@@ -18,7 +19,7 @@
 		loading: Snippet<[]>;
 	} = $props();
 
-	let { card } = $derived(use_card(() => result.oracle_id, 100, key));
+	const { card } = $derived(use_card(() => result.oracle_id, 100, key));
 </script>
 
 {#if card.loading}
@@ -26,9 +27,7 @@
 {:else if card.error}
 	{@render error({ message: card.message })}
 {:else}
-	{const print = $derived(
-		card.result.prints.find((p) => result.matched_prints.includes(p.scryfall_id))
-	)}
+	{const print = $derived(card.result.prints.find((p) => match_print(result, p.scryfall_id)))}
 
 	{#if print}
 		{@render success({ card: card.result, print })}

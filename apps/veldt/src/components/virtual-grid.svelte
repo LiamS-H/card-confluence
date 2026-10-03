@@ -1,27 +1,27 @@
-<script lang="ts" generics="T">
+<script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
 
-	type Props<T> = {
-		items: T[];
+	export type VirtualGridProps = {
+		length: number;
 		itemWidth?: number | undefined;
 		itemHeight?: number | undefined;
 		columns: number;
 		aspectRatio?: number; // width / height, default 5/7
 		overscan?: number;
 		item?: Snippet<
-			[{ index: number; item: T; row: number; col: number; viewportRow: number; width: number }]
+			[{ index: number; row: number; col: number; viewportRow: number; width: number }]
 		>;
 	};
 
 	let {
-		items,
+		length,
 		columns,
 		aspectRatio = 5 / 7,
 		overscan = 2,
 		item,
 		itemWidth: setItemWidth,
 		itemHeight: setItemHeight
-	}: Props<T> = $props();
+	}: VirtualGridProps = $props();
 
 	let scroller: HTMLDivElement;
 	let scrollTop = $state(0);
@@ -39,7 +39,7 @@
 
 	const itemWidth = $derived(setItemWidth ?? viewportWidth / columns);
 	const itemHeight = $derived(setItemHeight ?? (setItemWidth ?? itemWidth) / aspectRatio);
-	const totalRows = $derived(Math.ceil(items.length / columns));
+	const totalRows = $derived(Math.ceil(length / columns));
 	const totalHeight = $derived(totalRows * itemHeight);
 
 	const visible = $derived.by(() => {
@@ -53,10 +53,9 @@
 		for (let row = start; row < end; row++) {
 			for (let col = 0; col < columns; col++) {
 				const index = row * columns + col;
-				if (index >= items.length) break;
+				if (index >= length) break;
 				out.push({
 					index,
-					item: items[index],
 					row,
 					col,
 					width: itemWidth,
