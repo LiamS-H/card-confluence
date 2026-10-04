@@ -1,17 +1,29 @@
 <script module lang="ts">
+	import { type ScryfallList, type ScryfallError } from '@scryfall/api-types';
+
+	type ScryfallReturn = ScryfallList.CardSymbols | ScryfallError;
+
 	const scryfallSymbolsPromise = fetch('https://api.scryfall.com/symbology', {
 		headers: {
 			'User-Agent': 'card-confluence/0.0',
 			Accept: '*/*'
 		}
 	})
-		.then((res) => res.json())
+		.then((res) => res.json() as unknown as Promise<ScryfallReturn>)
 		.then((json) => {
+			if (json.object === 'error') {
+				console.error('[symbols] unavailable', json);
+				return {};
+			}
 			const map: Record<string, string> = {};
 			json.data.forEach((sym: any) => {
 				map[sym.symbol] = sym.svg_uri;
 			});
 			return map;
+		})
+		.catch((err) => {
+			console.warn('[symbols] unavailable', err);
+			return {};
 		});
 
 	function parseTokens(text: string, symbols: Record<string, string>) {

@@ -31,7 +31,7 @@
 		role={href ? 'link' : undefined}
 	>
 		<img
-			class="w-full"
+			class="aspect-5/7 w-full"
 			{alt}
 			src={image_uri}
 			onload={async (e) => {
