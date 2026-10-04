@@ -16,7 +16,7 @@
 	<!-- <CardOptionsDeck zone="considering" {...props} /> -->
 	<!-- {/snippet} -->
 
-	{#snippet options}
+	{#snippet options()}
 
 	{/snippet}
 </TagDoc>
