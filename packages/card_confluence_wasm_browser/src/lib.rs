@@ -87,6 +87,32 @@ impl CardConfluenceBrowser {
         Ok(new_self)
     }
 
+    /// Like [`new_opfs`], but eagerly reads all OPFS files into an in-memory store before
+    /// building the session context. After construction, no further OPFS I/O is performed —
+    /// all reads are served from RAM, which can significantly improve query latency.
+    pub async fn new_opfs_in_memory(metadata: MetaData) -> Result<Self, JsValue> {
+        let opfs_store = OpfsReadonlyStore::new();
+        opfs_store
+            .register_paths(metadata.sources.iter().map(|s| s.path.clone()).collect())
+            .await?;
+
+        let mem_store: Arc<dyn ObjectStore> = Arc::new(
+            opfs_store
+                .load_into_memory()
+                .await
+                .map_err(error_map)?,
+        );
+
+        let context = get_context_from_metadata(mem_store.clone(), metadata)
+            .await
+            .map_err(error_map)?;
+
+        Ok(Self {
+            context,
+            store: mem_store,
+        })
+    }
+
     pub async fn new_http(url: String, metadata: MetaData) -> Result<Self, JsValue> {
         let mut url_str = url;
         if !url_str.ends_with('/') {

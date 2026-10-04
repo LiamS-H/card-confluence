@@ -154,6 +154,38 @@ impl OpfsReadonlyStore {
         self.files.0.borrow().keys().cloned().collect()
     }
 
+    /// Reads every registered OPFS file into an in-memory [`object_store::memory::InMemory`]
+    /// store and returns it.
+    ///
+    /// This is useful when you want to load all data upfront (e.g. on a background worker) and
+    /// then hand off a fully in-memory store to the main thread, avoiding repeated OPFS I/O
+    /// during query execution.
+    pub async fn load_into_memory(&self) -> Result<object_store::memory::InMemory> {
+        // Collect all file bytes while the RefCell borrow is held, then release it
+        // before the first `.await` so we never hold a borrow across an await point.
+        let file_data: Vec<(Path, Bytes)> = {
+            let map = self.files.0.borrow();
+            map.iter()
+                .map(|(path, handle)| {
+                    let (bytes, _range) = Self::read_file_bytes_range(handle, None)?;
+                    Ok((path.clone(), bytes))
+                })
+                .collect::<Result<_>>()?
+        };
+
+        let store = object_store::memory::InMemory::new();
+        for (path, bytes) in file_data {
+            store
+                .put(&path, bytes.into())
+                .await
+                .map_err(|e| Error::Generic {
+                    store: "OpfsReadonlyStore::load_into_memory",
+                    source: format!("InMemory put failed: {:?}", e).into(),
+                })?;
+        }
+        Ok(store)
+    }
+
     fn not_found(&self, path: &Path) -> Error {
         Error::NotFound {
             path: path.to_string(),

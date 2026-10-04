@@ -3,7 +3,6 @@ members = [
     "packages/card_confluence_db",
     "packages/card_confluence_wasm_browser",
     "packages/scryfall_rust_bindings",
-    "packages/wasm_workflow_seed",
     "packages/cloudflare_utils",
     "apps/card_confluence_cli",
 ]

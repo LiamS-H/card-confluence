@@ -603,23 +603,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cc-wasm-workflow-seed"
-version = "0.1.0"
-dependencies = [
- "card-confluence-db",
- "chrono",
- "cloudflare-utils",
- "getrandom 0.3.4",
- "object_store",
- "serde",
- "serde_json",
- "tsify",
- "wasm-bindgen",
- "worker",
- "worker-macros",
-]
-
-[[package]]
 name = "cesu8"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
