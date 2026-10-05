@@ -47,7 +47,7 @@ pub struct CompletionPlan {
 #[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct HashedPlan {
-    /// The hash of the (optimized) logical plan. Currently the raw plan bytes are used as the hash.
+    /// The hash of the (optimized) logical plan.
     #[tsify(type = "Uint8Array")]
     #[serde(with = "serde_bytes")]
     pub hash: Vec<u8>,
@@ -88,20 +88,15 @@ impl CardConfluenceBrowser {
     }
 
     /// Like [`new_opfs`], but eagerly reads all OPFS files into an in-memory store before
-    /// building the session context. After construction, no further OPFS I/O is performed —
-    /// all reads are served from RAM, which can significantly improve query latency.
+    /// building the session context.
     pub async fn new_opfs_in_memory(metadata: MetaData) -> Result<Self, JsValue> {
         let opfs_store = OpfsReadonlyStore::new();
         opfs_store
             .register_paths(metadata.sources.iter().map(|s| s.path.clone()).collect())
             .await?;
 
-        let mem_store: Arc<dyn ObjectStore> = Arc::new(
-            opfs_store
-                .load_into_memory()
-                .await
-                .map_err(error_map)?,
-        );
+        let mem_store: Arc<dyn ObjectStore> =
+            Arc::new(opfs_store.load_into_memory().await.map_err(error_map)?);
 
         let context = get_context_from_metadata(mem_store.clone(), metadata)
             .await

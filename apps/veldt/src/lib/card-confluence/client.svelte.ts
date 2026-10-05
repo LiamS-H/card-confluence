@@ -124,6 +124,7 @@ class QueryClient {
 		};
 
 		let last_use_local: boolean | null = null;
+		let last_use_mem: boolean | null = null;
 
 		async function check_for_update(settings: LocalSettings) {
 			const [remote_meta, remote_error] = await get_remote_metadata(PUBLIC_PARQUET_LATEST);
@@ -154,9 +155,11 @@ class QueryClient {
 		async function handle_settings(settings: LocalSettings) {
 			console.log();
 			const use_local = settings.database.useLocal !== false;
+			const use_mem = settings.database.inMemory !== false;
 
 			if (use_local !== last_use_local) {
 				last_use_local = use_local;
+				last_use_mem = use_mem;
 				worker.postMessage({
 					action: 'set-mode',
 					mode: use_local ? 'local' : 'http'

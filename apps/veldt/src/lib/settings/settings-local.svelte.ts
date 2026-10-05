@@ -8,6 +8,7 @@ export type CardVariant = 'img' | 'img-full' | 'tile';
 export interface LocalSettings {
 	database: {
 		useLocal: boolean;
+		inMemory: boolean;
 		askEachDownload: boolean;
 	};
 	cards: {
@@ -20,6 +21,7 @@ export function get_default_local_settings(): LocalSettings {
 	return {
 		database: {
 			useLocal: false,
+			inMemory: false,
 			askEachDownload: true
 		},
 		cards: {

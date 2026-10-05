@@ -29,6 +29,12 @@ export type DBStatus =
 			data: 'remote';
 	  }
 	| {
+			state: 'downloading';
+			data: 'remote';
+			downloaded: number;
+			total: number;
+	  }
+	| {
 			state: 'ready';
 			data: 'remote' | 'local';
 			metadata: MetaData;
@@ -58,11 +64,6 @@ export type QueryWorkerEvent =
 	| {
 			type: 'error-fatal';
 			message: string;
-	  }
-	| {
-			type: 'download-progress';
-			downloaded: number;
-			total: number;
 	  }
 	| {
 			type: 'download-complete';
@@ -108,7 +109,7 @@ export type QueryWorkerRequest =
 
 export type QueryWorkerMessage =
 	| { action: 'destroy' }
-	| { action: 'set-mode'; mode: 'http' | 'local' }
+	| { action: 'set-mode'; mode: 'http' | 'local' | 'local_mem' }
 	| { action: 'download'; sources: MetaDataSource[] };
 
 export async function handle_query_request(
