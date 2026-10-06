@@ -75,7 +75,7 @@
 	<span class={cn('', className)} {...restProps}>
 		{#each parseTokens(text, symbols) as token}
 			{#if token.type === 'symbol'}
-				<img src={token.src} alt={token.alt} class="inline-block h-[1em] w-fit align-middle" />
+				<img src={token.src} alt={token.alt} class="inline-block h-[1em] w-[1em] align-middle" />
 			{:else}
 				{token.content}
 			{/if}

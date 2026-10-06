@@ -53,22 +53,22 @@
 		})}
 
 		{#if variant === 'img-full'}
-			<div class="relative" style:width>
+			<div class="relative" style:width={`${width}px`}>
 				<CardImage {...actions} {card} {print} {width} />
 				<div class="absolute bottom-0 left-0 z-10">
 					{@render options({ card, print })}
 				</div>
 			</div>
 		{:else if variant === 'img'}
-			<div class="relative mb-[-125%]" style:width>
+			<div class="relative mb-[-125%]" style:width={`${width}px`}>
 				<CardImage {...actions} {card} {print} {width} />
 			</div>
 		{:else if variant === 'tile'}
-			<div class="flex w-fit" style:width>
-				<a {href}>
-					<CardTile {card} {width} />
+			<div class="flex" style:width={`${width}px`}>
+				{@render options({ print, card })}
+				<a class="flex grow" {href}>
+					<CardTile {card} />
 				</a>
-				{@render options({ card, print })}
 			</div>
 		{/if}
 	{/snippet}

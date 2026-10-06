@@ -67,7 +67,7 @@
 						>
 							{#snippet options({ card, print })}
 								{#if zone === 'considering'}
-									<ConsideringOptions {card} {print} />
+									<ConsideringOptions {variant} {card} {print} />
 								{:else}
 									<CardOptionsDeck {variant} {card} {print} {zone} />
 								{/if}
@@ -90,7 +90,7 @@
 						>
 							{#snippet options({ card, print })}
 								{#if zone === 'considering'}
-									<ConsideringOptions {card} {print} />
+									<ConsideringOptions {variant} {card} {print} />
 								{:else}
 									<CardOptionsDeck {variant} {card} {print} {zone} />
 								{/if}
@@ -120,7 +120,7 @@
 						>
 							{#snippet options({ card, print })}
 								{#if zone === 'considering'}
-									<ConsideringOptions {card} {print} />
+									<ConsideringOptions {variant} {card} {print} />
 								{:else}
 									<CardOptionsDeck {variant} {card} {print} {zone} />
 								{/if}
