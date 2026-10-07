@@ -3,8 +3,6 @@
 </script>
 
 <script lang="ts">
-	// TODO: make this accept null as print_index, could be used for minimal db version that doesn't download print info at all
-	// combine with dialog not using unused card info
 	import { type DetailedCard } from '$lib';
 	import * as Accordion from '$components/ui/accordion';
 	import { Button } from '$components/ui/button';
@@ -22,13 +20,35 @@
 	const active_print = $derived(card.prints[print_index] ?? null);
 </script>
 
+{#snippet printing({ print }: { print: DetailedCard['prints'][number] })}
+	{const selected = print.scryfall_id === active_print?.scryfall_id}
+	<div class={`group flex w-full flex-wrap justify-between`}>
+		<div
+			class={`flex flex-1 items-center gap-2 capitalize ${selected ? 'text-muted-foreground' : ''}`}
+		>
+			<span
+				class={`max-w-44 truncate sm:max-w-44 md:max-w-32 lg:max-w-96 ${selected ? '' : 'truncate group-hover:underline'}`}
+			>
+				{print.set.name}
+			</span>
+			<span class="font-thin">
+				({print.set_code.toUpperCase()})
+			</span>
+			<div class="flex gap-1"></div>
+		</div>
+		<div class="flex gap-2">
+			<span class="truncate">{price_from_print(print)}</span>
+		</div>
+	</div>
+{/snippet}
+
 <div class="flex h-full flex-col items-center gap-2 overflow-y-auto md:flex-row md:items-start">
 	<Accordion.Root bind:value type="multiple">
 		{const faces = card.card_faces ?? [card]}
 		{#each faces as face, i}
 			<Accordion.Item value={`face-${i}`}>
 				<Accordion.Trigger>
-					<div class="flex w-full flex-col-reverse justify-between gap-1 pl-3 md:flex-row md:gap-0">
+					<div class="flex w-full flex-col-reverse justify-between gap-1 pl-2 md:flex-row md:gap-0">
 						<div>
 							{#if active_print !== null && active_print.flavor_name && active_print.flavor_name !== face.name}
 								<h2 class="text-lg leading-none font-semibold">
@@ -49,50 +69,29 @@
 						<OracleSpan text={face.mana_cost ?? ''} />
 					</div>
 				</Accordion.Trigger>
-				<Accordion.Content>
+				<Accordion.Content class="px-3">
 					<OracleText text={face.oracle_text ?? ''} />
 				</Accordion.Content>
 			</Accordion.Item>
 		{/each}
+
 		{#if card.prints.length >= 1 || active_print === null}
 			<Accordion.Item value="Printings">
-				<Accordion.Trigger>Printings</Accordion.Trigger>
+				<Accordion.Trigger class="group flex gap-2 hover:no-underline"
+					><span class="group-hover:underline">Printings</span>
+					{#if active_print !== null}
+						{@render printing({ print: active_print })}
+					{/if}
+				</Accordion.Trigger>
 				<Accordion.Content>
 					{#each card.prints as print}
-						{const selected = print.scryfall_id === active_print?.scryfall_id}
-						<div class={`group flex w-full flex-wrap justify-between`}>
-							<div class="flex flex-1 items-center gap-2 capitalize">
-								<span
-									class={`max-w-44 truncate sm:max-w-44 md:max-w-32 lg:max-w-96 ${selected ? '' : 'truncate group-hover:underline'}`}
-								>
-									{print.set.name}
-								</span>
-								<span class="font-thin">
-									({print.set_code.toUpperCase()})
-								</span>
-								<div class="flex gap-1"></div>
-							</div>
-							<div class="flex gap-2">
-								<span class="truncate">{price_from_print(print)}</span>
-							</div>
-						</div>
+						{@render printing({ print })}
 					{/each}
 				</Accordion.Content>
 			</Accordion.Item>
 		{:else}
 			<div class={`flex w-full flex-wrap justify-between border-b-foreground`}>
-				<div class="flex items-center gap-2 capitalize">
-					<span class="flex max-w-44 flex-1 sm:max-w-44 md:max-w-32 lg:max-w-96">
-						{active_print.set.name}
-					</span>
-					<span class="font-thin">
-						{active_print.set_code.toUpperCase()}
-					</span>
-					<div class="flex gap-1"></div>
-				</div>
-				<div class="flex gap-2">
-					<span class="truncate">{price_from_print(active_print)}</span>
-				</div>
+				{@render printing({ print: card.prints[0] })}
 			</div>
 		{/if}
 		{#if card.all_parts && card.all_parts.length > 1}
