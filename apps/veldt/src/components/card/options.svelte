@@ -17,8 +17,8 @@
 
 	const {
 		card,
-		print
-		// variant
+		print,
+		variant
 	}: {
 		card: CardObj;
 		print: Print;
@@ -42,6 +42,7 @@
 	<Popover.Trigger>
 		{#snippet child({ props })}
 			<Button
+				size={variant === 'img-full' ? 'md' : 'xs'}
 				{...props}
 				intent="default"
 				variant={isOpen ? 'fixed' : 'outline'}
