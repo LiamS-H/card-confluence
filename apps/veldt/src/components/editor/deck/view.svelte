@@ -46,15 +46,19 @@
 
 	const {
 		cards: { deckVariant: variant }
-	} = use_settings();
+	} = $derived(use_settings());
 </script>
 
-<div style={`columns: ${width}px`}>
+<!-- <div > -->
+<div
+	style={variant !== 'img-full' ? `columns: ${width}px` : undefined}
+	class={variant === 'img-full' ? 'flex max-w-full flex-wrap' : ''}
+>
 	{#each tags as tag}
-		<div class="flex w-fit break-inside-avoid flex-col overflow-y-hidden">
+		<div class="relative flex break-inside-avoid flex-col overflow-y-hidden bg-background">
 			{#if variant === 'img-full'}
 				<span>{tag.tag.label}</span>
-				<div class="flex w-fit flex-col">
+				<div class="flex max-w-full flex-wrap">
 					{#each tag.cards.toReversed() as deck_card (deck_card.oracle_id)}
 						<ResultCard
 							{variant}
@@ -101,8 +105,12 @@
 			{:else if variant === 'img'}
 				<span>{tag.tag.label}</span>
 				<div class="flex w-fit flex-col">
-					{#each tag.cards as deck_card (deck_card.oracle_id)}
-						{const id = $derived(`${tag.tag.scope}:${tag.tag.label}${deck_card.oracle_id}`)}
+					{const ids = tag.cards.map(
+						(deck_card) => `${tag.tag.scope}:${tag.tag.label}${deck_card.oracle_id}`
+					)}
+					{const has_active = $derived(ids.includes(active ?? ''))}
+					{#each tag.cards as deck_card, index (deck_card.oracle_id)}
+						{const id = $derived(ids[index])}
 						{const isActive = $derived(id === active)}
 						<ResultCard
 							onclick={isActive
@@ -127,6 +135,7 @@
 							{/snippet}
 						</ResultCard>
 					{/each}
+					<div style:height={has_active ? '0px' : `${(width * 7) / 5 - 0.15 * width}px`}></div>
 				</div>
 			{/if}
 		</div>

@@ -9,6 +9,7 @@
 	import Options from './options.svelte';
 	import type { CardVariant } from '$lib/settings/settings-local.svelte';
 	import { uuid_to_string } from '$lib/utils/uuid';
+	import { set_hovered_card, clear_hovered_card } from '$lib/hover.svelte';
 
 	export type OptionsSnippet = Snippet<[{ card: CardObj; print: Print; variant: CardVariant }]>;
 
@@ -23,14 +24,16 @@
 		result: QueryResultRow;
 		key?: string;
 		width: string | number;
-		options?: OptionsSnippet;
+		options?: OptionsSnippet | null;
 		variant: CardVariant;
 		onclick?: undefined | (() => void);
 	} = $props();
 </script>
 
 {#snippet options({ card, print }: { card: CardObj; print: Print })}
-	{#if _options}
+	{#if _options === null}
+		<!-- no options -->
+	{:else if _options}
 		{@render _options({ card, print, variant })}
 	{:else}
 		<Options {card} {print} {variant} />
@@ -51,20 +54,47 @@
 			}
 			return { href };
 		})}
+		{const handle_enter = () => {
+			set_hovered_card({ card: result.oracle_id, print: print.scryfall_id });
+		}}
 
 		{#if variant === 'img-full'}
-			<div class="relative" style:width={`${width}px`}>
+			<div
+				onmouseover={handle_enter}
+				onfocus={handle_enter}
+				onmouseleave={clear_hovered_card}
+				onblur={clear_hovered_card}
+				role="tooltip"
+				class="relative"
+				style:width={`${width}px`}
+			>
 				<CardImage {...actions} {card} {print} {width} />
 				<div class="absolute bottom-0 left-0 z-10">
 					{@render options({ card, print })}
 				</div>
 			</div>
 		{:else if variant === 'img'}
-			<div class="relative mb-[-125%]" style:width={`${width}px`}>
+			<div
+				onmouseover={handle_enter}
+				onfocus={handle_enter}
+				onmouseleave={clear_hovered_card}
+				onblur={clear_hovered_card}
+				role="tooltip"
+				class="relative mb-[-125%]"
+				style:width={`${width}px`}
+			>
 				<CardImage {...actions} {card} {print} {width} />
 			</div>
 		{:else if variant === 'tile'}
-			<div class="flex" style:width={`${width}px`}>
+			<div
+				onmouseover={handle_enter}
+				onfocus={handle_enter}
+				onmouseleave={clear_hovered_card}
+				onblur={clear_hovered_card}
+				role="tooltip"
+				class="flex"
+				style:width={`${width}px`}
+			>
 				{@render options({ print, card })}
 				<a class="flex grow" {href}>
 					<CardTile {card} />
