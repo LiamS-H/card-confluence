@@ -80,8 +80,8 @@
 				variant={'img-full'}
 				width="200px"
 				result={{
-					oracle_id: string_to_uuid(commander.oracle_id),
-					matched_prints: string_to_uuid(commander.instances[0].scryfall_id)
+					oracle_id: string_to_uuid(commander.oracle_id) as Uint8Array,
+					matched_prints: string_to_uuid(commander.instances[0].scryfall_id) as Uint8Array
 				}}
 			>
 				{#snippet options(props)}

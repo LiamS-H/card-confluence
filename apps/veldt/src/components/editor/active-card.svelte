@@ -8,11 +8,13 @@
 	import { Button } from '$components/ui/button';
 	import { uuid_to_string, string_to_uuid, uuid_key } from '$lib/utils/uuid';
 	import { type DeckZone } from '@repo/schema-sync';
+	import CardOptionsDeck from './card-options-deck.svelte';
+	import CardOptionsDeckFull from './card-options-deck-full.svelte';
 
 	const url_card = $derived(page.url.searchParams.get('card'));
 	const url_print = $derived(page.url.searchParams.get('print'));
-	let oracle_id = $derived(url_card ? string_to_uuid(url_card) : null);
-	let print_id = $derived(url_print ? string_to_uuid(url_print) : null);
+	const oracle_id = $derived(url_card ? string_to_uuid(url_card) : null);
+	const print_id = $derived(url_print ? string_to_uuid(url_print) : null);
 
 	const { card } = $derived.by(() => {
 		if (!oracle_id) return { card: null };
@@ -56,26 +58,39 @@
 					if (!print_id) return false;
 					return uuid_key(s.scryfall_id) === uuid_key(print_id);
 				})}
+
 				<CardInfo card={card.result} {print_index} />
 
-				{const print = $derived(card.result.prints[print_index] ?? null)}
-				{#if print !== null}
-					<Button
-						onclick={() => {
-							const card_uuid = uuid_to_string(card.result.oracle_id);
-							const print_uuid = uuid_to_string(print.scryfall_id);
-							const counts = deck.get_card_counts(card_uuid);
-							for (const zone in counts) {
-								if (zone === 'total') continue;
-								const count = counts[zone as DeckZone];
-								console.log(count);
-								if (count === 0) continue;
-								deck.mutate.remove_cards(card_uuid, zone as DeckZone, count);
-							}
-							deck.mutate.add_cards(card_uuid, print_uuid, 'commander', 1);
-						}}>Make Commander</Button
-					>
-				{/if}
+				<div class="flex justify-between">
+					{const print = $derived(card.result.prints[print_index] ?? null)}
+					<CardOptionsDeck zone="mainboard" card={card.result} {print} variant="img-full" />
+					{#if deck.settings.commander && print !== null && url_card !== null && url_print !== null}
+						{const counts = $derived(deck.get_card_counts(url_card))}
+						{#if counts.commander === 0 && card.result.commander}
+							<Button
+								onclick={() => {
+									for (const zone in counts) {
+										if (zone === 'total') continue;
+										const count = counts[zone as DeckZone];
+										console.log(count);
+										if (count === 0) continue;
+										deck.mutate.remove_cards(url_card, zone as DeckZone, count);
+									}
+									deck.mutate.add_cards(url_card, url_print, 'commander', 1);
+								}}>+ commander</Button
+							>
+						{:else if counts.commander > 0}
+							<Button
+								intent="destructive"
+								onclick={() => {
+									deck.mutate.add_cards(url_card, url_print, 'mainboard', 1);
+									deck.mutate.remove_cards(url_card, 'commander', counts.commander);
+								}}>- commander</Button
+							>
+						{/if}
+					{/if}
+					<CardOptionsDeckFull card={card.result} {print} />
+				</div>
 			{/if}
 		{/if}
 	</Dialog.Content>

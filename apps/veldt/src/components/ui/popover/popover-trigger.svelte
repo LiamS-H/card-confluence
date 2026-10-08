@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Popover as PopoverPrimitive } from 'bits-ui';
-	import { Button } from '$components/ui/button';
+	import { Button, type ButtonProps } from '$components/ui/button';
 
 	let {
 		ref = $bindable(null),
@@ -8,7 +8,7 @@
 		child: child_comp,
 		children,
 		...restProps
-	}: PopoverPrimitive.TriggerProps = $props();
+	}: PopoverPrimitive.TriggerProps & ButtonProps = $props();
 </script>
 
 <PopoverPrimitive.Trigger bind:ref data-slot="popover-trigger" {...restProps}>
