@@ -101,7 +101,7 @@ export class DeckCardInterface {
 
 	get settings() {
 		// TODO: replace with either yjs, or codemirror docstate
-		return { singleton: true, sideboard: false };
+		return { singleton: true, sideboard: false, commander: true };
 	}
 
 	get settings_overrides() {

@@ -7,6 +7,7 @@
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
 	import { Button } from '$components/ui/button';
 	import { uuid_to_string, string_to_uuid, uuid_key } from '$lib/utils/uuid';
+	import { type DeckZone } from '@repo/schema-sync';
 
 	const url_card = $derived(page.url.searchParams.get('card'));
 	const url_print = $derived(page.url.searchParams.get('print'));
@@ -35,7 +36,7 @@
 
 <Dialog.Root bind:open={() => !!oracle_id, on_change}>
 	<Dialog.Content
-		class="h-11/12 max-h-11/12 w-full min-w-48 p-0 pt-9 sm:min-w-xl md:min-w-3xl lg:min-w-5xl"
+		class="flex h-11/12 max-h-11/12 w-full min-w-48 flex-col p-0 pt-9 sm:min-w-xl md:min-w-3xl lg:min-w-5xl"
 	>
 		{#if card}
 			{#if card.loading}
@@ -61,13 +62,17 @@
 				{#if print !== null}
 					<Button
 						onclick={() => {
-							// TODO: replace this with an adequate move_cards
-							deck.mutate.add_cards(
-								uuid_to_string(card.result.oracle_id),
-								uuid_to_string(print.scryfall_id),
-								'commander',
-								1
-							);
+							const card_uuid = uuid_to_string(card.result.oracle_id);
+							const print_uuid = uuid_to_string(print.scryfall_id);
+							const counts = deck.get_card_counts(card_uuid);
+							for (const zone in counts) {
+								if (zone === 'total') continue;
+								const count = counts[zone as DeckZone];
+								console.log(count);
+								if (count === 0) continue;
+								deck.mutate.remove_cards(card_uuid, zone as DeckZone, count);
+							}
+							deck.mutate.add_cards(card_uuid, print_uuid, 'commander', 1);
 						}}>Make Commander</Button
 					>
 				{/if}

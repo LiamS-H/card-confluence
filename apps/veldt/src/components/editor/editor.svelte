@@ -10,10 +10,13 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import ActiveCard from './active-card.svelte';
+	import { ResultCard } from '$components/card';
+	import { string_to_uuid } from '$lib/utils/uuid';
+	import CardOptionsDeck from './card-options-deck.svelte';
 
 	const { deck }: { deck: DeckStruct } = $props();
 
-	use_deck_cards_provider(() => deck);
+	const deck_interface = use_deck_cards_provider(() => deck);
 
 	const title = $derived(deck.get('title'));
 	let title_string = $state('loading');
@@ -65,6 +68,27 @@
 
 <div class="flex h-full flex-col gap-2">
 	<div class="flex items-center gap-4">
+		{#if deck_interface.settings.commander && deck_interface.commander.length === 0}
+			<button role="dialog" class="aspect-5/7 w-50">
+				<div class="flex h-full w-full items-center justify-center border border-dashed">
+					<span>+ commander</span>
+				</div>
+			</button>
+		{/if}
+		{#each deck_interface.commander as commander}
+			<ResultCard
+				variant={'img-full'}
+				width="200px"
+				result={{
+					oracle_id: string_to_uuid(commander.oracle_id),
+					matched_prints: string_to_uuid(commander.instances[0].scryfall_id)
+				}}
+			>
+				{#snippet options(props)}
+					<CardOptionsDeck zone="commander" {...props} />
+				{/snippet}
+			</ResultCard>
+		{/each}
 		<Input
 			placeholder="Unnamed Deck"
 			type="text"
