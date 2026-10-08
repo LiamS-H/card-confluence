@@ -1,7 +1,8 @@
 import { Channel } from '$lib/utils/channel';
+import { deepAssign, type DeepPartial } from '$lib/utils/object';
 
 const key = 'LocalSettings';
-export const LocalSettingsChannel = new Channel<LocalSettings>(key);
+export const LocalSettingsChannel = new Channel<DeepPartial<LocalSettings>>(key);
 
 export type CardVariant = 'img' | 'img-full' | 'tile';
 
@@ -48,7 +49,7 @@ let shared_settings = $state<LocalSettings>(load_initial_settings());
 
 if (typeof window !== 'undefined') {
 	LocalSettingsChannel.onmessage((event) => {
-		Object.assign(shared_settings, event.data || event);
+		deepAssign(shared_settings, event.data);
 	});
 }
 
@@ -56,14 +57,13 @@ export function get_local_settings(): LocalSettings {
 	return shared_settings;
 }
 
-export function set_local_settings(settings: LocalSettings) {
-	const string = JSON.stringify(settings);
-	const cleaned = JSON.parse(string);
-	Object.assign(shared_settings, cleaned);
+export function set_local_settings(partial_settings: DeepPartial<LocalSettings>) {
+	deepAssign(shared_settings, partial_settings);
 
 	if (typeof window !== 'undefined') {
+		const string = JSON.stringify(shared_settings);
 		console.log('[settings] new ', string);
 		window.localStorage.setItem(key, string);
-		LocalSettingsChannel.postMessage(cleaned);
+		LocalSettingsChannel.postMessage(partial_settings);
 	}
 }

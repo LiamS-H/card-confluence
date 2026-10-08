@@ -59,9 +59,9 @@
 	{#if configState.configData}
 		<div class="flex h-full min-h-125 flex-col gap-4 md:flex-row">
 			<!-- Sidebar / Tabs -->
-			<div class="flex w-full flex-col gap-2 md:w-1/3">
+			<div class="flex w-full flex-col gap-2 md:w-1/3 md:max-w-sm">
 				<div class="flex items-center gap-2">
-					<Input type="text" placeholder="Search templates..." bind:value={searchQuery} />
+					<Input type="text" placeholder="search templates..." bind:value={searchQuery} />
 				</div>
 
 				<div
@@ -79,9 +79,8 @@
 								{tpl.title || 'Untitled'}
 							</Button>
 							<Button
-								class="border-0"
 								intent="destructive"
-								variant="fixed"
+								variant={active ? 'fixed' : 'ghost'}
 								size="icon"
 								onclick={() => handleDelete(id)}><Close /></Button
 							>
@@ -90,7 +89,7 @@
 					{#if filteredTemplates.length === 0}
 						<div class="p-2 text-sm text-muted-foreground">No templates found.</div>
 					{/if}
-					<Button onclick={handleNewTemplate}>new +</Button>
+					<Button onclick={handleNewTemplate} intent="primary">new +</Button>
 				</div>
 			</div>
 

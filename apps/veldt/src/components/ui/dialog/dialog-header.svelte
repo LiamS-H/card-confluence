@@ -5,6 +5,7 @@
 	let {
 		ref = $bindable(null),
 		class: className,
+		children,
 		...restProps
 	}: WithElementRef<HTMLAttributes<HTMLDivElement>> = $props();
 </script>
@@ -14,4 +15,6 @@
 	data-slot="dialog-header"
 	class={cn('flex flex-col gap-2', className)}
 	{...restProps}
-></div>
+>
+	{@render children?.()}
+</div>

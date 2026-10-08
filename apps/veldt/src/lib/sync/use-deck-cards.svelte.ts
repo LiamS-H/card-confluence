@@ -5,6 +5,8 @@ import { sync_client } from '$lib';
 import type { DeckStruct, DeckCard, DeckZone, OracleCardSerialized } from '@repo/schema-sync';
 import { DeckMutationInterface } from '@repo/schema-sync';
 import { TagDocState } from '$components/tag-doc';
+import type { VeldSettings } from '$lib/settings';
+import type { DeepPartial } from '$lib/utils/object';
 
 const DECK_CARD_INTERFACE_KEY = Symbol('deck_card_interface');
 
@@ -100,6 +102,10 @@ export class DeckCardInterface {
 	get settings() {
 		// TODO: replace with either yjs, or codemirror docstate
 		return { singleton: true, sideboard: false };
+	}
+
+	get settings_overrides() {
+		return {} as DeepPartial<VeldSettings>;
 	}
 
 	get commander() {
