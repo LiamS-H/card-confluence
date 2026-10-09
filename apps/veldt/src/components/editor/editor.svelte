@@ -102,7 +102,7 @@
 			}}
 		/>
 	</div>
-	<div class="h-full w-full">
+	<div class="relative h-full w-full">
 		<!-- Added index to the each block so we can pass it to switch_tab -->
 		{#each views as name, index (name)}
 			<Button

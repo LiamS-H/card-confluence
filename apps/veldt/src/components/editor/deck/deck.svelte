@@ -22,22 +22,14 @@
 	const { hovered } = $derived(get_hovered_card());
 </script>
 
+<div class="absolute top-0 left-0 flex w-full pl-56">
+	<!-- TODO: convert to dropdown component -->
+	<!-- might also be a good idea to lift this state so that is can be rendered just right of the tabs -->
+	<Button onclick={() => (index = (index + 1) % deck.doc_state.parsed.views.length)}
+		>view: {view}</Button
+	>
+</div>
 <div class="flex w-full flex-col gap-2">
-	<div class="flex w-full">
-		<!-- TODO: convert to dropdown component -->
-		<!-- might also be a good idea to lift this state so that is can be rendered just right of the tabs -->
-		<Button onclick={() => (index = (index + 1) % deck.doc_state.parsed.views.length)}
-			>View: {view}</Button
-		>
-
-		<Button
-			onclick={() => {
-				const new_index = (deckVariantIndex + 1) % deckVariants.length;
-				const new_variant = deckVariants[new_index];
-				//TODO: actually update the decks variant setting
-			}}>Cards {deckVariant}</Button
-		>
-	</div>
 	{#if hovered && hovered.print && deckVariant === 'tile'}
 		<div use:followCursor={15}>
 			<ResultCard
