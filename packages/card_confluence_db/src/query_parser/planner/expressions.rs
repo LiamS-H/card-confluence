@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
+use arrow::datatypes::DataType;
+use chrono::NaiveDate;
 use datafusion::functions::core::expr_ext::FieldAccessor;
 use datafusion::functions::string::expr_fn::lower; // use this "lower(col(1))"
-use datafusion::logical_expr::{Expr as DFExpr, ScalarUDF, col, lit, not, try_cast};
+use datafusion::logical_expr::{Expr as DFExpr, ScalarUDF, cast, col, lit, not, try_cast};
 use datafusion::scalar::ScalarValue;
+use datafusion_functions_nested::length::array_length;
 use uuid::Uuid;
 
 use crate::query_parser::lexer::Op;
@@ -180,6 +183,61 @@ pub fn mana_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
     }
 }
 
+// Helper to determine the [start, end) bounds for a given partial date string
+fn get_date_bounds(value: &str) -> Result<(NaiveDate, NaiveDate), PlanError> {
+    let parts: Vec<&str> = value.split('-').collect();
+    let year: i32 = parts[0].parse().map_err(|_| PlanError("Bad year".into()))?;
+
+    match parts.len() {
+        1 => {
+            // e.g., "2020"
+            let start = NaiveDate::from_ymd_opt(year, 1, 1).unwrap();
+            let end = NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap();
+            Ok((start, end))
+        }
+        2 => {
+            // e.g., "2020-1"
+            let month: u32 = parts[1].parse().unwrap();
+            let start = NaiveDate::from_ymd_opt(year, month, 1).unwrap();
+            let end = if month == 12 {
+                NaiveDate::from_ymd_opt(year + 1, 1, 1).unwrap()
+            } else {
+                NaiveDate::from_ymd_opt(year, month + 1, 1).unwrap()
+            };
+            Ok((start, end))
+        }
+        3 => {
+            // e.g., "2020-1-1"
+            let month: u32 = parts[1].parse().unwrap();
+            let day: u32 = parts[2].parse().unwrap();
+            let start = NaiveDate::from_ymd_opt(year, month, day).unwrap();
+            let end = start.succ_opt().unwrap(); // Next day
+            Ok((start, end))
+        }
+        _ => Err(PlanError("Invalid date format".into())),
+    }
+}
+
+pub fn date_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
+    let (start_date, end_date) = get_date_bounds(value)?;
+
+    let start_expr = cast(lit(start_date.to_string()), DataType::Date32);
+    let end_expr = cast(lit(end_date.to_string()), DataType::Date32);
+    let col_expr = col(column);
+
+    Ok(match op {
+        Op::Colon | Op::Eq => col_expr
+            .clone()
+            .gt_eq(start_expr)
+            .and(col_expr.lt(end_expr)),
+        Op::Ne => col_expr.clone().lt(start_expr).or(col_expr.gt_eq(end_expr)),
+        Op::Lt => col_expr.lt(start_expr),
+        Op::Lte => col_expr.lt(end_expr),
+        Op::Gt => col_expr.gt_eq(end_expr),
+        Op::Gte => col_expr.gt_eq(start_expr),
+    })
+}
+
 pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
         let regex = &value[1..value.len() - 1];
@@ -201,6 +259,26 @@ pub fn text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError
     }
 }
 
+pub fn keyword_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
+    let n: Option<i32> = value.parse().ok();
+
+    if let Some(num) = n {
+        let expr = array_length(col(column));
+        let lit_n = lit(num);
+        let expr = match op {
+            Op::Colon | Op::Eq => expr.eq(lit_n),
+            Op::Ne => expr.not_eq(lit_n),
+            Op::Lt => expr.lt(lit_n),
+            Op::Lte => expr.lt_eq(lit_n),
+            Op::Gt => expr.gt(lit_n),
+            Op::Gte => expr.gt_eq(lit_n),
+        };
+        Ok(expr)
+    } else {
+        array_text_pred(column, op, value)
+    }
+}
+
 pub fn array_text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     let arr_str = datafusion_functions_nested::expr_fn::array_to_string(col(column), lit(","));
     if value.starts_with('/') && value.ends_with('/') && value.len() >= 2 {
@@ -216,8 +294,9 @@ pub fn array_text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, Pla
         };
     }
     match op {
-        Op::Colon | Op::Eq => Ok(arr_str.ilike(lit(format!("%{value}%")))),
-        Op::Ne => Ok(not(arr_str.ilike(lit(format!("%{value}%"))))),
+        Op::Colon => Ok(arr_str.ilike(lit(format!("%{value}%")))),
+        Op::Eq => Ok(arr_str.eq(lit(format!("%{value}%")))),
+        Op::Ne => Ok(not(arr_str.eq(lit(format!("%{value}%"))))),
         other => Err(PlanError(format!(
             "Operator {other:?} is not valid for array field '{column}'"
         ))),

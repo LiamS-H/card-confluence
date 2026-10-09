@@ -5,8 +5,9 @@ use crate::query_parser::{
     planner::{
         PlanError,
         expressions::{
-            array_contains_expr, color_pred, exact_pred, flexible_numeric_pred, format_pred,
-            is_pred, mana_pred, numeric_pred, powtou_pred, text_pred, uuid_pred,
+            array_contains_expr, color_pred, date_pred, exact_pred, flexible_numeric_pred,
+            format_pred, is_pred, keyword_pred, mana_pred, numeric_pred, powtou_pred, text_pred,
+            uuid_pred,
         },
     },
 };
@@ -52,14 +53,12 @@ impl Predicate {
             PredicateField::Identity => color_pred(&column_name?, &pred.op, &pred.value, true),
             PredicateField::Produces => color_pred(&column_name?, &pred.op, &pred.value, false),
             PredicateField::OracleId => uuid_pred(&column_name?, &pred.value),
+            // could replace with the text array to allow partial matches, i don't think this is
+            // actuall useful though
             PredicateField::OracleTag => {
                 Ok(array_contains_expr(&column_name?, lit(pred.value.clone())))
             }
-            PredicateField::Keyword => crate::query_parser::planner::expressions::array_text_pred(
-                &column_name?,
-                &pred.op,
-                &pred.value,
-            ),
+            PredicateField::Keyword => keyword_pred(&column_name?, &pred.op, &pred.value),
             PredicateField::Format => format_pred(&pred.value),
 
             // Print-side (prints.*)
@@ -69,7 +68,7 @@ impl Predicate {
             | PredicateField::Border
             | PredicateField::Frame
             | PredicateField::Stamp
-            | PredicateField::Year => text_pred(&column_name?, &pred.op, &pred.value),
+            | PredicateField::Year => date_pred(&column_name?, &pred.op, &pred.value),
 
             PredicateField::CollectorNumber
             | PredicateField::Rarity

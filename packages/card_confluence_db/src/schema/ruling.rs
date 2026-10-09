@@ -1,4 +1,5 @@
 use arrow_convert::{ArrowDeserialize, ArrowField, ArrowSerialize};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 
@@ -11,6 +12,6 @@ pub struct Ruling {
     pub oracle_id: uuid::Uuid,
     pub source: String,
     /// ISO 8601 date string: "YYYY-MM-DD"
-    pub published_at: String,
+    pub published_at: NaiveDate,
     pub comment: String,
 }

@@ -3,6 +3,7 @@ use super::{
     price::{Prices, PurchaseUris},
 };
 use arrow_convert::{ArrowDeserialize, ArrowField, ArrowSerialize};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 
@@ -27,7 +28,7 @@ pub struct Print {
 
     pub collector_number: String,
     pub set_code: String,
-    pub released_at: String,
+    pub released_at: NaiveDate,
     pub reprint: bool,
     pub booster: bool,
     pub promo: bool,

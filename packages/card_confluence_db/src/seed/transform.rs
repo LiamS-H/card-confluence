@@ -336,7 +336,7 @@ impl From<ScryfallCard> for Print {
             cardmarket_id: scryfall.cardmarket_id,
             collector_number: scryfall.collector_number,
             set_code: scryfall.set,
-            released_at: scryfall.released_at,
+            released_at: scryfall.released_at.parse().unwrap(),
             reprint: scryfall.reprint,
             booster: scryfall.booster,
             promo: scryfall.promo,
@@ -472,7 +472,7 @@ impl From<ScryfallRuling> for Ruling {
         Self {
             oracle_id: scryfall.oracle_id.parse().unwrap(),
             source: scryfall.source,
-            published_at: scryfall.published_at,
+            published_at: scryfall.published_at.parse().unwrap(),
             comment: scryfall.comment,
         }
     }

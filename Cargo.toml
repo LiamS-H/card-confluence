@@ -24,7 +24,7 @@ tsify = { version = "0.5.6", features = ["js"] }
 
 async-trait = { version = "0.1" }
 futures = { version = "0.3.31" }
-chrono = { version = "0.4.40" }
+chrono = { version = "0.4.40", features = ["serde"] }
 flate2 = "1.0"
 
 # we use arrow 57 as the latest version compatible with arrow_convert
