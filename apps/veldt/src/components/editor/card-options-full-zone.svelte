@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$components/ui/button';
-	import { Input, type InputProps } from '$components/ui/input';
+	import { Input } from '$components/ui/input';
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
 	import type { DeckZone } from '@repo/schema-sync';
 

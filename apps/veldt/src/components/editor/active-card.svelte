@@ -6,7 +6,7 @@
 	import * as Dialog from '$components/ui/dialog';
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
 	import { Button } from '$components/ui/button';
-	import { uuid_to_string, string_to_uuid, uuid_key } from '$lib/utils/uuid';
+	import { string_to_uuid, uuid_key } from '$lib/utils/uuid';
 	import { type DeckZone } from '@repo/schema-sync';
 	import CardOptionsDeck from './card-options-deck.svelte';
 	import CardOptionsDeckFull from './card-options-deck-full.svelte';
