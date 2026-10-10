@@ -1,14 +1,16 @@
-use datafusion::logical_expr::{Expr as DFExpr, lit};
+use datafusion::logical_expr::{Expr as DFExpr, col, lit};
 
 use crate::query_parser::{
     lexer::Op,
     planner::{
         PlanError,
-        expressions::{
-            array_contains_expr, color_pred, date_pred, exact_pred, flexible_numeric_pred,
-            format_pred, is_pred, keyword_pred, mana_pred, numeric_pred, powtou_pred, text_pred,
-            uuid_pred,
+        expression_matches::array_contains_expr,
+        expression_vals::{exact_lower_text, numeric_lit, uuid_lit},
+        expressions_pred::{
+            color_pred, date_pred, eq_pred, field_pred, flexible_numeric_pred, is_pred,
+            keyword_pred, legal_pred, ord_pred, powtou_pred, rarity_pred, text_pred,
         },
+        mana_pred::mana_pred,
     },
 };
 
@@ -44,44 +46,67 @@ impl Predicate {
             | PredicateField::Defense => {
                 flexible_numeric_pred(&column_name?, &pred.op, &pred.value)
             }
-            PredicateField::Edhrec | PredicateField::Penny | PredicateField::Cmc => {
-                numeric_pred(&column_name?, &pred.op, &pred.value)
-            }
+            PredicateField::Edhrec | PredicateField::Penny | PredicateField::Cmc => Ok(ord_pred(
+                col(column_name?),
+                &pred.op,
+                numeric_lit(&pred.value)?,
+            )),
 
             PredicateField::PowTou => powtou_pred(&pred.op, &pred.value),
             PredicateField::Color => color_pred(&column_name?, &pred.op, &pred.value, false),
             PredicateField::Identity => color_pred(&column_name?, &pred.op, &pred.value, true),
             PredicateField::Produces => color_pred(&column_name?, &pred.op, &pred.value, false),
-            PredicateField::OracleId => uuid_pred(&column_name?, &pred.value),
             // could replace with the text array to allow partial matches, i don't think this is
             // actuall useful though
-            PredicateField::OracleTag => {
-                Ok(array_contains_expr(&column_name?, lit(pred.value.clone())))
-            }
+            PredicateField::OracleTag => Ok(array_contains_expr(&column_name?, lit(&pred.value))),
             PredicateField::Keyword => keyword_pred(&column_name?, &pred.op, &pred.value),
-            PredicateField::Format => format_pred(&pred.value),
+            PredicateField::Format => eq_pred(&pred.field, &pred.op, legal_pred(&pred.value)),
+            PredicateField::Banned => eq_pred(
+                &pred.field,
+                &pred.op,
+                field_pred(&column_name?, &pred.value, "banned"),
+            ),
+            PredicateField::Unrestricted => eq_pred(
+                &pred.field,
+                &pred.op,
+                field_pred(&column_name?, &pred.value, "legal"),
+            ),
+            PredicateField::Restricted => eq_pred(
+                &pred.field,
+                &pred.op,
+                field_pred(&column_name?, &pred.value, "restricted"),
+            ),
 
-            // Print-side (prints.*)
-            PredicateField::Artist
-            | PredicateField::FlavorText
-            | PredicateField::Watermark
+            PredicateField::CollectorNumber => {
+                Ok(ord_pred(col(column_name?), &pred.op, lit(&pred.value)))
+            }
+            PredicateField::Rarity => rarity_pred(&column_name?, &pred.op, &pred.value),
+
+            PredicateField::Lang
+            | PredicateField::SetType
             | PredicateField::Border
             | PredicateField::Frame
-            | PredicateField::Stamp
-            | PredicateField::Year => date_pred(&column_name?, &pred.op, &pred.value),
+            | PredicateField::Stamp => Ok(exact_lower_text("sets.set_type", &pred.value)),
 
-            PredicateField::CollectorNumber
-            | PredicateField::Rarity
-            | PredicateField::Lang
-            | PredicateField::ScryfallId => uuid_pred(&column_name?, &pred.value),
-
-            PredicateField::Game => {
-                Ok(array_contains_expr("prints.games", lit(pred.value.clone())))
+            PredicateField::Artist | PredicateField::FlavorText | PredicateField::Watermark => {
+                todo!("need to add illustrations")
             }
+
+            PredicateField::Year => date_pred(&column_name?, &pred.op, &pred.value),
+
+            PredicateField::OracleId | PredicateField::ScryfallId => {
+                Ok(col(&column_name?).eq(uuid_lit(&pred.value)?))
+            }
+
+            PredicateField::Game => eq_pred(
+                &pred.field,
+                &pred.op,
+                array_contains_expr("prints.games", lit(pred.value.clone())),
+            ),
 
             PredicateField::Set => {
                 if pred.value.len() <= 4 && pred.value.chars().all(|c| c.is_alphanumeric()) {
-                    exact_pred("prints.set_code", &pred.value)
+                    Ok(exact_lower_text("prints.set_code", &pred.value))
                 } else {
                     text_pred("sets.name", &pred.op, &pred.value)
                 }
@@ -89,22 +114,20 @@ impl Predicate {
 
             PredicateField::In => {
                 let val = &pred.value;
-                if matches!(
+                let expr = if matches!(
                     val.as_str(),
                     "common" | "uncommon" | "rare" | "mythic" | "special" | "bonus"
                 ) {
-                    exact_pred("prints.rarity", &pred.value)
+                    col("prints.rarity").eq(lit(&pred.value))
                 } else if matches!(val.as_str(), "paper" | "arena" | "mtgo") {
-                    Ok(array_contains_expr("prints.games", lit(val.clone())))
+                    array_contains_expr("prints.games", lit(val.clone()))
                 } else {
-                    exact_pred("prints.set_code", &pred.value)
-                }
+                    col("prints.set_code").eq(lit(&pred.value))
+                };
+
+                eq_pred(&pred.field, &pred.op, expr)
             }
 
-            // Set-table (sets.*)
-            PredicateField::SetType => exact_pred("sets.set_type", &pred.value),
-
-            // Mixed / special
             PredicateField::Is => is_pred(&pred.value),
 
             PredicateField::Order
@@ -142,6 +165,9 @@ pub enum PredicateField {
     Rarity,
     SetType,
     Format,
+    Banned,
+    Restricted,
+    Unrestricted,
     Is,
     In,
     Game,
@@ -230,6 +256,28 @@ impl PredicateField {
         )
     }
 
+    pub fn is_ord(&self) -> bool {
+        matches!(
+            self,
+            PredicateField::Mana
+                | PredicateField::Power
+                | PredicateField::Toughness
+                | PredicateField::Loyalty
+                | PredicateField::Defense
+                | PredicateField::Edhrec
+                | PredicateField::Penny
+                | PredicateField::Cmc
+                | PredicateField::PowTou
+                | PredicateField::Color
+                | PredicateField::Identity
+                | PredicateField::Produces
+                | PredicateField::CollectorNumber
+                | PredicateField::Rarity
+                | PredicateField::Keyword
+                | PredicateField::Year
+        )
+    }
+
     pub fn full_column(&self) -> Option<String> {
         let column_name = self.column_name()?;
         let table = if self.is_print_field() {
@@ -265,6 +313,9 @@ impl PredicateField {
 
             PredicateField::Keyword => Some("keywords"),
             PredicateField::Format => Some("legalities"),
+            PredicateField::Banned => Some("legalities"),
+            PredicateField::Restricted => Some("legalities"),
+            PredicateField::Unrestricted => Some("legalities"),
             PredicateField::Mana => Some("mana_cost"),
             PredicateField::Oracle => Some("oracle_text"),
             PredicateField::Produces => Some("produced_mana"),
@@ -326,6 +377,9 @@ impl TryFrom<&str> for PredicateField {
             "r" | "rarity" => Ok(Self::Rarity),
             "st" | "settype" => Ok(Self::SetType),
             "f" | "format" | "legal" => Ok(Self::Format),
+            "banned" => Ok(Self::Banned),
+            "restricted" => Ok(Self::Restricted),
+            "unrestricted" => Ok(Self::Unrestricted),
             "is" => Ok(Self::Is),
             "in" => Ok(Self::In),
             "game" => Ok(Self::Game),

@@ -3,8 +3,11 @@ use crate::query_parser::planner::predicates::PredicateField;
 
 pub mod detail_plan;
 pub mod expr;
-pub mod expressions;
+pub mod expression_matches;
+pub mod expression_vals;
+pub mod expressions_pred;
 pub mod filter_plan;
+pub mod mana_pred;
 pub mod predicates;
 pub mod query_plan;
 pub mod simple_plans;
