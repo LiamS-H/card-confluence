@@ -4,13 +4,14 @@ use crate::query_parser::{
     lexer::Op,
     planner::{
         PlanError,
-        expression_matches::array_contains_expr,
-        expression_vals::{exact_lower_text, numeric_lit, uuid_lit},
-        expressions_pred::{
-            color_pred, date_pred, eq_pred, field_pred, flexible_numeric_pred, is_pred,
-            keyword_pred, legal_pred, ord_pred, powtou_pred, rarity_pred, text_pred,
+        expression_color::color_pred,
+        expression_mana::mana_pred,
+        expression_pred::{
+            date_pred, eq_pred, field_pred, flexible_numeric_pred, is_pred, keyword_pred,
+            legal_pred, ord_pred, powtou_pred, rarity_pred, text_pred,
         },
-        mana_pred::mana_pred,
+        expression_utils::array_contains_expr,
+        expression_vals::{exact_lower_text, numeric_lit, uuid_lit},
     },
 };
 

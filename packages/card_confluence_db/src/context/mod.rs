@@ -10,6 +10,7 @@ use object_store::{ObjectStore, Result, path::Path as ObjectPath};
 
 #[cfg(not(target_arch = "wasm32"))]
 use object_store::local::LocalFileSystem;
+#[cfg(not(target_arch = "wasm32"))]
 use object_store::prefix::PrefixStore;
 
 use url::Url;

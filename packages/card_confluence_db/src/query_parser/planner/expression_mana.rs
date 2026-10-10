@@ -7,8 +7,8 @@ use datafusion::logical_expr::{Expr as DFExpr, col, lit, not};
 
 use crate::query_parser::lexer::Op;
 use crate::query_parser::planner::PlanError;
-use crate::query_parser::planner::expression_matches::{and_all, regexp_like_expr};
-use crate::query_parser::planner::expressions_pred::{cast_expr, ord_pred};
+use crate::query_parser::planner::expression_pred::{cast_expr, ord_pred};
+use crate::query_parser::planner::expression_utils::{and_all, regexp_like_expr};
 const ALL_MANA_SYMBOLS: &str = "WUBRGCXYS";
 
 /// A parsed mana query like "{2}{u}{u/p}" or "2uu".

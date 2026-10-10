@@ -6,7 +6,7 @@ use datafusion_functions_nested::length::array_length;
 use uuid::Uuid;
 
 use crate::query_parser::planner::PlanError;
-use crate::query_parser::planner::expressions_pred::cast_expr;
+use crate::query_parser::planner::expression_pred::cast_expr;
 
 pub fn exact_lower_text(column: &str, value: &str) -> DFExpr {
     lower(col(column)).eq(lit(value.to_string()))

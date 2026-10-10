@@ -6,7 +6,7 @@ use datafusion::logical_expr::{Expr as DFExpr, cast, col, lit, not, try_cast};
 
 use crate::query_parser::lexer::Op;
 use crate::query_parser::planner::PlanError;
-use crate::query_parser::planner::expression_matches::{
+use crate::query_parser::planner::expression_utils::{
     and_all, array_contains_expr, array_has_any, regexp_like_expr,
 };
 use crate::query_parser::planner::expression_vals::{
@@ -180,7 +180,6 @@ pub fn array_text_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, Pla
 
 pub fn flexible_numeric_pred(column: &str, op: &Op, value: &str) -> Result<DFExpr, PlanError> {
     if value.parse::<f64>().is_ok() || matches!(op, Op::Lt | Op::Lte | Op::Gt | Op::Gte) {
-        // Cast string columns (power/toughness/loyalty/defense are stored as strings)
         Ok(ord_pred(float_col(column), op, numeric_lit(value)?))
     } else {
         text_pred(column, op, value)
@@ -298,10 +297,9 @@ pub fn is_pred(value: &str) -> Result<DFExpr, PlanError> {
     let flag = |column: &str, expected: bool| col(column).eq(lit(expected));
 
     let expr = match value {
-        // Oracle-side type checks
+        // Oracle
         "legendary" => array_contains_expr("cards.super_types", lit("legendary")),
         "nonlegendary" => not(array_contains_expr("cards.super_types", lit("legendary"))),
-        // the flag name is the card type name
         t @ ("land" | "creature" | "artifact" | "enchantment" | "planeswalker" | "battle") => {
             array_contains_expr("cards.card_types", lit(t))
         }
@@ -320,7 +318,7 @@ pub fn is_pred(value: &str) -> Result<DFExpr, PlanError> {
         "reserved" => flag("cards.reserved", true),
         "commander" => flag("cards.commander", true),
 
-        // Print-side boolean flags
+        // Print
         "reprint" => flag("prints.reprint", true),
         "firstprinting" => flag("prints.reprint", false),
         f @ ("booster" | "promo" | "digital" | "oversized" | "story_spotlight" | "textless"
