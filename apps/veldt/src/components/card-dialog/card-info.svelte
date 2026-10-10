@@ -206,8 +206,9 @@
 				<pre>{JSON.stringify(
 						card,
 						(k, v) => {
+							if (!v) return v;
 							if (k === 'artist_ids') {
-								return v.map((a: string) => uuid_to_string(a));
+								return v.map((a: Uint8Array | null) => (a ? uuid_to_string(a) : null));
 							}
 							if (
 								k === 'card_back_id' ||
