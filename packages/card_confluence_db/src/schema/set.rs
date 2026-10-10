@@ -1,4 +1,5 @@
 use arrow_convert::{ArrowDeserialize, ArrowField, ArrowSerialize};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 
@@ -14,5 +15,5 @@ pub struct Set {
     /// UUID
     #[tsify(type = "Uint8Array")]
     pub id: uuid::Uuid,
-    pub released_at: Option<String>,
+    pub released_at: Option<NaiveDate>,
 }

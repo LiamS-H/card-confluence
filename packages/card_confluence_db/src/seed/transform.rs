@@ -463,7 +463,7 @@ impl From<ScryfallSet> for Set {
             set_type: scryfall.set_type,
             code: scryfall.code,
             id: scryfall.id.parse().unwrap(),
-            released_at: scryfall.released_at,
+            released_at: scryfall.released_at.map(|t| t.parse().unwrap()),
         }
     }
 }
