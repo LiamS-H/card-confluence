@@ -85,7 +85,9 @@ pub fn parse_to_ast(input: &str) -> Result<parser::ScryfallExpr, ScryfallError> 
 mod tests {
     use super::*;
     use crate::context::get_local_context;
-    use arrow_array::{Array, ListArray, RecordBatch, StringArray, StringViewArray};
+    use arrow_array::{
+        Array, FixedSizeBinaryArray, ListArray, RecordBatch, StringArray, StringViewArray,
+    };
     use datafusion::prelude::SessionContext;
     use std::sync::Arc;
 
@@ -223,7 +225,7 @@ mod tests {
         );
     }
 
-    fn get_first_scryfall_id(batches: &[RecordBatch]) -> String {
+    fn get_first_scryfall_id(batches: &[RecordBatch]) -> Uuid {
         assert!(!batches.is_empty());
         let batch = &batches[0];
         assert!(batch.num_rows() > 0);
@@ -234,8 +236,13 @@ mod tests {
             .as_any()
             .downcast_ref::<ListArray>()
             .expect("matched_prints is not a ListArray");
+        let first_row_list = matched_prints.value(0);
+        let binary_array = first_row_list
+            .as_any()
+            .downcast_ref::<FixedSizeBinaryArray>()
+            .expect("Inner list elements are not FixedSizeBinaryArray");
 
-        let inner_array = matched_prints.value(0);
-        get_string_value(&inner_array, 0).to_string()
+        let bytes: &[u8] = binary_array.value(0);
+        Uuid::from_slice(bytes).unwrap()
     }
 }
