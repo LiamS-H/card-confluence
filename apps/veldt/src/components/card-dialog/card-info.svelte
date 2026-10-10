@@ -14,6 +14,7 @@
 		rulings_grouped,
 		legalities_as_short_sorted
 	} from '$lib/card-confluence/utils';
+	import { uuid_to_string } from '$lib/utils/uuid';
 
 	const { card, print_index }: { card: DetailedCard; print_index: number } = $props();
 
@@ -199,6 +200,29 @@
 				</ul>
 			</Accordion.Content>
 		</Accordion.Item>
-		<Accordion.Item value="json"></Accordion.Item>
+		<Accordion.Item value="json">
+			<Accordion.Trigger>JSON</Accordion.Trigger>
+			<Accordion.Content>
+				<pre>{JSON.stringify(
+						card,
+						(k, v) => {
+							if (k === 'artist_ids') {
+								return v.map((a: string) => uuid_to_string(a));
+							}
+							if (
+								k === 'card_back_id' ||
+								k === 'illustration_id' ||
+								k === 'oracle_id' ||
+								k === 'id' ||
+								k === 'scryfall_id'
+							) {
+								return uuid_to_string(v);
+							}
+							return v;
+						},
+						2
+					)} </pre>
+			</Accordion.Content>
+		</Accordion.Item>
 	</Accordion.Root>
 </div>
