@@ -60,7 +60,7 @@ pub struct HashedPlan {
 #[wasm_bindgen]
 pub struct CardConfluenceBrowser {
     context: SessionContext,
-    store: Arc<dyn ObjectStore>,
+    // store: Arc<dyn ObjectStore>,
 }
 
 fn error_map<E: std::fmt::Debug>(u: E) -> JsValue {
@@ -81,7 +81,7 @@ impl CardConfluenceBrowser {
 
         let new_self = Self {
             context,
-            store: store.clone(),
+            // store: store.clone(),
         };
 
         Ok(new_self)
@@ -104,7 +104,7 @@ impl CardConfluenceBrowser {
 
         Ok(Self {
             context,
-            store: mem_store,
+            // store: mem_store,
         })
     }
 
@@ -120,7 +120,10 @@ impl CardConfluenceBrowser {
             .await
             .map_err(error_map)?;
 
-        Ok(Self { context, store })
+        Ok(Self {
+            context,
+            // store
+        })
     }
 
     /// Optimize a plan and create a hash which matches semantically similar queries.
