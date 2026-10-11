@@ -21,7 +21,6 @@ import { uuid_to_string, type UUIDString } from '$lib/utils/uuid';
 
 class TagQuery {
 	tag: Tag = $state() as Tag;
-	domain = '';
 
 	data!: ReturnType<typeof use_query>;
 	private cleanupRoot: () => void;
@@ -117,17 +116,10 @@ export class TagDocState {
 		for (const [key, obj] of deck.objects.entries()) {
 			if (obj.object !== 'tag') continue;
 			const current_query = this._tags_fetched.get(key);
-			if (
-				current_query &&
-				current_query.tag.query === obj.query &&
-				current_query.domain === deck.domain
-			) {
+			if (current_query && current_query.tag.query === obj.query) {
 				continue;
 			}
-			this._tags_fetched.set(
-				key,
-				new TagQuery({ ...obj, query: query_with_domain(deck, obj.query) }, eager ?? false)
-			);
+			this._tags_fetched.set(key, new TagQuery({ ...obj, query: obj.query }, eager ?? false));
 		}
 	}
 
