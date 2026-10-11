@@ -102,17 +102,18 @@
 			}}
 		/>
 	</div>
-	<div class="relative h-full w-full">
-		<!-- Added index to the each block so we can pass it to switch_tab -->
-		{#each views as name, index (name)}
-			<Button
-				intent={name === view ? 'secondary' : 'primary'}
-				variant={name === view ? 'fixed' : 'outline'}
-				onclick={() => switch_tab(index)}
-			>
-				{name}
-			</Button>
-		{/each}
+	<div class="relative flex h-full w-full flex-col">
+		<div class="flex">
+			{#each views as name, index (name)}
+				<Button
+					intent={name === view ? 'secondary' : 'primary'}
+					variant={name === view ? 'fixed' : 'outline'}
+					onclick={() => switch_tab(index)}
+				>
+					{name}
+				</Button>
+			{/each}
+		</div>
 		{#if view === 'tags'}
 			<Document {jump_to_query} />
 		{:else if view === 'deck'}
