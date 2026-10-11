@@ -41,9 +41,6 @@ pub struct CompletionPlan {
     completion: Completion,
 }
 
-/// New struct that carries both the logical‑plan bytes *and* a hash that can be used as a cache key.
-/// For now the hash is simply the plan bytes themselves, but the struct allows us to change the
-/// hashing strategy later without touching the public API.
 #[derive(Debug, Clone, Serialize, Deserialize, Tsify)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 pub struct HashedPlan {
@@ -87,8 +84,6 @@ impl CardConfluenceBrowser {
         Ok(new_self)
     }
 
-    /// Like [`new_opfs`], but eagerly reads all OPFS files into an in-memory store before
-    /// building the session context.
     pub async fn new_opfs_in_memory(metadata: MetaData) -> Result<Self, JsValue> {
         let opfs_store = OpfsReadonlyStore::new();
         opfs_store
@@ -186,6 +181,9 @@ impl CardConfluenceBrowser {
         let mut oracles: Vec<u8> = Vec::new();
         let mut matches: Vec<u8> = Vec::new();
 
+        // This custom binar encoding strategy is decoded manually on the frontend
+        // TODO: Move the front end .ts decoding logic to a ts file that lives inside the wasm
+        // browser package. This could potentially come if the library gets separated from veldt
         for batch in batches {
             let oracle_ids = batch
                 .column(0)

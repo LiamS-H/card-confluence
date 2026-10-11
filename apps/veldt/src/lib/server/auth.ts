@@ -1,5 +1,6 @@
 import { getAuth } from '@repo/auth';
 import { db } from './db';
+//@ts-ignore
 import { BETTER_AUTH_SECRET, BETTER_AUTH_URL } from '$env/static/private';
 
 export const auth = getAuth(db, {

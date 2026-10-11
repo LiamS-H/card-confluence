@@ -1,32 +1,33 @@
+// (to keep this list somewhat organized)
 // prettier-ignore
-export const KEYWORDS = [ // (to keep this list somewhat organized)
+export const KEYWORDS = [
     'oracle', 'o', 'fo', 'fulloracle',
     'type', 't',
     'set', 's', 'st', 'e', 'edition', 'in',
     'is', 'not',
     'power', 'pow',
     'toughness', 'tou',
-    'powtou', 'pt', 
+    'powtou', 'pt',
     'loyalty', 'loy',
     'mana', 'm', 'produces', 'devotion',
     'name',
     'color', 'c', 'id', 'commander',
     'keyword', 'kw',
-    'cmc', 'mv', 
-    'rarity', 'r', 
+    'cmc', 'mv',
+    'rarity', 'r',
     'cube',
     'format', 'f', 'legal', 'banned', 'restricted',
-    'artist', 'a', 
+    'artist', 'a',
     'artists', 'illustrations', 'paperprints', 'prints', 'sets',
-    'flavor', 'ft', 
-    'watermark', 'wm', 
+    'flavor', 'ft',
+    'watermark', 'wm',
     'border',
     'frame',
     'stamp',
     'layout',
     'date', 'year',
-    'atag', 'arttag', 'art', 
-    'otag', 'oracletag', 'function', 
+    'atag', 'arttag', 'art',
+    'otag', 'oracletag', 'function',
     'game',
     'scryfallid','oracleid',
     'cah',
@@ -378,7 +379,7 @@ export const DETAIL_MAP: Record<Keyword, IDetailNode> = {
 
 'in:rare' : cards once printed at rare
 
-'in:arena' : cards available on arena 
+'in:arena' : cards available on arena
 
 'in:lea' : cards that once appeared in Alpha.`
 	},

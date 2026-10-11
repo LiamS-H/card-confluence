@@ -10,7 +10,7 @@ export async function get_remote_metadata(
 	try {
 		response = await fetch(`${url}/metadata.json`);
 	} catch (e) {
-		return [null, { type: 'no_internet_error' }];
+		return [null, { type: 'no_internet_error', message: `failed to fetch ${url}/metadata.json` }];
 	}
 
 	if (!response.ok || !response.body) {

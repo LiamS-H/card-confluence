@@ -3,6 +3,7 @@
 	"compilerOptions": {
 		"noUncheckedIndexedAccess": false,
 		"outDir": "./dist",
+		"rootDir": "./src",
 		"exactOptionalPropertyTypes": false,
 		"allowImportingTsExtensions": false,
 		"noEmit": false,

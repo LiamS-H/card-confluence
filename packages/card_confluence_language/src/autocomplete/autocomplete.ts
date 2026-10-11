@@ -23,8 +23,6 @@ const BEGIN_OPERATORS = [':', '<', '>', '=', '!'] as const;
 const OPERATORS = [':', '=', '<', '>', '<=', '>=', '!='] as const;
 const ASSERT_OPERATORS = [':', '='] as const;
 
-// function argRec(argument: string, commit: boolean, from: number, to?: number) {}
-
 export const completeCardConfluence: CompletionSource = async (context) => {
 	if (!context.view) return null;
 
