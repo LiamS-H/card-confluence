@@ -10,7 +10,7 @@ import { styleTags, tags } from '@lezer/highlight';
 import { parseMixed } from '@lezer/common';
 import { cardconfluenceLanguage, cardconfluence } from 'codemirror-lang-cardconfluence';
 import { snippetCompletion } from '@codemirror/autocomplete';
-import { deckStateField } from './deck_state';
+import { cursorTagStateField, deckStateField } from './deck_state';
 import { parser } from './parser/parser';
 
 export const veldtDeckLanguage = LRLanguage.define({
@@ -75,7 +75,8 @@ export function veldtDeck() {
 			]
 		}),
 		cardconfluence().support,
-		deckStateField
+		deckStateField,
+		cursorTagStateField
 	]);
 }
 
@@ -88,6 +89,8 @@ export {
 	type DeckObject,
 	deckStateField,
 	onDeckUpdate,
+	cursorTagStateField,
+	onCursorTagUpdate,
 	parseVeldtDeck,
 	tagAtCursor,
 	addTag,

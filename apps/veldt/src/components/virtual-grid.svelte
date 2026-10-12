@@ -94,8 +94,8 @@
 		/* Fill whatever positioned ancestor wraps this component */
 		position: absolute;
 		inset: 0;
-		overflow-y: auto;
 		overflow-x: hidden;
+		/* height: fit-content; */
 	}
 
 	.virtual-grid > div {

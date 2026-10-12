@@ -5,18 +5,18 @@ import { EditorView } from '@codemirror/view';
 
 import {
 	veldtDeck,
-	tagAtCursor,
 	onDeckUpdate,
+	deckStateField,
 	type Deck as VeldtDeckParsed,
 	type Tag,
 	type CursorTag,
-	deckStateField
+	onCursorTagUpdate,
+	cursorTagStateField
 } from 'codemirror-lang-veldt-deck';
 import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 import { yCollab } from 'y-codemirror.next';
 import { veldtSetup } from '$lib/codemirror';
 import { SvelteMap } from 'svelte/reactivity';
-import { query_with_domain } from '$lib/utils';
 import { uuid_to_string, type UUIDString } from '$lib/utils/uuid';
 
 class TagQuery {
@@ -67,14 +67,14 @@ export class TagDocState {
 				veldtDeck(),
 				cardconfluenceWithContext({
 					complete: async (pos: number) => {
-						// Always reads from the live view state — no stale closure
-						const tag = tagAtCursor(this._view.state, pos);
+						const tag = this._view.state.field(cursorTagStateField);
 						if (tag === null || tag.queryPos === null) {
 							return { from: pos, to: pos, options: [] };
 						}
+						// TODO: add domain as part of query
 						const offset = pos - tag.queryPos;
 						const { from, to, options } = await query_client.autocomplete(
-							{ query: tag.query },
+							{ query: tag.tag.query },
 							tag.queryPos
 						);
 						return { options, from: from + offset, to: to + offset };
@@ -85,10 +85,8 @@ export class TagDocState {
 					this._doc_parsed = parsed;
 					this.on_doc_parsed();
 				}),
-				EditorView.updateListener.of((update) => {
-					if (update.docChanged || update.selectionSet) {
-						this._cursor_tag = tagAtCursor(update.state, update.state.selection.main.head);
-					}
+				onCursorTagUpdate((tag) => {
+					this._cursor_tag = tag;
 				}),
 				EditorView.theme({
 					'&': { height: '100%' },

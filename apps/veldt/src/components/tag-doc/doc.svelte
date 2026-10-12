@@ -22,26 +22,34 @@
 
 	const query = $derived.by(() => {
 		if (doc_state.cursor_tag === null) return '';
-		return (doc_state.parsed.domain ?? '') + ' ' + doc_state.cursor_tag.query;
+		if (doc_state.cursor_tag.tag.label === 'domain') {
+			return doc_state.cursor_tag.tag.query;
+		}
+		return query_with_domain(doc_state.parsed, doc_state.cursor_tag.tag.query);
 	});
 	let data = use_query(() => ({ query }), 500);
 	const { response } = $derived(data);
 
-	// TODO: replace the fragile name, with a scope (will require refactor of cursor_tag)
-	// this will fix the bug where the view doesn't update immediately when switching between tags of the same name
 	// svelte-ignore state_referenced_locally
-	let last_tag_label = doc_state.cursor_tag ? doc_state.cursor_tag.name : null;
+	let last_tag_label = doc_state.cursor_tag
+		? doc_state.cursor_tag.tag.scope + ':' + doc_state.cursor_tag.tag.label
+		: null;
 	$effect(() => {
 		const current_tag = doc_state.cursor_tag;
 		if (current_tag === null) {
 			last_tag_label = null;
 			return;
 		}
-		if (current_tag.name === last_tag_label) {
+		const new_label = current_tag.tag.scope + ':' + current_tag.tag.label;
+		if (new_label === last_tag_label) {
 			return;
 		}
-		last_tag_label = current_tag.name;
-		data.query_now({ query: query_with_domain(doc_state.parsed, current_tag.query) });
+		last_tag_label = new_label;
+		if (doc_state.cursor_tag.tag.label === 'domain') {
+			data.query_now({ query: current_tag.tag.query });
+		} else {
+			data.query_now({ query: query_with_domain(doc_state.parsed, current_tag.tag.query) });
+		}
 	});
 
 	$effect(() => {
@@ -67,7 +75,7 @@
 	<div bind:this={editorContainer} class="w-full"></div>
 
 	<div class="absolute top-2 right-2">
-		{#if previewOpen && doc_state.cursor_tag}
+		{#if previewOpen && doc_state.cursor_tag !== null}
 			<div
 				class="flex min-h-107 min-w-96 resize flex-col overflow-hidden [direction:rtl]"
 				bind:offsetWidth={previewW}
@@ -108,10 +116,10 @@
 					<span
 						class="flex flex-1 items-center justify-center bg-foreground text-xl text-background"
 					>
-						{doc_state.cursor_tag.name}
+						{doc_state.cursor_tag.tag.label}
 					</span>
 					{#if jump_to_query !== undefined}
-						{const tag_query = $derived(doc_state.cursor_tag.query.trim())}
+						{const tag_query = $derived(doc_state.cursor_tag.tag.query.trim())}
 						<Button
 							disabled={tag_query === ''}
 							onclick={() => {

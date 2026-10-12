@@ -30,7 +30,7 @@ GroupDefinition {
 }
 
 GroupItem {
-  Identifier | TagDefinition | GroupDefinition
+  Identifier | TagDefinition | GroupDefinition | MatchDefinition
 }
 
 ViewDefinition {
@@ -39,7 +39,16 @@ ViewDefinition {
 
 
 ViewItem {
-  Identifier | TagDefinition | GroupDefinition
+  Identifier | TagDefinition | GroupDefinition | MatchDefinition
+}
+
+
+MatchString {
+  string | unquotedString
+}
+
+MatchDefinition {
+  MatchKeyword MatchString
 }
 
 
@@ -50,10 +59,13 @@ ViewItem {
   "[" "]" "{" "}" "(" ")" "," ":"
   space { $[ \t\n\r]+ }
   LineComment { "#" ![\\n]* }
+  string { '"' (![\\\n"] | "\\" _)* '"' }
+  unquotedString { ![ #"\t\r\n\v\f] ![ \t\r\n\v\f]* }
 }
 
 TagKeyword { @specialize<identifier, "tag"> }
 ViewKeyword { @specialize<identifier, "view"> }
+MatchKeyword { @specialize<identifier, "match"> }
 GroupKeyword { @specialize<identifier, "group"> }
 DomainKeyword { @specialize<identifier, "domain"> }
 Identifier { identifier }
