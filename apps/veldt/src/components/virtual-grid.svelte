@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { onMount, type Snippet } from 'svelte';
+	import { cn, type WithElementRef } from '$lib/utils.js';
+	import type { HTMLAttributes } from 'svelte/elements';
 
-	export type VirtualGridProps = {
+	export type VirtualGridProps = WithElementRef<HTMLAttributes<HTMLDivElement>> & {
 		length: number;
 		itemWidth?: number | undefined;
 		itemHeight?: number | undefined;
@@ -20,7 +22,9 @@
 		overscan = 2,
 		item,
 		itemWidth: setItemWidth,
-		itemHeight: setItemHeight
+		itemHeight: setItemHeight,
+		class: className,
+		...restProps
 	}: VirtualGridProps = $props();
 
 	let scroller: HTMLDivElement;
@@ -69,16 +73,16 @@
 	});
 </script>
 
-<!--
-  The outer wrapper must be a positioned element so this component
-  can use position:absolute to fill it regardless of parent sizing.
-  If your parent isn't already position:relative/absolute, add that.
--->
-<div class="virtual-grid" bind:this={scroller} onscroll={() => (scrollTop = scroller.scrollTop)}>
-	<div style:height="{totalHeight}px">
+<div
+	class={cn('absolute inset-0 overflow-x-hidden overflow-y-auto', className)}
+	{...restProps}
+	bind:this={scroller}
+	onscroll={() => (scrollTop = scroller.scrollTop)}
+>
+	<div style:height="{totalHeight}px" class="relative w-full">
 		{#each visible as v (v.index)}
 			<div
-				class="virtual-grid-item"
+				class="t-0 l-0 absolute will-change-transform"
 				style:width="{itemWidth}px"
 				style:height="{itemHeight}px"
 				style:transform="translate({v.x}px, {v.y}px)"
@@ -88,25 +92,3 @@
 		{/each}
 	</div>
 </div>
-
-<style>
-	.virtual-grid {
-		/* Fill whatever positioned ancestor wraps this component */
-		position: absolute;
-		inset: 0;
-		overflow-x: hidden;
-		/* height: fit-content; */
-	}
-
-	.virtual-grid > div {
-		position: relative;
-		width: 100%;
-	}
-
-	.virtual-grid-item {
-		position: absolute;
-		top: 0;
-		left: 0;
-		will-change: transform;
-	}
-</style>

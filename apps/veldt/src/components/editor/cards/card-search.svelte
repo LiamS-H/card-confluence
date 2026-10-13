@@ -11,8 +11,9 @@
 	import { ResultCard } from '$components/card';
 	import CardOptionsDeck from '../card-options-deck.svelte';
 	import { use_settings } from '$lib/settings';
+	import { uuid_to_string } from '$lib/utils/uuid';
 
-	const { doc_state, settings } = use_deck_cards();
+	const { doc_state, settings, get_card_counts } = use_deck_cards();
 
 	const {
 		cards: { searchVariant: variant }
@@ -59,9 +60,10 @@
 	let zone: DeckZone = $derived(add_zones[add_zone_index % add_zones.length]);
 </script>
 
-<div class="flex h-full flex-col">
+<!-- <div class="flex h-[calc(svh-300px)] max-h-[calc(svh-300px)] flex-col"> -->
+<div class="flex h-[calc(100svh-80px)] flex-col">
 	<Search doc={search_query} {onDocChange} />
-	<div class="sticky flex justify-between pt-px">
+	<div class="flex justify-between pt-px">
 		<div class="flex items-center px-2">
 			{#if response.loading}
 				<p>Loading...</p>
@@ -99,6 +101,7 @@
 	{#if !response.loading && !response.error}
 		<div class="relative flex-1">
 			<VirtualGrid
+				class="absolute inset-0"
 				itemHeight={variant === 'img-full' ? undefined : 40}
 				length={response.result.rows.length}
 				columns={card_columns}
@@ -106,12 +109,8 @@
 			>
 				{#snippet item({ index, viewportRow, col })}
 					<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
-						<ResultCard
-							{variant}
-							result={response.result.rows.at(index) as QueryResultRow}
-							key={`${viewportRow}-${col}`}
-							width="100%"
-						>
+						{const result = response.result.rows.at(index) as QueryResultRow}
+						<ResultCard {variant} {result} key={`${viewportRow}-${col}`} width="100%">
 							{#snippet options({ card, print, variant })}
 								<CardOptionsDeck {card} {print} {variant} {zone} />
 							{/snippet}
