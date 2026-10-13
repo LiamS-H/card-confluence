@@ -14,8 +14,11 @@ Params {
   "(" (ParamItem ("," ParamItem)*)? ")"
 }
 
+ParamKey { identifier }
+ParamValue { identifier }
+
 ParamItem {
-  Identifier ":" Identifier
+  ParamValue ":" ParamKey
 }
 
 TagDefinition {

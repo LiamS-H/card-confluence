@@ -22,8 +22,8 @@
 
 	const query = $derived.by(() => {
 		if (doc_state.cursor_tag === null) return '';
-		if (doc_state.cursor_tag.tag.label === 'domain') {
-			return doc_state.cursor_tag.tag.query;
+		if (doc_state.cursor_tag.key === 'domain') {
+			return doc_state.parsed.domain;
 		}
 		return query_with_domain(doc_state.parsed, doc_state.cursor_tag.tag.query);
 	});
@@ -45,7 +45,7 @@
 			return;
 		}
 		last_tag_label = new_label;
-		if (doc_state.cursor_tag.tag.label === 'domain') {
+		if (doc_state.cursor_tag.key === 'domain') {
 			data.query_now({ query: current_tag.tag.query });
 		} else {
 			data.query_now({ query: query_with_domain(doc_state.parsed, current_tag.tag.query) });

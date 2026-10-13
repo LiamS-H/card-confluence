@@ -3,19 +3,12 @@
 </script>
 
 <script lang="ts">
-	import type { DeckZone, OracleCardSerialized } from '@repo/schema-sync';
-	import type { Tag } from 'codemirror-lang-veldt-deck';
+	import type { DeckZone } from '@repo/schema-sync';
 	import { ResultCard } from '$components/card';
 	import CardOptionsDeck from '../card-options-deck.svelte';
 	import ConsideringOptions from './considering-options.svelte';
 	import { string_to_uuid } from '$lib/utils/uuid';
-
-	export interface DisplayTag {
-		type: 'tag';
-		id: string;
-		tag: Tag;
-		cards: OracleCardSerialized[];
-	}
+	import { type DisplayTag } from './view.svelte';
 
 	const {
 		tag,
@@ -78,7 +71,9 @@
 {:else if variant === 'img'}
 	<div class="flex w-fit flex-col">
 		{const ids = tag.cards.map(
-			(deck_card) => `${tag.tag.scope}:${tag.tag.label}${deck_card.oracle_id}`
+			// a scope like this souldn't clash with any real
+			// the scope is null when the tag is virtual
+			(deck_card) => `${tag.tag.scope ?? ':'}:${tag.tag.label}${deck_card.oracle_id}`
 		)}
 		{const has_active = $derived(ids.includes(active ?? ''))}
 		{#each tag.cards as deck_card, index (deck_card.oracle_id)}

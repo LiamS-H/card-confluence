@@ -31,12 +31,16 @@ export const veldtDeckLanguage = LRLanguage.define({
 				ViewKeyword: tags.keyword,
 				GroupKeyword: tags.keyword,
 				DomainKeyword: tags.keyword,
+				MatchKeyword: tags.keyword,
 				Identifier: tags.name,
+				MatchString: tags.string,
 				'[ ]': tags.squareBracket,
 				'{ }': tags.brace,
 				'( )': tags.paren,
 				',': tags.separator,
-				':': tags.punctuation
+				':': tags.punctuation,
+				ParamValue: tags.string,
+				ParamKey: tags.literal
 			})
 		],
 		wrap: parseMixed((node) => {

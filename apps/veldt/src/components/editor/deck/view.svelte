@@ -4,7 +4,7 @@
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
 	import { use_settings } from '$lib/settings';
 	import type { UUIDString } from '$lib/utils/uuid';
-	import ViewTag, { type DisplayTag } from './view-tag.svelte';
+	import ViewTag from './view-tag.svelte';
 
 	const {
 		cards,
@@ -15,6 +15,24 @@
 
 	const { doc_state } = use_deck_cards();
 
+	export type DisplayTag =
+		| {
+				type: 'tag';
+				id: string;
+				tag: Tag;
+				cards: OracleCardSerialized[];
+		  }
+		| {
+				// A virtual tag does not apear in the tag document
+				type: 'virtual-tag';
+				tag: {
+					object: 'virtual-tag';
+					label: string;
+					scope: null;
+				};
+				cards: OracleCardSerialized[];
+		  };
+
 	interface DisplayGroup {
 		type: 'group';
 		id: string;
@@ -23,6 +41,8 @@
 		total: number;
 	}
 	const display_items = $derived.by(() => {
+		const included_cards = new Set();
+
 		function tag_to_display(obj: Tag, key: string): DisplayTag {
 			const fetched = doc_state.tags_fetched.get(key);
 			if (!fetched) {
@@ -34,7 +54,11 @@
 				};
 			}
 			const filtered = cards.filter((c) => {
-				return fetched.matchedIds.has(c.oracle_id as UUIDString);
+				const out = fetched.matchedIds.has(c.oracle_id as UUIDString);
+				if (out) {
+					included_cards.add(c.oracle_id);
+				}
+				return out;
 			});
 			return {
 				type: 'tag',
@@ -93,6 +117,7 @@
 				const queries: Set<string> = new Set();
 				recurse_group(group, matching_cards, queries);
 				total += matching_cards.size;
+				included_cards.union(matching_cards);
 
 				tags.push({
 					type: 'tag',
@@ -126,6 +151,14 @@
 				out.push(group_to_display(obj, key));
 			}
 		}
+		if (view.settings.includeall) {
+			const filtered = cards.filter((c) => !included_cards.has(c.oracle_id as UUIDString));
+			out.push({
+				type: 'virtual-tag',
+				tag: { object: 'virtual-tag', label: 'unmatched', scope: null },
+				cards: filtered
+			});
+		}
 		return out;
 	});
 
@@ -142,12 +175,25 @@
 		<div class="relative flex break-inside-avoid flex-col overflow-y-hidden bg-background">
 			{#if item.type === 'tag'}
 				<ViewTag tag={item} {variant} {width} {zone} />
-			{:else}
+			{:else if item.type === 'group'}
 				<span>{item.group.label}</span>
 				<div class="flex flex-col"></div>
 				{#each item.tags as tag}
 					<ViewTag {tag} {variant} {width} {zone} />
 				{/each}
+			{:else}
+				<ViewTag
+					tag={{
+						id: '',
+						// using invalid scope to not match against tags actually called unmatched
+						tag: { label: 'unmatched', object: 'tag', query: '', scope: ':unmatched' },
+						type: 'tag',
+						cards: item.cards
+					}}
+					{variant}
+					{width}
+					{zone}
+				/>
 			{/if}
 		</div>
 	{/each}

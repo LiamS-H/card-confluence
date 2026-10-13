@@ -8,7 +8,6 @@ import type { EditorState, TransactionSpec } from '@codemirror/state';
 
 export type DeckObject = Tag | Group | View;
 
-export interface TagSettings {}
 export interface Tag {
 	object: 'tag';
 	label: string;
@@ -16,19 +15,33 @@ export interface Tag {
 	query: string;
 }
 
+const groupDefaultSettings: GroupSettings = {};
 export interface GroupSettings {}
 export interface Group {
 	object: 'group';
+	settings: GroupSettings;
 	label: string;
 	scope: string;
 	children: string[];
 }
 
+// TODO: It makes sense to treat the match macro like a normal group, this way
+// the state and matching can be used for suggestions or to preview which keywords get included
+// export interface Match {
+// 	object: 'match';
+// 	scope: string;
+// 	children: string[];
+// }
+
+const viewDefaultSettings: ViewSettings = {
+	includeall: false
+} as const;
 export interface ViewSettings {
 	includeall: boolean;
 }
 export interface View {
 	object: 'view';
+	settings: ViewSettings;
 	label: string;
 	children: string[];
 }
@@ -61,11 +74,17 @@ export function onDeckUpdate(callback: (deck: Deck) => void) {
 	});
 }
 
-export interface CursorTag {
-	tag: Tag;
-	key: string;
-	queryPos: number | null;
-}
+export type CursorTag =
+	| {
+			tag: Tag;
+			key: string;
+			queryPos: number | null;
+	  }
+	| {
+			key: 'domain';
+			queryPos: number | null;
+			tag: { query: string };
+	  };
 
 export const cursorTagStateField = StateField.define<CursorTag | null>({
 	create(state) {
@@ -77,7 +96,7 @@ export const cursorTagStateField = StateField.define<CursorTag | null>({
 			return {
 				key,
 				queryPos,
-				tag: { query: deck.domain, object: 'tag', label: 'domain', scope: '' }
+				tag: { query: deck.domain }
 			};
 		}
 		const tag = deck.objects.get(key);
@@ -98,7 +117,7 @@ export const cursorTagStateField = StateField.define<CursorTag | null>({
 			return {
 				key,
 				queryPos,
-				tag: { query: deck.domain, object: 'tag', label: 'domain', scope: '' }
+				tag: { query: deck.domain }
 			};
 		}
 		const tag = deck.objects.get(key);
@@ -224,6 +243,11 @@ export function parseVeldtDeck(state: EditorState): Deck {
 	const scope: string[] = [];
 	let domain: string = '';
 
+	const match_definitions: {
+		parent_key: string;
+		match_string: string;
+	}[] = [];
+
 	const tree = syntaxTree(state);
 	tree.iterate({
 		enter: (node) => {
@@ -241,17 +265,19 @@ export function parseVeldtDeck(state: EditorState): Deck {
 					scope.push(label);
 					if (node.type.is(Term.ViewDefinition)) {
 						objects.set(label, {
-							label,
 							object: 'view',
+							label,
+							settings: { ...viewDefaultSettings },
 							children: []
 						});
 						views.push(label);
 					} else if (node.type.is(Term.GroupDefinition)) {
 						const id = [...scope].join(':');
 						objects.set(id, {
-							label,
-							scope: scope_str,
 							object: 'group',
+							label,
+							settings: { ...groupDefaultSettings },
+							scope: scope_str,
 							children: []
 						});
 						if (parent && parent.object !== 'tag') {
@@ -260,6 +286,31 @@ export function parseVeldtDeck(state: EditorState): Deck {
 					}
 
 					return true;
+				case Term.ParamItem: {
+					if (!parent) return false;
+					const param = node.node.getChild(Term.ParamKey);
+					const value = node.node.getChild(Term.ParamValue);
+
+					if (!param || !value || parent.object === 'tag') {
+						return true;
+					}
+
+					const key = state.doc.sliceString(param.from, param.to);
+
+					if (!Object.hasOwn(parent.settings, key)) {
+						return true;
+					}
+					const val = state.doc.sliceString(value.from, value.to);
+					// TODO: when adding linting, the type should be checked more thouroughly
+					try {
+						//@ts-expect-error; the key is already checked against the object
+						parent.settings[key] = JSON.parse(val);
+					} catch {
+						//@ts-expect-error; the key is already checked against the object
+						parent.settings[key] = val;
+					}
+					return true;
+				}
 				case Term.DomainDefinition: {
 					const query = node.node.getChild('Query');
 
@@ -276,7 +327,12 @@ export function parseVeldtDeck(state: EditorState): Deck {
 					const label = state.doc.sliceString(ident.from, ident.to);
 					const query = state.doc.sliceString(queryNode.from, queryNode.to).trim();
 					const id = [...scope, label].join(':');
-					objects.set(id, { label, query, scope: scope_str, object: 'tag' });
+					objects.set(id, {
+						object: 'tag',
+						label,
+						query,
+						scope: scope_str
+					});
 
 					if (parent && parent.object !== 'tag') {
 						parent.children.push(id);
@@ -286,7 +342,7 @@ export function parseVeldtDeck(state: EditorState): Deck {
 				}
 				case Term.Identifier: {
 					// when we find an identifier, we look up the tree to see which symbol should be added
-					if (!parent || parent.object == 'tag') {
+					if (!parent || parent.object === 'tag') {
 						return false;
 					}
 					const label = state.doc.sliceString(node.from, node.to);
@@ -302,6 +358,21 @@ export function parseVeldtDeck(state: EditorState): Deck {
 						}
 					}
 					parent.children.push(label);
+					return true;
+				}
+
+				case Term.MatchDefinition: {
+					const match = node.node.getChild(Term.MatchString);
+					if (!match) return false;
+					if (!parent || parent.object === 'tag') {
+						return false;
+					}
+					let match_string = state.doc.sliceString(match.from, match.to);
+					if (match_string[0] === '"' && match_string[match_string.length - 1] === '"') {
+						match_string = match_string.substring(1, match_string.length - 1);
+					}
+					match_definitions.push({ match_string, parent_key: scope_str });
+					return false;
 				}
 			}
 		},
@@ -313,6 +384,41 @@ export function parseVeldtDeck(state: EditorState): Deck {
 			}
 		}
 	});
+
+	// Resolve matched after all keys exist
+	for (const { match_string, parent_key } of match_definitions) {
+		const parent = objects.get(parent_key);
+		if (!parent || parent.object === 'tag') continue;
+		const matches: string[] = [];
+
+		const contents = new Set(parent.children);
+
+		// TODO: make more dynamic with a regex replacement that supports *
+		// didn't implement now because the main features we want are simple
+		// and the syntax isn't clear. We mostly want a simple way to match
+		// all scope 0 tags, but match "" seems a little cumbersome for this
+		if (match_string === '') {
+			// TODO, this is slow for large files due to the n * m nature, could definitely be done in n + m
+			for (const [key, obj] of objects) {
+				if (obj.object === 'view') continue;
+				if (contents.has(key)) continue;
+				if (!key.includes(':')) {
+					matches.push(key);
+					contents.add(key);
+				}
+			}
+		} else {
+			for (const [key, obj] of objects) {
+				if (obj.object === 'view') continue;
+				if (contents.has(key)) continue;
+				if (key.startsWith(match_string)) {
+					matches.push(key);
+					contents.add(key);
+				}
+			}
+		}
+		parent.children.push(...matches);
+	}
 
 	return { objects, views, domain };
 }
