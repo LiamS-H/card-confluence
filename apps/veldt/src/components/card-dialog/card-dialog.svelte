@@ -30,17 +30,17 @@
 	>
 		{#if card}
 			{#if card.loading}
-				<Dialog.Title class="sr-only">Selected Card Loading</Dialog.Title>
+				<Dialog.Title tabindex={-1} class="sr-only">Selected Card Loading</Dialog.Title>
 				<Dialog.Description class="sr-only"
 					>Info for a card you selected is currently loading.</Dialog.Description
 				>
 				<CardInfoSkeleton />
 			{:else if card.error}
-				<Dialog.Title class="sr-only">Selected Card Error</Dialog.Title>
+				<Dialog.Title tabindex={-1} class="sr-only">Selected Card Error</Dialog.Title>
 				<Dialog.Description class="sr-only">{card.message}</Dialog.Description>
 				<CardInfoError message={card.message} />
 			{:else}
-				<Dialog.Title class="sr-only">Selected Card</Dialog.Title>
+				<Dialog.Title tabindex={-1} class="sr-only">Selected Card</Dialog.Title>
 				<Dialog.Description class="sr-only">{card.result.name}</Dialog.Description>
 				{const print_index = card.result.prints.findIndex((s) => s.scryfall_id === print_id)}
 				<CardInfo card={card.result} {print_index} />
