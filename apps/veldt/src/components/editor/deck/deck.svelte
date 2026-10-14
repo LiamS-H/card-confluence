@@ -22,12 +22,16 @@
 	const { hovered } = $derived(get_hovered_card());
 </script>
 
-<div class="absolute top-0 left-0 flex w-full pl-56">
-	<!-- TODO: convert to dropdown component -->
-	<!-- might also be a good idea to lift this state so that is can be rendered just right of the tabs -->
-	<Button onclick={() => (index = (index + 1) % deck.doc_state.parsed.views.length)}
-		>view: {view}</Button
-	>
+<div class="pointer-events-none absolute inset-y-0 z-10">
+	<div class="sticky top-10 flex w-full pl-56">
+		<!-- TODO: convert to dropdown component -->
+		<!-- might also be a good idea to lift this state so that is can be rendered just right of the tabs -->
+		<Button
+			class="pointer-events-auto"
+			onclick={() => (index = (index + 1) % deck.doc_state.parsed.views.length)}
+			>view: {view}</Button
+		>
+	</div>
 </div>
 <div class="flex w-full flex-col gap-2">
 	{#if hovered && hovered.print && deckVariant === 'tile'}
@@ -72,4 +76,5 @@
 			view={deck.doc_state.parsed.objects.get(view) as any}
 		/>
 	</div>
+	<div class="h-1000"></div>
 </div>
