@@ -153,11 +153,10 @@ class QueryClient {
 		}
 
 		async function handle_settings(settings: LocalSettings) {
-			console.log();
 			const use_local = settings.database.useLocal !== false;
 			const use_mem = settings.database.inMemory !== false;
 
-			if (use_local !== last_use_local) {
+			if (use_local !== last_use_local || use_mem !== last_use_mem) {
 				last_use_local = use_local;
 				last_use_mem = use_mem;
 				worker.postMessage({
@@ -333,7 +332,6 @@ class QueryClient {
 
 		const ref = this.card_refs.get(key)!;
 		if (--ref.count === 0) this.card_refs.delete(key);
-		console.log('[client]', this.card_refs);
 	}
 
 	private process_cards_batch() {
@@ -342,7 +340,6 @@ class QueryClient {
 
 		const size = this.card_refs.size;
 		if (size === 0) return;
-		console.log('[client] requesting', size, 'cards');
 
 		const ids = new Uint8Array(size * 16);
 		let i = 0;

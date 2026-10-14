@@ -116,17 +116,21 @@ export async function handle_query_request(
 	browser: CardConfluenceBrowser,
 	request: QueryWorkerRequest
 ): Promise<QueryWorkerResponse> {
-	console.log('[worker] handling request', request);
-	let timer = Date.now();
+	// console.log('[worker] handling request', request);
+	// let timer = Date.now();
+	// function timed_print(text: string) {
+	// 	const now = Date.now();
+	// 	const dif = now - timer;
+	// 	if (dif !== 0) {
+	// 		console.log(`[worker] ${request.req_id.substring(0, 4)} ${dif}`, text);
+	// 	} else {
+	// 		console.log(`[worker] ${request.req_id.substring(0, 4)} ${text}`);
+	// 	}
+	// 	timer = now;
+	// }
+
 	function timed_print(text: string) {
-		const now = Date.now();
-		const dif = now - timer;
-		if (dif !== 0) {
-			console.log(`[worker] ${request.req_id.substring(0, 4)} ${dif}`, text);
-		} else {
-			console.log(`[worker] ${request.req_id.substring(0, 4)} ${text}`);
-		}
-		timer = now;
+		text;
 	}
 	let message!: QueryWorkerResponse;
 	try {

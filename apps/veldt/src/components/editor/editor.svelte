@@ -62,10 +62,6 @@
 			replaceState: true
 		});
 	}
-
-	$effect(() => {
-		console.log(deck_interface.commander);
-	});
 </script>
 
 <ActiveCard />
