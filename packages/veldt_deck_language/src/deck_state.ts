@@ -34,10 +34,12 @@ export interface Group {
 // }
 
 const viewDefaultSettings: ViewSettings = {
-	includeall: false
+	showUnmatched: false,
+	showEmpty: false
 } as const;
 export interface ViewSettings {
-	includeall: boolean;
+	showUnmatched: boolean;
+	showEmpty: boolean;
 }
 export interface View {
 	object: 'view';

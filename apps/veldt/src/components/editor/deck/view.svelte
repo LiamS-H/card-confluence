@@ -69,6 +69,7 @@
 		}
 
 		if (!view) return [];
+
 		const out: (DisplayTag | DisplayGroup)[] = [];
 		const visited = new Set();
 
@@ -151,12 +152,27 @@
 				out.push(group_to_display(obj, key));
 			}
 		}
-		if (view.settings.includeall) {
+
+		if (view.settings.showUnmatched) {
 			const filtered = cards.filter((c) => !included_cards.has(c.oracle_id as UUIDString));
 			out.push({
 				type: 'virtual-tag',
 				tag: { object: 'virtual-tag', label: 'unmatched', scope: null },
 				cards: filtered
+			});
+		}
+
+		if (!view.settings.showEmpty) {
+			return out.filter((obj) => {
+				if (obj.type === 'group') {
+					if (obj.total === 0) return false;
+					obj.tags = obj.tags.filter((t) => t.cards.length !== 0);
+					return true;
+				} else if (obj.cards.length !== 0) {
+					return true;
+				} else {
+					return false;
+				}
 			});
 		}
 		return out;

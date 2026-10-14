@@ -18,7 +18,7 @@ ParamKey { identifier }
 ParamValue { identifier }
 
 ParamItem {
-  ParamValue ":" ParamKey
+  ParamKey ":" ParamValue
 }
 
 TagDefinition {
