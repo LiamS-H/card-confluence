@@ -56,50 +56,50 @@
 	}}
 />
 
-<div class="flex h-full flex-col gap-2 pt-2">
-	<Search doc={query} {onDocChange} />
-	<div class="sticky flex justify-between">
-		<div class="flex items-center px-2">
-			{#if response.loading}
-				<p>Loading...</p>
-			{:else if response.error}
-				<p>Error: {response.message}</p>
-			{:else}
-				<p>{response.result.rows.length} cards</p>
-			{/if}
-		</div>
-		<div class="flex flex-1 items-center px-2">
-			<input
-				class="w-full"
-				id="native-slider"
-				type="range"
-				min="1"
-				max="10"
-				bind:value={card_columns}
-			/>
-		</div>
+<div class="relative h-full">
+	<div class="sticky top-10 z-10 flex-col gap-2 bg-background pt-2">
+		<Search doc={query} {onDocChange} />
+		<div class=" flex justify-between">
+			<div class="flex items-center px-2">
+				{#if response.loading}
+					<p>Loading...</p>
+				{:else if response.error}
+					<p>Error: {response.message}</p>
+				{:else}
+					<p>{response.result.rows.length} cards</p>
+				{/if}
+			</div>
+			<div class="flex flex-1 items-center px-2">
+				<input
+					class="w-full"
+					id="native-slider"
+					type="range"
+					min="1"
+					max="10"
+					bind:value={card_columns}
+				/>
+			</div>
 
-		{#if !response.loading && !response.error}{/if}
+			{#if !response.loading && !response.error}{/if}
+		</div>
 	</div>
 	{#if !response.loading && !response.error}
-		<div class="relative h-full flex-1">
-			<VirtualGrid
-				itemHeight={variant === 'img-full' ? undefined : 40}
-				length={response.result.rows.length}
-				columns={card_columns}
-				overscan={10}
-			>
-				{#snippet item({ viewportRow, col, index })}
-					<div class="p-1">
-						<ResultCard
-							{variant}
-							result={response.result.rows.at(index) as QueryResultRow}
-							key={`${viewportRow}-${col}`}
-							width="100%"
-						/>
-					</div>
-				{/snippet}
-			</VirtualGrid>
-		</div>
+		<VirtualGrid
+			itemHeight={variant === 'img-full' ? undefined : 40}
+			length={response.result.rows.length}
+			columns={card_columns}
+			overscan={10}
+		>
+			{#snippet item({ viewportRow, col, index })}
+				<div class="p-1">
+					<ResultCard
+						{variant}
+						result={response.result.rows.at(index) as QueryResultRow}
+						key={`${viewportRow}-${col}`}
+						width="100%"
+					/>
+				</div>
+			{/snippet}
+		</VirtualGrid>
 	{/if}
 </div>

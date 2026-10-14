@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, type Snippet } from 'svelte';
+	import { type Snippet } from 'svelte';
 	import { cn, type WithElementRef } from '$lib/utils.js';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -24,35 +24,40 @@
 		itemWidth: setItemWidth,
 		itemHeight: setItemHeight,
 		class: className,
+		ref = $bindable(null),
 		...restProps
 	}: VirtualGridProps = $props();
 
-	let scroller: HTMLDivElement;
-	let scrollTop = $state(0);
-	let viewportWidth = $state(0);
+	let width = $state(0);
+	let offsetTop = $state(0);
 	let viewportHeight = $state(0);
 
-	onMount(() => {
-		const ro = new ResizeObserver(() => {
-			viewportWidth = scroller.clientWidth;
-			viewportHeight = scroller.clientHeight;
-		});
-		ro.observe(scroller);
-		return () => ro.disconnect();
+	function update() {
+		if (!ref) return;
+		offsetTop = ref.getBoundingClientRect().top;
+		viewportHeight = window.innerHeight;
+	}
+
+	$effect(() => {
+		update();
+		window.addEventListener('scroll', update, { capture: true, passive: true });
+		window.addEventListener('resize', update, { passive: true });
+		return () => {
+			window.removeEventListener('scroll', update, { capture: true });
+			window.removeEventListener('resize', update);
+		};
 	});
 
-	const itemWidth = $derived(setItemWidth ?? viewportWidth / columns);
+	const itemWidth = $derived(setItemWidth ?? width / columns);
 	const itemHeight = $derived(setItemHeight ?? (setItemWidth ?? itemWidth) / aspectRatio);
 	const totalRows = $derived(Math.ceil(length / columns));
 	const totalHeight = $derived(totalRows * itemHeight);
 
 	const visible = $derived.by(() => {
 		if (!itemWidth || !itemHeight) return [];
-		const start = Math.max(0, Math.floor(scrollTop / itemHeight) - overscan);
-		const end = Math.min(
-			totalRows,
-			Math.ceil((scrollTop + viewportHeight) / itemHeight) + overscan
-		);
+		const scrolled = -offsetTop;
+		const start = Math.max(0, Math.floor(scrolled / itemHeight) - overscan);
+		const end = Math.min(totalRows, Math.ceil((scrolled + viewportHeight) / itemHeight) + overscan);
 		const out = [];
 		for (let row = start; row < end; row++) {
 			for (let col = 0; col < columns; col++) {
@@ -74,21 +79,20 @@
 </script>
 
 <div
-	class={cn('absolute inset-0 overflow-x-hidden overflow-y-auto', className)}
+	style:height="{totalHeight}px"
+	bind:this={ref}
+	bind:clientWidth={width}
+	class={cn('relative w-full', className)}
 	{...restProps}
-	bind:this={scroller}
-	onscroll={() => (scrollTop = scroller.scrollTop)}
 >
-	<div style:height="{totalHeight}px" class="relative w-full">
-		{#each visible as v (v.index)}
-			<div
-				class="t-0 l-0 absolute will-change-transform"
-				style:width="{itemWidth}px"
-				style:height="{itemHeight}px"
-				style:transform="translate({v.x}px, {v.y}px)"
-			>
-				{@render item?.(v)}
-			</div>
-		{/each}
-	</div>
+	{#each visible as v (v.index)}
+		<div
+			class="absolute top-0 left-0 will-change-transform"
+			style:width="{itemWidth}px"
+			style:height="{itemHeight}px"
+			style:transform="translate({v.x}px, {v.y}px)"
+		>
+			{@render item?.(v)}
+		</div>
+	{/each}
 </div>

@@ -62,6 +62,10 @@
 			replaceState: true
 		});
 	}
+
+	$effect(() => {
+		console.log(deck_interface.commander);
+	});
 </script>
 
 <ActiveCard />
@@ -103,7 +107,7 @@
 		/>
 	</div>
 	<div class="relative flex h-full w-full flex-col">
-		<div class="flex">
+		<div class="sticky top-10 z-10 flex bg-background">
 			{#each views as name, index (name)}
 				<Button
 					intent={name === view ? 'secondary' : 'primary'}

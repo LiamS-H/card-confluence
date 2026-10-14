@@ -13,7 +13,7 @@
 	import { use_settings } from '$lib/settings';
 	import { uuid_to_string } from '$lib/utils/uuid';
 
-	const { doc_state, settings, get_card_counts } = use_deck_cards();
+	const deck = use_deck_cards();
 
 	const {
 		cards: { searchVariant: variant }
@@ -38,7 +38,7 @@
 			state: { from_search_box: true }
 		});
 	}
-	const query = $derived(query_with_domain(doc_state.parsed, search_query));
+	const query = $derived(query_with_domain(deck.doc_state.parsed, search_query));
 	let data = use_query(() => ({ query }), 500);
 
 	afterNavigate(() => {
@@ -46,14 +46,19 @@
 		// @ts-expect-error
 		if (page.state.from_search_box) return;
 
-		const new_query = query_with_domain(doc_state.parsed, page.url.searchParams.get('q') ?? '');
+		const new_query = query_with_domain(
+			deck.doc_state.parsed,
+			page.url.searchParams.get('q') ?? ''
+		);
 		data.query_now({ query: new_query });
 	});
 	const { response } = $derived(data);
 
 	let card_columns = $state(4);
 	const add_zones: DeckZone[] = $derived(
-		settings.sideboard ? ['considering', 'mainboard', 'sideboard'] : ['considering', 'mainboard']
+		deck.settings.sideboard
+			? ['considering', 'mainboard', 'sideboard']
+			: ['considering', 'mainboard']
 	);
 
 	let add_zone_index = $state(0);
@@ -61,63 +66,72 @@
 </script>
 
 <!-- <div class="flex h-[calc(svh-300px)] max-h-[calc(svh-300px)] flex-col"> -->
-<div class="flex h-[calc(100svh-80px)] flex-col">
-	<Search doc={search_query} {onDocChange} />
-	<div class="flex justify-between pt-px">
-		<div class="flex items-center px-2">
-			{#if response.loading}
-				<p>Loading...</p>
-			{:else if response.error}
-				<p>Error: {response.message}</p>
-			{:else}
-				<p>{response.result.rows.length} cards</p>
-			{/if}
-		</div>
-		<div class="flex flex-1 items-center px-2">
-			<input
-				class="w-full"
-				id="native-slider"
-				type="range"
-				min="1"
-				max="10"
-				bind:value={card_columns}
-			/>
-		</div>
+<div class="relative flex flex-col">
+	<div class="sticky top-20 z-10 flex-col gap-2 bg-background pt-2">
+		<Search doc={search_query} {onDocChange} />
+		<div class="flex justify-between pt-px">
+			<div class="flex items-center px-2">
+				{#if response.loading}
+					<p>Loading...</p>
+				{:else if response.error}
+					<p>Error: {response.message}</p>
+				{:else}
+					<p>{response.result.rows.length} cards</p>
+				{/if}
+			</div>
+			<div class="flex flex-1 items-center px-2">
+				<input
+					class="w-full"
+					id="native-slider"
+					type="range"
+					min="1"
+					max="10"
+					bind:value={card_columns}
+				/>
+			</div>
 
-		<div class="flex w-fit items-center">
-			<Button
-				onclick={() => (add_zone_index = (add_zone_index + 1) % add_zones.length)}
-				size="sm"
-				variant="outline"
-				intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
-			>
-				+ to
-				{zone}
-			</Button>
-		</div>
+			<div class="flex w-fit items-center">
+				<Button
+					onclick={() => (add_zone_index = (add_zone_index + 1) % add_zones.length)}
+					size="sm"
+					variant="outline"
+					intent={(['primary', 'default', 'secondary'] as const)[add_zone_index]}
+				>
+					+ to
+					{zone}
+				</Button>
+			</div>
 
-		{#if !response.loading && !response.error}{/if}
+			{#if !response.loading && !response.error}{/if}
+		</div>
 	</div>
 	{#if !response.loading && !response.error}
-		<div class="relative flex-1">
-			<VirtualGrid
-				class="absolute inset-0"
-				itemHeight={variant === 'img-full' ? undefined : 40}
-				length={response.result.rows.length}
-				columns={card_columns}
-				overscan={10}
-			>
-				{#snippet item({ index, viewportRow, col })}
-					<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
-						{const result = response.result.rows.at(index) as QueryResultRow}
+		<VirtualGrid
+			itemHeight={variant === 'img-full' ? undefined : 40}
+			length={response.result.rows.length}
+			columns={card_columns}
+			overscan={10}
+		>
+			{#snippet item({ index, viewportRow, col })}
+				<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
+					{const result = response.result.rows.at(index) as QueryResultRow}
+					{#if deck.get_card_counts(uuid_to_string(result.oracle_id)).total > 0}
+						<div class="brightness-50 grayscale-50 sepia-50">
+							<ResultCard {variant} {result} key={`${viewportRow}-${col}`} width="100%">
+								{#snippet options({ card, print, variant })}
+									<CardOptionsDeck {card} {print} {variant} {zone} />
+								{/snippet}
+							</ResultCard>
+						</div>
+					{:else}
 						<ResultCard {variant} {result} key={`${viewportRow}-${col}`} width="100%">
 							{#snippet options({ card, print, variant })}
 								<CardOptionsDeck {card} {print} {variant} {zone} />
 							{/snippet}
 						</ResultCard>
-					</div>
-				{/snippet}
-			</VirtualGrid>
-		</div>
+					{/if}
+				</div>
+			{/snippet}
+		</VirtualGrid>
 	{/if}
 </div>

@@ -91,24 +91,26 @@
 					{:else if response.result.rows.length === 0}
 						<span>0 results</span>
 					{:else}
-						<div class="min-h-96">
-							<VirtualGrid
-								length={response.result.rows.length}
-								columns={previewColumns}
-								overscan={2}
-							>
-								{#snippet item({ index, viewportRow, col })}
-									<div class="p-1">
-										<ResultCard
-											{variant}
-											width="100%"
-											result={response.result.rows.at(index) as QueryResultRow}
-											key={`${viewportRow}-${col}`}
-											{options}
-										/>
-									</div>
-								{/snippet}
-							</VirtualGrid>
+						<div class="relative h-full w-full min-w-96">
+							<div class="absolute inset-0 overflow-y-scroll">
+								<VirtualGrid
+									length={response.result.rows.length}
+									columns={previewColumns}
+									overscan={2}
+								>
+									{#snippet item({ index, viewportRow, col })}
+										<div class="p-1">
+											<ResultCard
+												{variant}
+												width="100%"
+												result={response.result.rows.at(index) as QueryResultRow}
+												key={`${viewportRow}-${col}`}
+												{options}
+											/>
+										</div>
+									{/snippet}
+								</VirtualGrid>
+							</div>
 						</div>
 					{/if}
 				</Card.Body>
