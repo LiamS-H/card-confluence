@@ -26,9 +26,17 @@
 	}
 >
 	<Dialog.Trigger>
-		<Button size="md" intent="secondary" variant={is_open || on_settings_page ? 'fixed' : 'outline'}
-			>settings</Button
-		>
+		{#snippet child({ ...props })}
+			<Button
+				{...props}
+				size="md"
+				intent="secondary"
+				variant={is_open || on_settings_page ? 'fixed' : 'outline'}
+				onclick={() => {
+					is_open = !on_settings_page && !is_open;
+				}}>settings</Button
+			>
+		{/snippet}
 	</Dialog.Trigger>
 	<Dialog.Content class="h-fit max-h-11/12 w-full max-w-3xl min-w-48 p-0 sm:min-w-xl md:min-w-3xl">
 		<Dialog.Header class="p-3">
