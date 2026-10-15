@@ -47,7 +47,7 @@
 		{/each}
 	</div>
 {:else if variant === 'tile'}
-	<div class="flex w-fit flex-col">
+	<div class="flex w-fit flex-col -space-y-1">
 		{#each tag.cards.toReversed() as deck_card (deck_card.oracle_id)}
 			<ResultCard
 				{variant}
