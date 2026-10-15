@@ -1,5 +1,5 @@
 import * as Y from 'yjs';
-import { query_client, use_query, type QueryResultRow } from '$lib';
+import { query_client } from '$lib';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 
@@ -8,7 +8,6 @@ import {
 	onDeckUpdate,
 	deckStateField,
 	type Deck as VeldtDeckParsed,
-	type Tag,
 	type CursorTag,
 	onCursorTagUpdate,
 	cursorTagStateField
@@ -16,49 +15,13 @@ import {
 import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 import { yCollab } from 'y-codemirror.next';
 import { veldtSetup } from '$lib/codemirror';
-import { SvelteMap } from 'svelte/reactivity';
-import { uuid_to_string, type UUIDString } from '$lib/utils/uuid';
-
-class TagQuery {
-	tag: Tag = $state() as Tag;
-
-	data!: ReturnType<typeof use_query>;
-	private cleanupRoot: () => void;
-
-	matchedIds: Map<UUIDString, QueryResultRow['matched_prints']> = $derived.by(() => {
-		if (!this.data || this.data.response.loading || this.data.response.error) {
-			return new SvelteMap();
-		}
-		return new SvelteMap(
-			this.data.response.result.rows.map((r) => [uuid_to_string(r.oracle_id), r.matched_prints])
-		);
-	});
-
-	constructor(tag: Tag, eager: boolean) {
-		this.tag = tag;
-		let first_time = true;
-
-		this.cleanupRoot = $effect.root(() => {
-			this.data = use_query(() => ({ query: this.tag.query }), 500, `${tag.scope}:${tag.label}`);
-			if (first_time && eager) {
-				this.data.query_now({ query: this.tag.query });
-			}
-			first_time = false;
-		});
-	}
-
-	destroy() {
-		this.cleanupRoot();
-	}
-}
 
 export class TagDocState {
 	private _doc_parsed = $state<VeldtDeckParsed>() as VeldtDeckParsed;
 	private _cursor_tag: CursorTag | null = $state(null);
 	private _view: EditorView;
-	private _tags_fetched: Map<string, TagQuery> = new SvelteMap();
 
-	constructor(ytext: Y.Text) {
+	constructor(ytext: Y.Text, on_doc_parsed: (parsed: VeldtDeckParsed, eager?: boolean) => void) {
 		const undoManager = new Y.UndoManager(ytext);
 		const state = EditorState.create({
 			doc: ytext.toJSON(),
@@ -83,7 +46,7 @@ export class TagDocState {
 				yCollab(ytext, null, { undoManager }),
 				onDeckUpdate((parsed) => {
 					this._doc_parsed = parsed;
-					this.on_doc_parsed();
+					on_doc_parsed(parsed);
 				}),
 				onCursorTagUpdate((tag) => {
 					this._cursor_tag = tag;
@@ -96,29 +59,11 @@ export class TagDocState {
 		});
 		this._view = new EditorView({ state });
 		this._doc_parsed = this._view.state.field(deckStateField);
-		this.on_doc_parsed(true);
+		on_doc_parsed(this._doc_parsed, true);
 	}
 
 	[Symbol.dispose]() {
 		this._view?.destroy();
-	}
-
-	private on_doc_parsed(eager?: boolean) {
-		const deck = this.parsed;
-		for (const key of this._tags_fetched.keys()) {
-			const obj = deck.objects.get(key);
-			if (!obj || obj.object !== 'tag') {
-				this._tags_fetched.delete(key);
-			}
-		}
-		for (const [key, obj] of deck.objects.entries()) {
-			if (obj.object !== 'tag') continue;
-			const current_query = this._tags_fetched.get(key);
-			if (current_query && current_query.tag.query === obj.query) {
-				continue;
-			}
-			this._tags_fetched.set(key, new TagQuery({ ...obj, query: obj.query }, eager ?? false));
-		}
 	}
 
 	get view(): EditorView {
@@ -131,9 +76,5 @@ export class TagDocState {
 
 	get cursor_tag() {
 		return this._cursor_tag;
-	}
-
-	get tags_fetched() {
-		return this._tags_fetched;
 	}
 }

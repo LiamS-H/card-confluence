@@ -13,7 +13,7 @@
 		zone
 	}: { cards: OracleCardSerialized[]; view: View; width: number; zone: DeckZone } = $props();
 
-	const { doc_state } = use_deck_cards();
+	const deck = use_deck_cards();
 
 	export type DisplayTag =
 		| {
@@ -44,7 +44,7 @@
 		const included_cards = new Set();
 
 		function tag_to_display(obj: Tag, key: string): DisplayTag {
-			const fetched = doc_state.tags_fetched.get(key);
+			const fetched = deck.tags_fetched.get(key);
 			if (!fetched) {
 				return {
 					type: 'tag',
@@ -76,11 +76,11 @@
 		function recurse_group(group: Group, cards: Set<OracleCardSerialized>, queries: Set<string>) {
 			for (const key of group.children) {
 				if (visited.has(key)) continue;
-				const obj = doc_state.parsed.objects.get(key);
+				const obj = deck.doc_state.parsed.objects.get(key);
 				if (!obj) continue;
 				if (obj.object === 'view') continue;
 				if (obj.object === 'tag') {
-					const fetched = doc_state.tags_fetched.get(key);
+					const fetched = deck.tags_fetched.get(key);
 					if (!fetched) continue;
 
 					const total = cards.size;
@@ -105,7 +105,7 @@
 			let total = 0;
 			for (const key of group.children) {
 				if (visited.has(key)) continue;
-				const obj = doc_state.parsed.objects.get(key);
+				const obj = deck.doc_state.parsed.objects.get(key);
 				if (!obj) continue;
 				if (obj.object === 'view') continue;
 				if (obj.object === 'tag') {
@@ -144,7 +144,7 @@
 
 		for (const key of view.children) {
 			visited.add(key);
-			const obj = doc_state.parsed.objects.get(key);
+			const obj = deck.doc_state.parsed.objects.get(key);
 			if (!obj) continue;
 			if (obj.object === 'tag') {
 				out.push(tag_to_display(obj, key));

@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
-	import { Button } from '$components/ui/button';
 	import View from './view.svelte';
 	import { use_settings } from '$lib/settings';
 	import { get_hovered_card } from '$lib/hover.svelte';
 	import { ResultCard } from '$components/card';
 	import { followCursor } from '$lib/actions/follor-cursor';
 
+	import ViewDropdown from './view-dropdown.svelte';
+
 	const deck = use_deck_cards();
 
-	let index = $state(0);
-	const view: string | null = $derived(deck.doc_state.parsed.views[index] ?? null);
+	const view = $derived(deck.doc_state.parsed.views[deck.active_view] ?? null);
 
 	const {
 		cards: { deckVariant }
@@ -24,13 +24,7 @@
 
 <div class="pointer-events-none absolute inset-y-0 z-10">
 	<div class="sticky top-10 flex w-full pl-56">
-		<!-- TODO: convert to dropdown component -->
-		<!-- might also be a good idea to lift this state so that is can be rendered just right of the tabs -->
-		<Button
-			class="pointer-events-auto"
-			onclick={() => (index = (index + 1) % deck.doc_state.parsed.views.length)}
-			>view: {view}</Button
-		>
+		<ViewDropdown />
 	</div>
 </div>
 <div class="flex w-full flex-col gap-2">

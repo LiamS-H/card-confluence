@@ -4,7 +4,6 @@
 
 	let {
 		ref = $bindable(null),
-		class: className,
 		child: child_comp,
 		children,
 		...restProps
