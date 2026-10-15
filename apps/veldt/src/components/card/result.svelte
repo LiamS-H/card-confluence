@@ -96,7 +96,7 @@
 				style:width={`${width}px`}
 			>
 				{@render options({ print, card })}
-				<a class="flex grow" {href}>
+				<a class="flex grow" {href} data-sveltekit-noscroll>
 					<CardTile {card} />
 				</a>
 			</div>

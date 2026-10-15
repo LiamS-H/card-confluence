@@ -29,6 +29,7 @@
 		{href}
 		{onclick}
 		role={href ? 'link' : undefined}
+		data-sveltekit-noscroll
 	>
 		<img
 			class="aspect-5/7 w-full"
