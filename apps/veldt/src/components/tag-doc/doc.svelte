@@ -118,7 +118,7 @@
 					<span
 						class="flex flex-1 items-center justify-center bg-foreground text-xl text-background"
 					>
-						{doc_state.cursor_tag.tag.label}
+						{doc_state.cursor_tag.key === 'domain' ? 'domain' : doc_state.cursor_tag.tag.label}
 					</span>
 					{#if jump_to_query !== undefined}
 						{const tag_query = $derived(doc_state.cursor_tag.tag.query.trim())}
