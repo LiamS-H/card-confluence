@@ -13,7 +13,7 @@
 
 	const deck = use_deck_cards();
 
-	// svelte-ignore state_referenced_locally; we are just using it as an initializer
+	// svelte-ignore ; state_referenced_locally; we are just using it as an initializer
 	let string_count = $state(props.count.toString());
 
 	$effect(() => {
@@ -37,17 +37,26 @@
 </script>
 
 <div class="flex">
-	<span class="p-2 text-xl">{props.zone}:</span>
 	<Button
+		class="h-10 w-10"
 		intent="destructive"
 		onclick={() => {
 			deck.mutate.remove_cards(props.oracle_id, props.zone, 1);
 		}}>-</Button
 	>
-	<Input intent="secondary" variant="outline" class="w-20 text-center" bind:value={string_count} />
+	<Input
+		intent="secondary"
+		variant="outline"
+		class="h-10 w-20 text-center"
+		bind:value={string_count}
+	/>
 	<Button
+		class="h-10 w-10"
 		onclick={() => {
 			deck.mutate.add_cards(props.oracle_id, props.scryfall_id, props.zone, 1);
 		}}>+</Button
+	>
+	<span class="flex h-10 grow items-center justify-center bg-foreground text-xl text-background"
+		>{props.zone}</span
 	>
 </div>

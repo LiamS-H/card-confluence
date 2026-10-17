@@ -1,3 +1,7 @@
+<script lang="ts" module>
+	let deck_accordion_value = $state<string[]>(['tags']);
+</script>
+
 <script lang="ts">
 	import { use_card } from '$lib';
 	import { page } from '$app/state';
@@ -10,6 +14,7 @@
 	import { type DeckZone } from '@repo/schema-sync';
 	import CardOptionsDeck from './card-options-deck.svelte';
 	import CardOptionsDeckFull from './card-options-deck-full.svelte';
+	import * as Accordion from '$components/ui/accordion';
 
 	const url_card = $derived(page.url.searchParams.get('card'));
 	const url_print = $derived(page.url.searchParams.get('print'));
@@ -76,56 +81,77 @@
 					});
 				})}
 
-				<div class="h-full max-h-full overflow-y-auto">
-					<CardInfo card={card.result} {print_index} />
-					<div class="flex flex-col gap-1">
-						<ul class="flex flex-wrap gap-1">
-							{#each matched_tags as tag}
-								<li class="flex items-center bg-secondary text-secondary-foreground">
-									<span class="px-1 text-left">{tag.tag.label}</span>
-								</li>
-							{/each}
-						</ul>
-						<ul class="flex flex-wrap gap-1">
-							{#each unmatched_tags as tag}
-								<Button size="xs">
-									{tag.tag.label}
-									+
-								</Button>
-							{/each}
-						</ul>
-					</div>
+				{const active_print = $derived(card.result.prints[print_index] ?? null)}
 
-					<div class="flex justify-between">
-						{const print = $derived(card.result.prints[print_index] ?? null)}
-						<CardOptionsDeck zone="mainboard" card={card.result} {print} variant="img-full" />
-						{#if deck.settings.commander && print !== null && url_card !== null && url_print !== null}
-							{const counts = $derived(deck.get_card_counts(url_card))}
-							{#if counts.commander === 0 && card.result.commander}
-								<Button
-									onclick={() => {
-										for (const zone in counts) {
-											if (zone === 'total') continue;
-											const count = counts[zone as DeckZone];
-											console.log(count);
-											if (count === 0) continue;
-											deck.mutate.remove_cards(url_card, zone as DeckZone, count);
-										}
-										deck.mutate.add_cards(url_card, url_print, 'commander', 1);
-									}}>+ commander</Button
-								>
-							{:else if counts.commander > 0}
-								<Button
-									intent="destructive"
-									onclick={() => {
-										deck.mutate.add_cards(url_card, url_print, 'mainboard', 1);
-										deck.mutate.remove_cards(url_card, 'commander', counts.commander);
-									}}>- commander</Button
-								>
-							{/if}
+				<div class="flex h-full max-h-full flex-col overflow-y-auto pb-20">
+					<CardInfo card={card.result} {print_index} />
+					<div class="w-full border-t"></div>
+					<Accordion.Root bind:value={deck_accordion_value} type="multiple">
+						<Accordion.Item value="tags">
+							<Accordion.Trigger>Deck Tags</Accordion.Trigger>
+							<Accordion.Content class="flex flex-col gap-2">
+								<ul class="flex flex-wrap gap-1">
+									{#each matched_tags as tag}
+										<Button variant="full" intent="secondary" size="xs">
+											{tag.tag.label}
+											-
+										</Button>
+									{/each}
+								</ul>
+								<ul class="flex flex-wrap gap-1">
+									{#each unmatched_tags as tag}
+										<Button size="xs">
+											{tag.tag.label}
+											+
+										</Button>
+									{/each}
+								</ul>
+							</Accordion.Content>
+						</Accordion.Item>
+
+						{#if active_print}
+							<Accordion.Item value="manage-counts">
+								<Accordion.Trigger>Deck Counts</Accordion.Trigger>
+								<Accordion.Content class="flex flex-col gap-2">
+									<CardOptionsDeckFull card={card.result} print={active_print} />
+								</Accordion.Content>
+							</Accordion.Item>
 						{/if}
-						<CardOptionsDeckFull card={card.result} {print} />
-					</div>
+					</Accordion.Root>
+				</div>
+
+				<div class="absolute bottom-0 flex w-full justify-between">
+					<CardOptionsDeck
+						zone="mainboard"
+						card={card.result}
+						print={active_print}
+						variant="img-full"
+					/>
+					{#if deck.settings.commander && active_print !== null && url_card !== null && url_print !== null}
+						{const counts = $derived(deck.get_card_counts(url_card))}
+						{#if counts.commander === 0 && card.result.commander}
+							<Button
+								onclick={() => {
+									for (const zone in counts) {
+										if (zone === 'total') continue;
+										const count = counts[zone as DeckZone];
+										console.log(count);
+										if (count === 0) continue;
+										deck.mutate.remove_cards(url_card, zone as DeckZone, count);
+									}
+									deck.mutate.add_cards(url_card, url_print, 'commander', 1);
+								}}>+ commander</Button
+							>
+						{:else if counts.commander > 0}
+							<Button
+								intent="destructive"
+								onclick={() => {
+									deck.mutate.add_cards(url_card, url_print, 'mainboard', 1);
+									deck.mutate.remove_cards(url_card, 'commander', counts.commander);
+								}}>- commander</Button
+							>
+						{/if}
+					{/if}
 				</div>
 			{/if}
 		{/if}

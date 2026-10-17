@@ -3,8 +3,6 @@
 	import { uuid_to_string } from '$lib/utils/uuid';
 	import type { Card as CardObj, Print } from '@card-confluence/wasm-browser';
 	import type { DeckZone } from '@repo/schema-sync';
-	import * as Popover from '$components/ui/popover';
-	import * as Card from '$components/ui/card';
 	import CardOptionsFullZone from './card-options-full-zone.svelte';
 
 	const props: {
@@ -30,20 +28,8 @@
 	});
 </script>
 
-<Popover.Root>
-	<Popover.Trigger intent="secondary">manage counts</Popover.Trigger>
-	<Popover.Content class="w-fit ">
-		<Card.Root intent="secondary">
-			<Card.Body class="flex flex-col items-end gap-2">
-				{#each zones as zone}
-					<CardOptionsFullZone
-						{zone}
-						{oracle_id}
-						{scryfall_id}
-						count={counts[zone]}
-					/>
-				{/each}
-			</Card.Body>
-		</Card.Root>
-	</Popover.Content>
-</Popover.Root>
+<div class="flex w-fit flex-col">
+	{#each zones as zone}
+		<CardOptionsFullZone {zone} {oracle_id} {scryfall_id} count={counts[zone]} />
+	{/each}
+</div>

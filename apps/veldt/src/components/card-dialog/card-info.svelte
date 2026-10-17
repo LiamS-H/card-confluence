@@ -26,7 +26,7 @@
 
 {#snippet printing({ print }: { print: DetailedCard['prints'][number] })}
 	{const selected = print.scryfall_id === active_print?.scryfall_id}
-	<div class={`group flex w-full flex-wrap justify-between`}>
+	<div class={`group flex w-full flex-wrap justify-between px-2`}>
 		<div
 			class={`flex flex-1 items-center gap-2 capitalize ${selected ? 'text-muted-foreground' : ''}`}
 		>
@@ -38,7 +38,6 @@
 			<span class="font-thin">
 				({print.set_code.toUpperCase()})
 			</span>
-			<div class="flex gap-1"></div>
 		</div>
 		<div class="flex gap-2">
 			<span class="truncate">{price_from_print(print)}</span>
@@ -51,7 +50,7 @@
 	{#each faces as face, i}
 		<Accordion.Item value={`face-${i}`}>
 			<Accordion.Trigger>
-				<div class="flex w-full flex-col-reverse justify-between gap-1 pl-2 md:flex-row md:gap-0">
+				<div class="flex w-full flex-col-reverse justify-between gap-1 md:flex-row md:gap-0">
 					<div>
 						{#if active_print !== null && active_print.flavor_name && active_print.flavor_name !== face.name}
 							<h2 class="text-lg leading-none font-semibold">
@@ -78,25 +77,19 @@
 		</Accordion.Item>
 	{/each}
 
-	{#if card.prints.length >= 1 || active_print === null}
-		<Accordion.Item value="Printings">
-			<Accordion.Trigger class="group flex gap-2 hover:no-underline"
-				><span class="group-hover:underline">Printings</span>
-				{#if active_print !== null}
-					{@render printing({ print: active_print })}
-				{/if}
-			</Accordion.Trigger>
-			<Accordion.Content>
-				{#each card.prints as print}
-					{@render printing({ print })}
-				{/each}
-			</Accordion.Content>
-		</Accordion.Item>
-	{:else}
-		<div class={`flex w-full flex-wrap justify-between border-b-foreground`}>
-			{@render printing({ print: card.prints[0] })}
-		</div>
-	{/if}
+	<Accordion.Item value="Printings" disabled={card.prints.length <= 1 && active_print !== null}>
+		<Accordion.Trigger class="group flex gap-2 hover:no-underline"
+			><span class="group-hover:underline">Printings</span>
+			{#if active_print !== null}
+				{@render printing({ print: active_print })}
+			{/if}
+		</Accordion.Trigger>
+		<Accordion.Content>
+			{#each card.prints as print}
+				{@render printing({ print })}
+			{/each}
+		</Accordion.Content>
+	</Accordion.Item>
 	{#if card.all_parts && card.all_parts.length > 1}
 		<Accordion.Item value="Related Cards">
 			<Accordion.Trigger>Related Cards</Accordion.Trigger>
@@ -122,7 +115,7 @@
 	<Accordion.Item value="Legalities">
 		<Accordion.Trigger>Legalities</Accordion.Trigger>
 		<Accordion.Content>
-			<ul class="flex w-fit max-w-64 flex-row flex-wrap sm:max-w-full lg:max-h-36 lg:flex-col">
+			<ul class="flex w-fit max-w-64 flex-row flex-wrap px-2 sm:max-w-full lg:max-h-36 lg:flex-col">
 				{#each legalities_as_short_sorted(card.legalities) as { format, legality }}
 					{#if legality === 'banned'}
 						<li class="flex w-32 items-center justify-start text-destructive">
@@ -149,8 +142,8 @@
 			</ul>
 		</Accordion.Content>
 	</Accordion.Item>
-	<Accordion.Item value="Rulings">
-		<Accordion.Trigger disabled={!card.rulings}>
+	<Accordion.Item value="Rulings" disabled={!card.rulings}>
+		<Accordion.Trigger>
 			<span
 				>Rulings
 				{#if !card.rulings}
@@ -211,7 +204,7 @@
 					class="flex h-10 items-center justify-center bg-foreground px-3 text-xl text-background"
 				>
 					{active_print
-						? `${active_print.flavor_name ?? card.name}-${active_print.set.code}`.toLowerCase()
+						? `${active_print.flavor_name ?? card.name} ${active_print.set.code.toUpperCase()}`.toLowerCase()
 						: 'oracle'}
 				</span>
 				<CopyButton text={json}>copy</CopyButton>
