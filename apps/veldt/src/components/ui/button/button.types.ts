@@ -19,10 +19,10 @@ export const buttonVariants = tv({
 			ghost: 'border-0'
 		},
 		size: {
-			xs: 'text-sm px-2 py-0.5',
-			sm: 'text-base px-3 py-1',
-			md: 'text-xl px-3 py-1',
-			lg: 'text-2xl px-3 py-1',
+			xs: 'text-sm px-2 py-0.5 [&_svg]:h-4',
+			sm: 'text-base px-3 py-1 [&_svg]:h-5',
+			md: 'text-xl px-3 py-1 [&_svg]:h-6',
+			lg: 'text-2xl px-3 py-1 [&_svg]:h-12',
 			icon: 'w-8 h-8'
 		}
 	},
