@@ -11,7 +11,7 @@
 		ref = $bindable(null),
 		type = 'button',
 		disabled,
-		focus,
+		focus = false,
 		value = $bindable(),
 		...restProps
 	}: InputProps = $props();
