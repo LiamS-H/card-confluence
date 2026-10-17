@@ -104,8 +104,8 @@ export class DeckCardInterface {
 		if (instances) {
 			instances.forEach((card) => {
 				counts[card.zone]++;
+				counts['total']++;
 			});
-			counts['total']++;
 		}
 
 		return counts;
