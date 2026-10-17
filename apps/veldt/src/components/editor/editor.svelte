@@ -9,7 +9,7 @@
 	import CardSearch from './cards/card-search.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import ActiveCard from './active-card.svelte';
+	import CardDialog from './card-dialog-deck.svelte';
 	import { ResultCard } from '$components/card';
 	import { string_to_uuid } from '$lib/utils/uuid';
 	import CardOptionsDeck from './card-options-deck.svelte';
@@ -64,7 +64,7 @@
 	}
 </script>
 
-<ActiveCard />
+<CardDialog />
 
 <div class="flex h-full flex-col gap-2">
 	<div class="flex items-center gap-4">
@@ -89,18 +89,20 @@
 				{/snippet}
 			</ResultCard>
 		{/each}
-		<Input
-			placeholder="Unnamed Deck"
-			type="text"
-			value={title_string}
-			oninput={(event) => {
-				const newValue = event.currentTarget.value;
-				sync_client.doc.transact(() => {
-					title.delete(0, title.length);
-					title.insert(0, newValue);
-				});
-			}}
-		/>
+		<div class="flex">
+			<Input
+				placeholder="Unnamed Deck"
+				type="text"
+				value={title_string}
+				oninput={(event) => {
+					const newValue = event.currentTarget.value;
+					sync_client.doc.transact(() => {
+						title.delete(0, title.length);
+						title.insert(0, newValue);
+					});
+				}}
+			/>
+		</div>
 	</div>
 	<div class="relative flex h-full w-full flex-col">
 		<div class="sticky top-10 z-10 flex bg-background">

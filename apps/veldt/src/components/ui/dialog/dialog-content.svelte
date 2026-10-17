@@ -27,7 +27,7 @@
 		bind:ref
 		data-slot="dialog-content"
 		class={cn(
-			`fixed top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-4rem)] -translate-x-1/2 -translate-y-1/2 border-2 border-foreground bg-background p-3 px-0 text-foreground ring-1 ring-foreground/10 duration-100 outline-none
+			`border-outline fixed top-1/2 left-1/2 z-50 w-full max-w-[calc(100%-4rem)] -translate-x-1/2 -translate-y-1/2 bg-background p-3 px-0 text-foreground ring-2 ring-foreground duration-100  outline-none ring-inset
             data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95`,
 			className
 		)}
@@ -37,12 +37,7 @@
 		{#if showCloseButton}
 			<DialogPrimitive.Close data-slot="dialog-close">
 				{#snippet child({ props })}
-					<Button
-						variant="outline"
-						intent="destructive"
-						class="absolute -top-0.5 -right-0.5"
-						{...props}
-					>
+					<Button variant="outline" intent="destructive" class="absolute top-0 right-0" {...props}>
 						X
 					</Button>
 				{/snippet}

@@ -1,4 +1,6 @@
 import type { Print, Ruling, Card } from '@card-confluence/wasm-browser';
+import type { DetailedCard } from './client.svelte';
+import { uuid_to_string } from '$lib/utils/uuid';
 
 export function price_from_print(print: Print): string {
 	if (print.prices.usd) {
@@ -80,4 +82,27 @@ export function format_as_shortened_string(format: string): string {
 	}
 
 	return format;
+}
+
+export function card_as_json(card: DetailedCard) {
+	return JSON.stringify(
+		card,
+		(k, v) => {
+			if (!v) return v;
+			if (k === 'artist_ids') {
+				return v.map((a: Uint8Array | null) => (a ? uuid_to_string(a) : null));
+			}
+			if (
+				k === 'card_back_id' ||
+				k === 'illustration_id' ||
+				k === 'oracle_id' ||
+				k === 'id' ||
+				k === 'scryfall_id'
+			) {
+				return uuid_to_string(v);
+			}
+			return v;
+		},
+		2
+	);
 }

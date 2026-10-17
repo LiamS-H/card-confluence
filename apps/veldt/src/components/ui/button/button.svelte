@@ -53,7 +53,7 @@
 		class={`${bgMap[intent ?? 'default']} ${spanTranslate} absolute inset-y-0 left-[-10%] z-0
             w-[120%] skew-x-12 transition-transform duration-300`}
 	></span>
-	<span class="item-center relative z-10 flex justify-center mix-blend-difference">
+	<span class="item-center relative z-10 flex justify-center gap-1 mix-blend-difference">
 		{@render children()}
 	</span>
 </svelte:element>

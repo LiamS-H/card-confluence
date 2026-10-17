@@ -6,7 +6,6 @@
 	import type { DeckZone } from '@repo/schema-sync';
 	import { ResultCard } from '$components/card';
 	import CardOptionsDeck from '../card-options-deck.svelte';
-	import ConsideringOptions from './considering-options.svelte';
 	import { string_to_uuid } from '$lib/utils/uuid';
 	import { type DisplayTag } from './view.svelte';
 
@@ -37,17 +36,13 @@
 				key={deck_card.oracle_id}
 			>
 				{#snippet options({ card, print })}
-					{#if zone === 'considering'}
-						<ConsideringOptions {variant} {card} {print} />
-					{:else}
-						<CardOptionsDeck {variant} {card} {print} {zone} />
-					{/if}
+					<CardOptionsDeck {variant} {card} {print} {zone} />
 				{/snippet}
 			</ResultCard>
 		{/each}
 	</div>
 {:else if variant === 'tile'}
-	<div class="flex w-fit flex-col -space-y-1">
+	<div class="flex w-fit flex-col -space-y-0.5">
 		{#each tag.cards.toReversed() as deck_card (deck_card.oracle_id)}
 			<ResultCard
 				{variant}
@@ -59,11 +54,7 @@
 				key={deck_card.oracle_id}
 			>
 				{#snippet options({ card, print })}
-					{#if zone === 'considering'}
-						<ConsideringOptions {variant} {card} {print} />
-					{:else}
-						<CardOptionsDeck {variant} {card} {print} {zone} />
-					{/if}
+					<CardOptionsDeck {variant} {card} {print} {zone} />
 				{/snippet}
 			</ResultCard>
 		{/each}
@@ -94,11 +85,7 @@
 				key={deck_card.oracle_id}
 			>
 				{#snippet options({ card, print })}
-					{#if zone === 'considering'}
-						<ConsideringOptions {variant} {card} {print} />
-					{:else}
-						<CardOptionsDeck {variant} {card} {print} {zone} />
-					{/if}
+					<CardOptionsDeck {variant} {card} {print} {zone} />
 				{/snippet}
 			</ResultCard>
 		{/each}

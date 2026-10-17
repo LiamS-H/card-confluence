@@ -14,6 +14,7 @@
 	export type OptionsSnippet = Snippet<[{ card: CardObj; print: Print; variant: CardVariant }]>;
 
 	const {
+		class: className,
 		result,
 		key,
 		width,
@@ -21,6 +22,7 @@
 		variant,
 		onclick
 	}: {
+		class?: string;
 		result: QueryResultRow;
 		key?: string;
 		width: string | number;
@@ -59,16 +61,8 @@
 		}}
 
 		{#if variant === 'img-full'}
-			<div
-				onmouseover={handle_enter}
-				onfocus={handle_enter}
-				onmouseleave={clear_hovered_card}
-				onblur={clear_hovered_card}
-				role="tooltip"
-				class="relative"
-				style:width={`${width}px`}
-			>
-				<CardImage {...actions} {card} {print} {width} />
+			<div role="tooltip" class="relative" style:width={`${width}px`}>
+				<CardImage {...actions} {card} {print} {width} class={className} />
 				<div class="absolute bottom-0 left-0 z-10">
 					{@render options({ card, print })}
 				</div>
@@ -83,7 +77,7 @@
 				class="relative mb-[-125%]"
 				style:width={`${width}px`}
 			>
-				<CardImage {...actions} {card} {print} {width} />
+				<CardImage {...actions} {card} {print} {width} class={className} />
 			</div>
 		{:else if variant === 'tile'}
 			<div

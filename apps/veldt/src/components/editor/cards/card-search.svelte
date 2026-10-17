@@ -115,21 +115,23 @@
 			{#snippet item({ index, viewportRow, col })}
 				<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
 					{const result = response.result.rows.at(index) as QueryResultRow}
-					{#if deck.get_card_counts(uuid_to_string(result.oracle_id)).total > 0}
-						<div class="brightness-50 grayscale-50 sepia-50">
-							<ResultCard {variant} {result} key={`${viewportRow}-${col}`} width="100%">
-								{#snippet options({ card, print, variant })}
-									<CardOptionsDeck {card} {print} {variant} {zone} />
-								{/snippet}
-							</ResultCard>
-						</div>
-					{:else}
-						<ResultCard {variant} {result} key={`${viewportRow}-${col}`} width="100%">
-							{#snippet options({ card, print, variant })}
-								<CardOptionsDeck {card} {print} {variant} {zone} />
-							{/snippet}
-						</ResultCard>
-					{/if}
+					{const in_deck = $derived(
+						deck.get_card_counts(uuid_to_string(result.oracle_id))[
+							zone === 'mainboard' ? zone : 'total'
+						] > 0
+					)}
+
+					<ResultCard
+						{variant}
+						{result}
+						key={`${viewportRow}-${col}`}
+						width="100%"
+						class={in_deck ? 'brightness-50 grayscale-50 sepia-50' : ''}
+					>
+						{#snippet options({ card, print, variant })}
+							<CardOptionsDeck {card} {print} {variant} {zone} />
+						{/snippet}
+					</ResultCard>
 				</div>
 			{/snippet}
 		</VirtualGrid>

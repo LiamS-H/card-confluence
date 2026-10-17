@@ -5,6 +5,7 @@
 	import CardInfoError from './card-info-error.svelte';
 	import CardInfoSkeleton from './card-info-skeleton.svelte';
 	import * as Dialog from '$components/ui/dialog';
+	import { uuid_key } from '$lib/utils/uuid';
 
 	const {
 		oracle_id,
@@ -26,7 +27,7 @@
 
 <Dialog.Root bind:open={() => !!oracle_id, on_close}>
 	<Dialog.Content
-		class="h-11/12 max-h-11/12 w-full min-w-48 p-0 pt-9 sm:min-w-xl md:min-w-3xl lg:min-w-5xl"
+		class="h-11/12 max-h-11/12 w-full min-w-48 p-0 sm:min-w-xl md:min-w-3xl lg:min-w-5xl"
 	>
 		{#if card}
 			{#if card.loading}
@@ -42,8 +43,17 @@
 			{:else}
 				<Dialog.Title tabindex={-1} class="sr-only">Selected Card</Dialog.Title>
 				<Dialog.Description class="sr-only">{card.result.name}</Dialog.Description>
-				{const print_index = card.result.prints.findIndex((s) => s.scryfall_id === print_id)}
-				<CardInfo card={card.result} {print_index} />
+				{const print_index = $derived.by(() => {
+					if (!print_id) return -1;
+					const key = uuid_key(print_id);
+					return card.result.prints.findIndex((s) => {
+						return uuid_key(s.scryfall_id) === key;
+					});
+				})}
+
+				<div class="h-full max-h-full overflow-y-auto">
+					<CardInfo card={card.result} {print_index} />
+				</div>
 			{/if}
 		{/if}
 	</Dialog.Content>

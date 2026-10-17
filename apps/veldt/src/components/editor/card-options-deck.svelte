@@ -76,7 +76,7 @@
 		</Button>
 	{/if}
 	{#if !toggle_mode || counts[props.zone] !== 1 || counts.total !== 1}
-		{#if counts.considering > 0}
+		{#if counts.considering > 0 && props.zone !== 'considering'}
 			<span
 				class={`flex ${is_image ? 'h-10 w-10' : 'h-7 w-7'} items-center justify-center border-2 border-primary text-primary`}
 				>{counts.considering}</span
@@ -100,40 +100,67 @@
 				>C</span
 			>
 		{/if}
+	{/if}
+	{#if counts.considering > 0 && counts.total === counts.considering}
 		<Button
 			size={button_size}
 			onclick={() => {
-				if (props.zone === 'commander' && counts.considering > 0) {
-					deck.mutate.move_cards(oracle_id, 'considering', 'commander', 1);
-					return;
-				}
-				if (props.zone === 'mainboard' && counts.sideboard > 0) {
-					deck.mutate.move_cards(oracle_id, 'sideboard', 'mainboard', 1);
-					return;
-				}
-				if (props.zone === 'mainboard' && counts.considering > 0) {
-					deck.mutate.move_cards(oracle_id, 'considering', 'mainboard', 1);
-					return;
-				}
-				if (props.zone === 'sideboard' && counts.considering > 0) {
-					deck.mutate.move_cards(oracle_id, 'considering', 'sideboard', 1);
-					return;
-				}
-
-				if (props.zone === 'considering' && counts.considering > 0 && counts.mainboard < 1) {
-					deck.mutate.move_cards(oracle_id, 'considering', 'mainboard', 1);
-					return;
-				}
-
-				if (props.zone === 'considering' && counts.mainboard > 0 && counts.considering < 1) {
-					deck.mutate.add_cards(oracle_id, scryfall_id, 'mainboard', 1);
-					return;
-				}
-
-				deck.mutate.add_cards(oracle_id, scryfall_id, props.zone, 1);
+				deck.mutate.move_cards(oracle_id, 'considering', 'mainboard', 1);
 			}}
 		>
-			+
+			{#if props.variant === 'img-full'}
+				main{/if} +
 		</Button>
+
+		{#if deck.settings.sideboard}
+			<Button
+				intent="secondary"
+				size={button_size}
+				onclick={() => {
+					deck.mutate.move_cards(oracle_id, 'considering', 'mainboard', 1);
+				}}
+			>
+				{#if props.variant === 'img-full'}
+					side{/if} +
+			</Button>
+		{/if}
+	{:else}
+		{#if !toggle_mode || counts.total !== 1}
+			<Button
+				size={button_size}
+				onclick={() => {
+					if (props.zone === 'commander' && counts.considering > 0) {
+						deck.mutate.move_cards(oracle_id, 'considering', 'commander', 1);
+						return;
+					}
+					if (props.zone === 'mainboard' && counts.sideboard > 0) {
+						deck.mutate.move_cards(oracle_id, 'sideboard', 'mainboard', 1);
+						return;
+					}
+					if (props.zone === 'mainboard' && counts.considering > 0) {
+						deck.mutate.move_cards(oracle_id, 'considering', 'mainboard', 1);
+						return;
+					}
+					if (props.zone === 'sideboard' && counts.considering > 0) {
+						deck.mutate.move_cards(oracle_id, 'considering', 'sideboard', 1);
+						return;
+					}
+
+					if (props.zone === 'considering' && counts.considering > 0 && counts.mainboard < 1) {
+						deck.mutate.move_cards(oracle_id, 'considering', 'mainboard', 1);
+						return;
+					}
+
+					if (props.zone === 'considering' && counts.mainboard > 0 && counts.considering === 0) {
+						deck.mutate.add_cards(oracle_id, scryfall_id, 'mainboard', 1);
+						return;
+					}
+
+					deck.mutate.add_cards(oracle_id, scryfall_id, props.zone, 1);
+				}}
+			>
+				+
+			</Button>
+		{/if}
 	{/if}
 </div>
