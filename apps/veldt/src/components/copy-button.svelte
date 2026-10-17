@@ -1,36 +1,28 @@
+<script lang="ts" module>
+	let copied = $state('');
+</script>
+
 <script lang="ts">
 	import { type ButtonProps, Button } from '$components/ui/button';
-	import {
-		LibraryAdd,
-		LibraryAddCheck,
-		ProgressActivity
-	} from '@material-symbols-svg/svelte/sharp';
+	import { LibraryAdd, LibraryAddCheck } from '@material-symbols-svg/svelte/sharp';
 	let { children, size, text, ...restProps }: { text: string } & Omit<ButtonProps, 'onclick'> =
 		$props();
-
-	let copied: boolean | null = $state(false);
 </script>
 
 <Button
 	{size}
 	{...restProps}
 	onclick={() => {
-		copied = null;
 		navigator.clipboard
 			.writeText(text)
 			.then(() => {
-				copied = true;
-				setTimeout(() => {
-					copied = false;
-				}, 500);
+				copied = text;
 			})
 			.catch((e) => console.error(e));
 	}}
 >
 	{@render children()}
-	{#if copied === null}
-		<ProgressActivity class="h-2/3" />
-	{:else if copied}
+	{#if copied === text}
 		<LibraryAddCheck class="h-2/3" />
 	{:else}
 		<LibraryAdd class="h-2/3" />
