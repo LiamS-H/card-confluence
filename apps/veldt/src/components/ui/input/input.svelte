@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { inputVariants, type InputProps } from './input.type.ts';
-	import { cn } from '$lib/utils.js';
+	import { cn } from '$lib/utils/components';
 	import { autoFocus } from '$lib/actions/auto-focus';
 	let {
 		class: className,

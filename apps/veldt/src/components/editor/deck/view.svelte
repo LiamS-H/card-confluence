@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { DeckZone, OracleCardSerialized } from '@repo/schema-sync';
-	import type { View, Tag, Group } from 'codemirror-lang-veldt-deck';
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import type { View, Tag, VirtualTag, Group } from 'codemirror-lang-veldt-deck';
+	import { use_deck_edit } from '$lib/editor';
 	import { use_settings } from '$lib/settings';
 	import type { UUIDString } from '$lib/utils/uuid';
 	import ViewTag from './view-tag.svelte';
@@ -13,7 +13,7 @@
 		zone
 	}: { cards: OracleCardSerialized[]; view: View; width: number; zone: DeckZone } = $props();
 
-	const deck = use_deck_cards();
+	const deck = use_deck_edit();
 
 	export type DisplayTag =
 		| {
@@ -25,11 +25,7 @@
 		| {
 				// A virtual tag does not apear in the tag document
 				type: 'virtual-tag';
-				tag: {
-					object: 'virtual-tag';
-					label: string;
-					scope: null;
-				};
+				tag: VirtualTag;
 				cards: OracleCardSerialized[];
 		  };
 
@@ -44,7 +40,7 @@
 		const included_cards = new Set();
 
 		function tag_to_display(obj: Tag, key: string): DisplayTag {
-			const fetched = deck.tags_fetched.get(key);
+			const fetched = deck.view_tags.get(key);
 			if (!fetched) {
 				return {
 					type: 'tag',
@@ -54,7 +50,7 @@
 				};
 			}
 			const filtered = cards.filter((c) => {
-				const out = fetched.matchedIds.has(c.oracle_id as UUIDString);
+				const out = fetched.matches(c);
 				if (out) {
 					included_cards.add(c.oracle_id);
 				}
@@ -76,21 +72,21 @@
 		function recurse_group(group: Group, cards: Set<OracleCardSerialized>, queries: Set<string>) {
 			for (const key of group.children) {
 				if (visited.has(key)) continue;
-				const obj = deck.doc_state.parsed.objects.get(key);
+				const obj = deck.tag_doc.parsed.objects.get(key);
 				if (!obj) continue;
 				if (obj.object === 'view') continue;
 				if (obj.object === 'tag') {
-					const fetched = deck.tags_fetched.get(key);
+					const fetched = deck.view_tags.get(key);
 					if (!fetched) continue;
 
 					const total = cards.size;
 					cards.forEach((c) => {
-						if (fetched.matchedIds.has(c.oracle_id as UUIDString)) {
+						if (fetched.matches(c)) {
 							cards.add(c);
 						}
 					});
 					if (total !== cards.size) {
-						queries.add(obj.query);
+						if (obj.query) queries.add(obj.query);
 					}
 				}
 				if (obj.object === 'group') {
@@ -103,13 +99,13 @@
 		function group_to_display(group: Group, key: string): DisplayGroup {
 			const tags: DisplayTag[] = [];
 			let total = 0;
-			for (const key of group.children) {
-				if (visited.has(key)) continue;
-				const obj = deck.doc_state.parsed.objects.get(key);
+			for (const childKey of group.children) {
+				if (visited.has(childKey)) continue;
+				const obj = deck.tag_doc.parsed.objects.get(key);
 				if (!obj) continue;
 				if (obj.object === 'view') continue;
 				if (obj.object === 'tag') {
-					const tag = tag_to_display(obj, key);
+					const tag = tag_to_display(obj, childKey);
 					total += tag.cards.length;
 					tags.push(tag);
 					continue;
@@ -122,7 +118,7 @@
 
 				tags.push({
 					type: 'tag',
-					id: key,
+					id: childKey,
 					tag: {
 						object: 'tag',
 						label: obj.label,
@@ -144,7 +140,7 @@
 
 		for (const key of view.children) {
 			visited.add(key);
-			const obj = deck.doc_state.parsed.objects.get(key);
+			const obj = deck.tag_doc.parsed.objects.get(key);
 			if (!obj) continue;
 			if (obj.object === 'tag') {
 				out.push(tag_to_display(obj, key));

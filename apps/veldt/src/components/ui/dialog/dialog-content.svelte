@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
 	import { Button } from '$components/ui/button/index.js';
-	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
+	import { cn, type WithoutChildrenOrChild } from '$lib/utils/components';
 	import * as Dialog from './index.js';
 	import DialogPortal from './dialog-portal.svelte';
 	import type { Snippet } from 'svelte';

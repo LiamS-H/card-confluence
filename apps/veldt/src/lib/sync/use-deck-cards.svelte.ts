@@ -1,25 +1,11 @@
-import * as Y from 'yjs';
-import { getContext, setContext } from 'svelte';
 import { sync_client } from '$lib';
 
 import type { DeckStruct, DeckCard, DeckZone, OracleCardSerialized } from '@repo/schema-sync';
 import { DeckMutationInterface } from '@repo/schema-sync';
-import { TagDocState } from '$components/tag-doc';
-import type { VeldSettings } from '$lib/settings';
-import type { DeepPartial } from '$lib/utils/object';
-import { TagQuery } from './deck-tags.svelte';
-import { SvelteMap } from 'svelte/reactivity';
-import { type Deck as VeldtDeckParsed } from 'codemirror-lang-veldt-deck';
-
-const DECK_CARD_INTERFACE_KEY = Symbol('deck_card_interface');
 
 export class DeckCardInterface {
 	private deck: DeckStruct;
-	private _tag_doc_state: TagDocState;
 	private _mutate: DeckMutationInterface;
-
-	private _active_view_index = $state(0);
-	private _tags_fetched: Map<string, TagQuery> = new SvelteMap();
 
 	// this is not ideal, since any change will update everything. But it works for now :p
 	private sync_tick = $state(0);
@@ -28,37 +14,9 @@ export class DeckCardInterface {
 		this.deck = deck;
 		this._mutate = new DeckMutationInterface(sync_client.doc, deck);
 
-		if (!deck.doc) {
-			this.deck.set('doc', new Y.Text(''));
-		}
-
-		const ytext = this.deck.get('doc') as Y.Text;
-
-		this._tag_doc_state = new TagDocState(ytext, (...p) => this.on_doc_parsed(...p));
-
 		this.deck.observeDeep(() => {
 			this.sync_tick += 1;
 		});
-	}
-
-	private on_doc_parsed(deck: VeldtDeckParsed, eager?: boolean) {
-		for (const key of this._tags_fetched.keys()) {
-			const obj = deck.objects.get(key);
-			if (!obj || obj.object !== 'tag') {
-				this._tags_fetched.delete(key);
-			}
-		}
-		for (const [key, obj] of deck.objects.entries()) {
-			if (obj.object !== 'tag') continue;
-			const current_query = this._tags_fetched.get(key);
-			if (current_query && current_query.tag.query === obj.query) {
-				continue;
-			}
-			this._tags_fetched.set(key, new TagQuery({ ...obj, query: obj.query }, eager ?? false));
-		}
-		if (deck.views.length > this._active_view_index) {
-			this._active_view_index = 0;
-		}
 	}
 
 	private get_cards_by_zone(target_zone: DeckZone): OracleCardSerialized[] {
@@ -111,10 +69,6 @@ export class DeckCardInterface {
 		return counts;
 	}
 
-	get tags_fetched() {
-		return this._tags_fetched;
-	}
-
 	get mutate() {
 		return this._mutate;
 	}
@@ -129,44 +83,7 @@ export class DeckCardInterface {
 		return this.get_cards_by_zone('considering');
 	}
 
-	get settings() {
-		// TODO: replace with either yjs, or codemirror docstate
-		return { singleton: true, sideboard: false, commander: true };
-	}
-
-	get settings_overrides() {
-		return {} as DeepPartial<VeldSettings>;
-	}
-
 	get commander() {
 		return this.get_cards_by_zone('commander');
 	}
-
-	get doc_state() {
-		return this._tag_doc_state;
-	}
-
-	get active_view() {
-		return this._active_view_index;
-	}
-	set_active_view(index: number) {
-		if (index >= this._tag_doc_state.parsed.views.length || index < 0) {
-			return;
-		}
-		this._active_view_index = index;
-	}
-}
-
-export function use_deck_cards_provider(getDeck: () => DeckStruct): DeckCardInterface {
-	const deck_interface = $derived(new DeckCardInterface(getDeck()));
-	setContext(DECK_CARD_INTERFACE_KEY, deck_interface);
-	$effect(() => {
-		setContext(DECK_CARD_INTERFACE_KEY, deck_interface);
-	});
-	return deck_interface;
-}
-
-export function use_deck_cards(): DeckCardInterface {
-	const context = getContext(DECK_CARD_INTERFACE_KEY) as DeckCardInterface;
-	return context;
 }

@@ -5,7 +5,7 @@
 	import Document from './document/document.svelte';
 	import { Button } from '$components/ui/button';
 	import Deck from './deck/deck.svelte';
-	import { use_deck_cards_provider } from '$lib/sync/use-deck-cards.svelte';
+	import { use_deck_edit_provider } from '$lib/editor';
 	import CardSearch from './cards/card-search.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -16,7 +16,7 @@
 
 	const { deck }: { deck: DeckStruct } = $props();
 
-	const deck_interface = use_deck_cards_provider(() => deck);
+	const deck_interface = use_deck_edit_provider(() => deck);
 
 	const title = $derived(deck.get('title'));
 	let title_string = $state('loading');
@@ -68,14 +68,14 @@
 
 <div class="flex h-full flex-col gap-2">
 	<div class="flex items-center gap-4">
-		{#if deck_interface.settings.commander && deck_interface.commander.length === 0}
+		{#if deck_interface.settings.commander && deck_interface.cards.commander.length === 0}
 			<button role="dialog" class="aspect-5/7 w-50">
 				<div class="flex h-full w-full items-center justify-center border border-dashed">
 					<span>+ commander</span>
 				</div>
 			</button>
 		{/if}
-		{#each deck_interface.commander as commander}
+		{#each deck_interface.cards.commander as commander}
 			<ResultCard
 				variant={'img-full'}
 				width="200px"

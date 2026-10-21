@@ -1,5 +1,4 @@
 import { clsx, type ClassValue } from 'clsx';
-import type { Deck } from 'codemirror-lang-veldt-deck';
 import { twMerge } from 'tailwind-merge';
 
 export function cn(...inputs: ClassValue[]) {
@@ -12,7 +11,3 @@ export type WithoutChild<T> = T extends { child?: any } ? Omit<T, 'child'> : T;
 export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, 'children'> : T;
 export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
-
-export function query_with_domain(deck: Deck, query: string) {
-	return `${deck.domain} (${query})`;
-}

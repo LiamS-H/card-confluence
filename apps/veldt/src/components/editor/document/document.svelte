@@ -1,17 +1,17 @@
 <script lang="ts">
 	import { TagDoc } from '$components/tag-doc';
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { use_deck_edit } from '$lib/editor';
 	import CardOptionsDeck from '../card-options-deck.svelte';
 
 	const { jump_to_query } = $props<{
 		jump_to_query: (query: string) => void;
 	}>();
 
-	const { doc_state } = use_deck_cards();
+	const deck = use_deck_edit();
 </script>
 
 <div class="pt-2">
-	<TagDoc {jump_to_query} {doc_state}>
+	<TagDoc {jump_to_query} doc_state={deck.tag_doc}>
 		{#snippet options(props)}
 			<CardOptionsDeck zone="considering" {...props} />
 		{/snippet}

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { use_deck_edit } from '$lib/editor';
 	import { uuid_to_string } from '$lib/utils/uuid';
 	import type { Card as CardObj, Print } from '@card-confluence/wasm-browser';
 	import type { DeckZone } from '@repo/schema-sync';
@@ -9,11 +9,11 @@
 		card: CardObj;
 		print: Print;
 	} = $props();
-	const deck = use_deck_cards();
+	const deck = use_deck_edit();
 
 	const oracle_id = $derived(uuid_to_string(props.card.oracle_id));
 	const scryfall_id = $derived(uuid_to_string(props.print.scryfall_id));
-	const counts = $derived(deck.get_card_counts(oracle_id));
+	const counts = $derived(deck.cards.get_card_counts(oracle_id));
 
 	const zones = $derived.by(() => {
 		const out: DeckZone[] = ['mainboard'];

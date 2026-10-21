@@ -1,5 +1,5 @@
 import { type VariantProps, tv } from 'tailwind-variants';
-import { type WithElementRef } from '$lib/utils.js';
+import { type WithElementRef } from '$lib/utils/components';
 import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 import type { Snippet } from 'svelte';
 

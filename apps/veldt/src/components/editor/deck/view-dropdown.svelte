@@ -1,22 +1,22 @@
 <script lang="ts">
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { use_deck_edit } from '$lib/editor';
 	import { Button } from '$components/ui/button';
 
 	import * as Popover from '$components/ui/popover';
 	import { untrack } from 'svelte';
 
-	const deck = use_deck_cards();
+	const deck = use_deck_edit();
 
 	let is_open = $state(false);
 
-	let opened_index: number | null = $state(null);
+	let opened_view: string | null = $state(null);
 	$effect(() => {
 		const open = is_open;
 		untrack(() => {
 			if (open) {
-				opened_index = deck.active_view;
+				opened_view = deck.active_view;
 			} else {
-				opened_index = null;
+				opened_view = null;
 			}
 		});
 	});
@@ -26,11 +26,11 @@
 	}
 
 	function on_external_open(o: boolean) {
-		if (opened_index && !o) deck.set_active_view(opened_index);
+		if (opened_view && !o) deck.set_active_view(opened_view);
 		is_open = o;
 	}
 
-	const view = $derived(deck.doc_state.parsed.views[opened_index ?? deck.active_view]);
+	const view = $derived(opened_view ?? deck.active_view);
 </script>
 
 <Popover.Root bind:open={get_open, on_external_open}>
@@ -43,19 +43,19 @@
 	</Popover.Trigger>
 	<Popover.Content class="w-fit">
 		<ul class="flex flex-col -space-y-1">
-			{#each deck.doc_state.parsed.views as view_option, index}
+			{#each deck.view_ids as view_option}
 				<li>
 					<Button
 						intent="secondary"
 						class="w-64"
 						onmouseenter={() => {
-							deck.set_active_view(index);
+							deck.set_active_view(view_option);
 						}}
 						onmouseleave={() => {
-							deck.set_active_view(opened_index ?? 0);
+							deck.set_active_view(opened_view ?? deck.active_view);
 						}}
 						onclick={() => {
-							deck.set_active_view(index);
+							deck.set_active_view(view_option);
 							is_open = false;
 						}}
 					>

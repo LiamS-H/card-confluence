@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { type Snippet } from 'svelte';
-	import { cn, type WithElementRef } from '$lib/utils.js';
+	import { cn, type WithElementRef } from '$lib/utils/components';
 	import type { HTMLAttributes } from 'svelte/elements';
 
 	export type VirtualGridProps = WithElementRef<HTMLAttributes<HTMLDivElement>> & {

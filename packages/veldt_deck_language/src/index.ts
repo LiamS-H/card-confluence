@@ -85,8 +85,10 @@ export function veldtDeck() {
 }
 
 export {
+	type VirtualTag,
 	type Tag,
 	type Deck,
+	type ViewSettings,
 	type View,
 	type Group,
 	type CursorTag,

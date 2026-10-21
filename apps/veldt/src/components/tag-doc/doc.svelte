@@ -6,11 +6,11 @@
 	import VirtualGrid from '$components/virtual-grid.svelte';
 	import { Button } from '$components/ui/button';
 	import * as Card from '$components/ui/card';
-	import { TagDocState } from './state.svelte';
 	import { ResultCard } from '$components/card';
 	import { use_settings } from '$lib/settings';
-	import { query_with_domain } from '$lib/utils';
+	import { query_with_domain } from '$lib/utils/veldt';
 	import type { OptionsSnippet } from '$components/card/result.svelte';
+	import type { TagDocState } from '$lib/editor';
 
 	const { jump_to_query, doc_state, options } = $props<{
 		jump_to_query?: ((query: string) => void) | undefined;

@@ -6,14 +6,14 @@
 	import type { DeckZone } from '@repo/schema-sync';
 	import { page } from '$app/state';
 	import { afterNavigate, goto } from '$app/navigation';
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
-	import { query_with_domain } from '$lib/utils';
+	import { use_deck_edit } from '$lib/editor';
+	import { query_with_domain } from '$lib/utils/veldt';
 	import { ResultCard } from '$components/card';
 	import CardOptionsDeck from '../card-options-deck.svelte';
 	import { use_settings } from '$lib/settings';
 	import { uuid_to_string } from '$lib/utils/uuid';
 
-	const deck = use_deck_cards();
+	const deck = use_deck_edit();
 
 	const {
 		cards: { searchVariant: variant }
@@ -38,7 +38,7 @@
 			state: { from_search_box: true }
 		});
 	}
-	const query = $derived(query_with_domain(deck.doc_state.parsed, search_query));
+	const query = $derived(query_with_domain(deck.tag_doc.parsed, search_query));
 	let data = use_query(() => ({ query }), 500);
 
 	afterNavigate(() => {
@@ -46,10 +46,7 @@
 		// @ts-expect-error
 		if (page.state.from_search_box) return;
 
-		const new_query = query_with_domain(
-			deck.doc_state.parsed,
-			page.url.searchParams.get('q') ?? ''
-		);
+		const new_query = query_with_domain(deck.tag_doc.parsed, page.url.searchParams.get('q') ?? '');
 		data.query_now({ query: new_query });
 	});
 	const { response } = $derived(data);
@@ -116,7 +113,7 @@
 				<div class={`${variant === 'img' ? 'p-1' : 'px-1'}`}>
 					{const result = response.result.rows.at(index) as QueryResultRow}
 					{const in_deck = $derived(
-						deck.get_card_counts(uuid_to_string(result.oracle_id))[
+						deck.cards.get_card_counts(uuid_to_string(result.oracle_id))[
 							zone === 'mainboard' ? zone : 'total'
 						] > 0
 					)}

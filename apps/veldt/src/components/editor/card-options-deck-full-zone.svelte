@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$components/ui/button';
 	import { Input } from '$components/ui/input';
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { use_deck_edit } from '$lib/editor';
 	import type { DeckZone } from '@repo/schema-sync';
 
 	const props: {
@@ -11,7 +11,7 @@
 		count: number;
 	} = $props();
 
-	const deck = use_deck_cards();
+	const deck = use_deck_edit();
 
 	// svelte-ignore ; state_referenced_locally; we are just using it as an initializer
 	let string_count = $state(props.count.toString());
@@ -28,10 +28,10 @@
 		}
 		const dif = parsed - props.count;
 		if (dif > 0) {
-			deck.mutate.add_cards(props.oracle_id, props.scryfall_id, props.zone, dif);
+			deck.cards.mutate.add_cards(props.oracle_id, props.scryfall_id, props.zone, dif);
 		}
 		if (dif < 0) {
-			deck.mutate.remove_cards(props.oracle_id, props.zone, -dif);
+			deck.cards.mutate.remove_cards(props.oracle_id, props.zone, -dif);
 		}
 	});
 </script>
@@ -41,7 +41,7 @@
 		class="h-10 w-10"
 		intent="destructive"
 		onclick={() => {
-			deck.mutate.remove_cards(props.oracle_id, props.zone, 1);
+			deck.cards.mutate.remove_cards(props.oracle_id, props.zone, 1);
 		}}>-</Button
 	>
 	<Input
@@ -53,7 +53,7 @@
 	<Button
 		class="h-10 w-10"
 		onclick={() => {
-			deck.mutate.add_cards(props.oracle_id, props.scryfall_id, props.zone, 1);
+			deck.cards.mutate.add_cards(props.oracle_id, props.scryfall_id, props.zone, 1);
 		}}>+</Button
 	>
 	<span class="flex h-10 grow items-center justify-center bg-foreground text-xl text-background"

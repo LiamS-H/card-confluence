@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
+	import { cn } from '$lib/utils/components';
 	import type { Snippet } from 'svelte';
 
 	export type CardSizeProps =

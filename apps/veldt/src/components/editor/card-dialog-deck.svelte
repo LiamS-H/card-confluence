@@ -8,7 +8,7 @@
 	import { goto } from '$app/navigation';
 	import { CardInfo, CardInfoError, CardInfoLoading } from '$components/card-dialog';
 	import * as Dialog from '$components/ui/dialog';
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { use_deck_edit } from '$lib/editor';
 	import { Button } from '$components/ui/button';
 	import { string_to_uuid, uuid_key, type UUIDString } from '$lib/utils/uuid';
 	import { type DeckZone } from '@repo/schema-sync';
@@ -38,13 +38,13 @@
 		});
 	}
 
-	const deck = use_deck_cards();
+	const deck = use_deck_edit();
 
 	const [matched_tags, unmatched_tags] = $derived.by(() => {
 		const matched_tags = [];
 		const unmatched_tags = [];
-		for (const tag of deck.tags_fetched.values()) {
-			if (tag.matchedIds.has(url_card as UUIDString)) {
+		for (const tag of deck.view_tags.values()) {
+			if (tag.matches(url_card as UUIDString)) {
 				matched_tags.push(tag);
 			} else {
 				unmatched_tags.push(tag);
@@ -128,26 +128,25 @@
 						variant="img-full"
 					/>
 					{#if deck.settings.commander && active_print !== null && url_card !== null && url_print !== null}
-						{const counts = $derived(deck.get_card_counts(url_card))}
+						{const counts = $derived(deck.cards.get_card_counts(url_card))}
 						{#if counts.commander === 0 && card.result.commander}
 							<Button
 								onclick={() => {
 									for (const zone in counts) {
 										if (zone === 'total') continue;
 										const count = counts[zone as DeckZone];
-										console.log(count);
 										if (count === 0) continue;
-										deck.mutate.remove_cards(url_card, zone as DeckZone, count);
+										deck.cards.mutate.remove_cards(url_card, zone as DeckZone, count);
 									}
-									deck.mutate.add_cards(url_card, url_print, 'commander', 1);
+									deck.cards.mutate.add_cards(url_card, url_print, 'commander', 1);
 								}}>+ commander</Button
 							>
 						{:else if counts.commander > 0}
 							<Button
 								intent="destructive"
 								onclick={() => {
-									deck.mutate.add_cards(url_card, url_print, 'mainboard', 1);
-									deck.mutate.remove_cards(url_card, 'commander', counts.commander);
+									deck.cards.mutate.add_cards(url_card, url_print, 'mainboard', 1);
+									deck.cards.mutate.remove_cards(url_card, 'commander', counts.commander);
 								}}>- commander</Button
 							>
 						{/if}

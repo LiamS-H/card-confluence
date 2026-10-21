@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { use_deck_cards } from '$lib/sync/use-deck-cards.svelte';
+	import { use_deck_edit } from '$lib/editor';
 	import View from './view.svelte';
 	import { use_settings } from '$lib/settings';
 	import { get_hovered_card } from '$lib/hover.svelte';
@@ -7,10 +7,11 @@
 	import { followCursor } from '$lib/actions/follor-cursor';
 
 	import ViewDropdown from './view-dropdown.svelte';
+	import VirtualView from './virtual-view.svelte';
 
-	const deck = use_deck_cards();
+	const deck = use_deck_edit();
 
-	const view = $derived(deck.doc_state.parsed.views[deck.active_view] ?? null);
+	const view = $derived(deck.get_view(deck.active_view) ?? null);
 
 	const {
 		cards: { deckVariant }
@@ -38,37 +39,42 @@
 			/>
 		</div>
 	{/if}
-	<div class="flex flex-col">
-		<View
-			zone="mainboard"
-			{width}
-			cards={deck.main_deck}
-			view={deck.doc_state.parsed.objects.get(view) as any}
-		/>
-	</div>
-	{#if deck.settings.sideboard}
-		<div class="flex w-full flex-col">
-			<div class="border-y-2 border-secondary text-secondary">
-				<span>sideboard</span>
+	{#if view.object === 'virtual-view'}
+		<div class="flex flex-col">
+			<VirtualView zone="mainboard" {width} cards={deck.cards.main_deck} {view} />
+		</div>
+		{#if deck.settings.sideboard}
+			<div class="flex w-full flex-col">
+				<div class="border-y-2 border-secondary text-secondary">
+					<span>sideboard</span>
+				</div>
+				<VirtualView zone="sideboard" {width} cards={deck.cards.sideboard} {view} />
 			</div>
-			<View
-				zone="sideboard"
-				{width}
-				cards={deck.sideboard}
-				view={deck.doc_state.parsed.objects.get(view) as any}
-			/>
+		{/if}
+		<div class="flex w-full flex-col">
+			<div class="w-full border-y-2 border-primary text-primary">
+				<span>considering</span>
+			</div>
+			<VirtualView zone="considering" {width} cards={deck.cards.considering} {view} />
+		</div>
+	{:else}
+		<div class="flex flex-col">
+			<View zone="mainboard" {width} cards={deck.cards.main_deck} {view} />
+		</div>
+		{#if deck.settings.sideboard}
+			<div class="flex w-full flex-col">
+				<div class="border-y-2 border-secondary text-secondary">
+					<span>sideboard</span>
+				</div>
+				<View zone="sideboard" {width} cards={deck.cards.sideboard} {view} />
+			</div>
+		{/if}
+		<div class="flex w-full flex-col">
+			<div class="w-full border-y-2 border-primary text-primary">
+				<span>considering</span>
+			</div>
+			<View zone="considering" {width} cards={deck.cards.considering} {view} />
 		</div>
 	{/if}
-	<div class="flex w-full flex-col">
-		<div class="w-full border-y-2 border-primary text-primary">
-			<span>considering</span>
-		</div>
-		<View
-			zone="considering"
-			{width}
-			cards={deck.considering}
-			view={deck.doc_state.parsed.objects.get(view) as any}
-		/>
-	</div>
-	<div class="h-1000"></div>
+	<div class="h-full"></div>
 </div>

@@ -8,6 +8,11 @@ import type { EditorState, TransactionSpec } from '@codemirror/state';
 
 export type DeckObject = Tag | Group | View;
 
+export interface VirtualTag {
+	object: 'virtual-tag';
+	label: string;
+	scope: null;
+}
 export interface Tag {
 	object: 'tag';
 	label: string;

@@ -16,12 +16,14 @@ import { cardconfluenceWithContext } from 'codemirror-lang-cardconfluence';
 import { yCollab } from 'y-codemirror.next';
 import { veldtSetup } from '$lib/codemirror';
 
+export type TagDocStateOnParsedCallback = (parsed: VeldtDeckParsed, eager?: boolean) => void;
+
 export class TagDocState {
 	private _doc_parsed = $state<VeldtDeckParsed>() as VeldtDeckParsed;
 	private _cursor_tag: CursorTag | null = $state(null);
 	private _view: EditorView;
 
-	constructor(ytext: Y.Text, on_doc_parsed: (parsed: VeldtDeckParsed, eager?: boolean) => void) {
+	constructor(ytext: Y.Text, on_doc_parsed: TagDocStateOnParsedCallback) {
 		const undoManager = new Y.UndoManager(ytext);
 		const state = EditorState.create({
 			doc: ytext.toJSON(),

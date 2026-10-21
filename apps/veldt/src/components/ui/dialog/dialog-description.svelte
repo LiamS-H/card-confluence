@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Dialog as DialogPrimitive } from 'bits-ui';
-	import { cn } from '$lib/utils.js';
+	import { cn } from '$lib/utils/components';
 
 	let {
 		ref = $bindable(null),
@@ -13,7 +13,7 @@
 	bind:ref
 	data-slot="dialog-description"
 	class={cn(
-		'text-muted-foreground text-sm *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
+		'text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground',
 		className
 	)}
 	{...restProps}
