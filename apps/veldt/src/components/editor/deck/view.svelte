@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { DeckZone, OracleCardSerialized } from '@repo/schema-sync';
-	import type { View, Tag, VirtualTag, Group } from 'codemirror-lang-veldt-deck';
-	import { use_deck_edit } from '$lib/editor';
+	import type { NormalizedItem, NormalizedTag, NormalizedView } from '$lib/editor/display';
 	import { use_settings } from '$lib/settings';
 	import type { UUIDString } from '$lib/utils/uuid';
 	import ViewTag from './view-tag.svelte';
@@ -11,202 +10,77 @@
 		view,
 		width,
 		zone
-	}: { cards: OracleCardSerialized[]; view: View; width: number; zone: DeckZone } = $props();
-
-	const deck = use_deck_edit();
-
-	export type DisplayTag =
-		| {
-				type: 'tag';
-				id: string;
-				tag: Tag;
-				cards: OracleCardSerialized[];
-		  }
-		| {
-				// A virtual tag does not apear in the tag document
-				type: 'virtual-tag';
-				tag: VirtualTag;
-				cards: OracleCardSerialized[];
-		  };
-
-	interface DisplayGroup {
-		type: 'group';
-		id: string;
-		group: Group;
-		tags: DisplayTag[];
-		total: number;
-	}
-	const display_items = $derived.by(() => {
-		const included_cards = new Set();
-
-		function tag_to_display(obj: Tag, key: string): DisplayTag {
-			const fetched = deck.view_tags.get(key);
-			if (!fetched) {
-				return {
-					type: 'tag',
-					id: key,
-					tag: obj,
-					cards: []
-				};
-			}
-			const filtered = cards.filter((c) => {
-				const out = fetched.matches(c);
-				if (out) {
-					included_cards.add(c.oracle_id);
-				}
-				return out;
-			});
-			return {
-				type: 'tag',
-				id: key,
-				tag: obj,
-				cards: filtered
-			};
-		}
-
-		if (!view) return [];
-
-		const out: (DisplayTag | DisplayGroup)[] = [];
-		const visited = new Set();
-
-		function recurse_group(group: Group, cards: Set<OracleCardSerialized>, queries: Set<string>) {
-			for (const key of group.children) {
-				if (visited.has(key)) continue;
-				const obj = deck.tag_doc.parsed.objects.get(key);
-				if (!obj) continue;
-				if (obj.object === 'view') continue;
-				if (obj.object === 'tag') {
-					const fetched = deck.view_tags.get(key);
-					if (!fetched) continue;
-
-					const total = cards.size;
-					cards.forEach((c) => {
-						if (fetched.matches(c)) {
-							cards.add(c);
-						}
-					});
-					if (total !== cards.size) {
-						if (obj.query) queries.add(obj.query);
-					}
-				}
-				if (obj.object === 'group') {
-					recurse_group(obj, cards, queries);
-				}
-			}
-			return { cards, queries };
-		}
-
-		function group_to_display(group: Group, key: string): DisplayGroup {
-			const tags: DisplayTag[] = [];
-			let total = 0;
-			for (const childKey of group.children) {
-				if (visited.has(childKey)) continue;
-				const obj = deck.tag_doc.parsed.objects.get(key);
-				if (!obj) continue;
-				if (obj.object === 'view') continue;
-				if (obj.object === 'tag') {
-					const tag = tag_to_display(obj, childKey);
-					total += tag.cards.length;
-					tags.push(tag);
-					continue;
-				}
-				const matching_cards: Set<OracleCardSerialized> = new Set();
-				const queries: Set<string> = new Set();
-				recurse_group(group, matching_cards, queries);
-				total += matching_cards.size;
-				included_cards.union(matching_cards);
-
-				tags.push({
-					type: 'tag',
-					id: childKey,
-					tag: {
-						object: 'tag',
-						label: obj.label,
-						scope: obj.scope,
-						query: '(' + [...queries].join(') or (') + ')'
-					},
-					cards: Array.from(matching_cards)
-				});
-			}
-
-			return {
-				total,
-				type: 'group',
-				id: key,
-				group,
-				tags
-			};
-		}
-
-		for (const key of view.children) {
-			visited.add(key);
-			const obj = deck.tag_doc.parsed.objects.get(key);
-			if (!obj) continue;
-			if (obj.object === 'tag') {
-				out.push(tag_to_display(obj, key));
-			} else if (obj.object === 'group') {
-				out.push(group_to_display(obj, key));
-			}
-		}
-
-		if (view.settings.showUnmatched) {
-			const filtered = cards.filter((c) => !included_cards.has(c.oracle_id as UUIDString));
-			out.push({
-				type: 'virtual-tag',
-				tag: { object: 'virtual-tag', label: 'unmatched', scope: null },
-				cards: filtered
-			});
-		}
-
-		if (!view.settings.showEmpty) {
-			return out.filter((obj) => {
-				if (obj.type === 'group') {
-					if (obj.total === 0) return false;
-					obj.tags = obj.tags.filter((t) => t.cards.length !== 0);
-					return true;
-				} else if (obj.cards.length !== 0) {
-					return true;
-				} else {
-					return false;
-				}
-			});
-		}
-		return out;
-	});
+	}: { cards: OracleCardSerialized[]; view: NormalizedView; width: number; zone: DeckZone } =
+		$props();
 
 	const {
 		cards: { deckVariant: variant }
 	} = $derived(use_settings());
+
+	// Collect included oracle_ids across all tags so we can derive the unmatched set.
+	// This runs in the parent (not in ViewTag) because showUnmatched is a view-level concern.
+	const included_oracle_ids = $derived.by(() => {
+		const included = new Set<UUIDString>();
+		function scan_tag(item: NormalizedTag) {
+			if (item.viewTag.data && !item.viewTag.data.response.loading && !item.viewTag.data.response.error) {
+				for (const card of cards) {
+					if (item.viewTag.matches(card)) included.add(card.oracle_id as UUIDString);
+				}
+			}
+		}
+		for (const item of view.items) {
+			if (item.type === 'group') {
+				for (const tag of item.tags) scan_tag(tag);
+			} else {
+				scan_tag(item);
+			}
+		}
+		return included;
+	});
+
+	const unmatched_cards = $derived(
+		view.settings.showUnmatched
+			? cards.filter((c) => !included_oracle_ids.has(c.oracle_id as UUIDString))
+			: []
+	);
+
+	const unmatched_tag: NormalizedTag = {
+		type: 'virtual-tag',
+		id: ':unmatched',
+		tag: { object: 'virtual-tag', label: 'unmatched', scope: null },
+		// Unmatched uses a pass-through predicate; cards are pre-filtered by the parent
+		viewTag: { tag: { object: 'virtual-tag', label: 'unmatched', scope: null }, matches: () => true }
+	};
+
+	function should_show(item: NormalizedItem): boolean {
+		if (view.settings.showEmpty) return true;
+		if (item.type === 'group') return item.tags.length > 0;
+		return true; // ViewTag handles its own empty filtering
+	}
 </script>
 
 <div
 	style={variant !== 'img-full' ? `columns: ${width}px` : undefined}
 	class={variant === 'img-full' ? 'flex max-w-full flex-wrap' : ''}
 >
-	{#each display_items as item}
+	{#each view.items.filter(should_show) as item (item.id)}
 		<div class="relative flex break-inside-avoid flex-col overflow-y-hidden bg-background">
-			{#if item.type === 'tag'}
-				<ViewTag tag={item} {variant} {width} {zone} />
-			{:else if item.type === 'group'}
+			{#if item.type === 'group'}
 				<span>{item.group.label}</span>
-				<div class="flex flex-col"></div>
-				{#each item.tags as tag}
-					<ViewTag {tag} {variant} {width} {zone} />
-				{/each}
+				<div class="flex flex-col">
+					{#each item.tags as tag (tag.id)}
+						<ViewTag {tag} {cards} showEmpty={view.settings.showEmpty} {variant} {width} {zone} />
+					{/each}
+				</div>
 			{:else}
-				<ViewTag
-					tag={{
-						id: '',
-						// using invalid scope to not match against tags actually called unmatched
-						tag: { label: 'unmatched', object: 'tag', query: '', scope: ':unmatched' },
-						type: 'tag',
-						cards: item.cards
-					}}
-					{variant}
-					{width}
-					{zone}
-				/>
+				<ViewTag tag={item} {cards} showEmpty={view.settings.showEmpty} {variant} {width} {zone} />
 			{/if}
 		</div>
 	{/each}
+
+	{#if view.settings.showUnmatched && unmatched_cards.length > 0}
+		<div class="relative flex break-inside-avoid flex-col overflow-y-hidden bg-background">
+			<ViewTag tag={unmatched_tag} cards={unmatched_cards} showEmpty={false} {variant} {width} {zone} />
+		</div>
+	{/if}
 </div>

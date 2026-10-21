@@ -5,13 +5,20 @@
 	import { get_hovered_card } from '$lib/hover.svelte';
 	import { ResultCard } from '$components/card';
 	import { followCursor } from '$lib/actions/follor-cursor';
-
 	import ViewDropdown from './view-dropdown.svelte';
-	import VirtualView from './virtual-view.svelte';
+	import { normalize_doc_view, normalize_virtual_view } from '$lib/editor/display';
 
 	const deck = use_deck_edit();
 
-	const view = $derived(deck.get_view(deck.active_view) ?? null);
+	const raw_view = $derived(deck.get_view(deck.active_view) ?? null);
+
+	const view = $derived.by(() => {
+		if (!raw_view) return null;
+		if (raw_view.object === 'virtual-view') {
+			return normalize_virtual_view(raw_view);
+		}
+		return normalize_doc_view(raw_view, deck.view_tags, deck.tag_doc);
+	});
 
 	const {
 		cards: { deckVariant }
@@ -39,25 +46,8 @@
 			/>
 		</div>
 	{/if}
-	{#if view.object === 'virtual-view'}
-		<div class="flex flex-col">
-			<VirtualView zone="mainboard" {width} cards={deck.cards.main_deck} {view} />
-		</div>
-		{#if deck.settings.sideboard}
-			<div class="flex w-full flex-col">
-				<div class="border-y-2 border-secondary text-secondary">
-					<span>sideboard</span>
-				</div>
-				<VirtualView zone="sideboard" {width} cards={deck.cards.sideboard} {view} />
-			</div>
-		{/if}
-		<div class="flex w-full flex-col">
-			<div class="w-full border-y-2 border-primary text-primary">
-				<span>considering</span>
-			</div>
-			<VirtualView zone="considering" {width} cards={deck.cards.considering} {view} />
-		</div>
-	{:else}
+
+	{#if view}
 		<div class="flex flex-col">
 			<View zone="mainboard" {width} cards={deck.cards.main_deck} {view} />
 		</div>
@@ -76,5 +66,6 @@
 			<View zone="considering" {width} cards={deck.cards.considering} {view} />
 		</div>
 	{/if}
+
 	<div class="h-full"></div>
 </div>
