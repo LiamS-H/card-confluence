@@ -9,7 +9,7 @@ import { DEFAULT_VIEW_ID, PRESET_VIEWS, type VirtualView } from './view.svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { TagQuery } from '$lib/editor/tags.svelte';
 
-import type { VeldSettings } from '$lib/settings';
+import type { VeldtSettings } from '$lib/settings';
 import type { DeepPartial } from '$lib/utils/object';
 
 const DECK_CARD_INTERFACE_KEY = Symbol('deck_card_interface');
@@ -119,7 +119,7 @@ export class DeckEditInterface {
 	}
 
 	get settings_overrides() {
-		return {} as DeepPartial<VeldSettings>;
+		return {} as DeepPartial<VeldtSettings>;
 	}
 }
 

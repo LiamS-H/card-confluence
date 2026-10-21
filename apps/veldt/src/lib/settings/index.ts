@@ -5,4 +5,4 @@ export {
 	type LocalSettings
 } from './settings-local.svelte';
 
-export { use_settings, get_settings, type VeldSettings } from './settings-merged.svelte';
+export { use_settings, get_settings, type VeldtSettings } from './settings-merged.svelte';
