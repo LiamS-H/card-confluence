@@ -4,6 +4,7 @@
 	import { use_settings } from '$lib/settings';
 	import type { UUIDString } from '$lib/utils/uuid';
 	import ViewTag from './view-tag.svelte';
+	import { TagQuery } from '$lib/editor';
 
 	const {
 		cards,
@@ -22,7 +23,10 @@
 	const included_oracle_ids = $derived.by(() => {
 		const included = new Set<UUIDString>();
 		function scan_tag(item: NormalizedTag) {
-			if (item.viewTag.data && !item.viewTag.data.response.loading && !item.viewTag.data.response.error) {
+			if (!(item.viewTag instanceof TagQuery)) {
+				return;
+			}
+			if (!item.viewTag.data.response.loading && !item.viewTag.data.response.error) {
 				for (const card of cards) {
 					if (item.viewTag.matches(card)) included.add(card.oracle_id as UUIDString);
 				}
@@ -49,7 +53,10 @@
 		id: ':unmatched',
 		tag: { object: 'virtual-tag', label: 'unmatched', scope: null },
 		// Unmatched uses a pass-through predicate; cards are pre-filtered by the parent
-		viewTag: { tag: { object: 'virtual-tag', label: 'unmatched', scope: null }, matches: () => true }
+		viewTag: {
+			tag: { object: 'virtual-tag', label: 'unmatched', scope: null },
+			matches: () => true
+		}
 	};
 
 	function should_show(item: NormalizedItem): boolean {
@@ -80,7 +87,14 @@
 
 	{#if view.settings.showUnmatched && unmatched_cards.length > 0}
 		<div class="relative flex break-inside-avoid flex-col overflow-y-hidden bg-background">
-			<ViewTag tag={unmatched_tag} cards={unmatched_cards} showEmpty={false} {variant} {width} {zone} />
+			<ViewTag
+				tag={unmatched_tag}
+				cards={unmatched_cards}
+				showEmpty={false}
+				{variant}
+				{width}
+				{zone}
+			/>
 		</div>
 	{/if}
 </div>
