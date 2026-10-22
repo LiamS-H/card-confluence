@@ -3,7 +3,7 @@
 	import { uuid_to_string } from '$lib/utils/uuid';
 	import type { Card as CardObj, Print } from '@card-confluence/wasm-browser';
 	import type { DeckZone } from '@repo/schema-sync';
-	import CardOptionsFullZone from './card-options-full-zone.svelte';
+	import CardOptionsFullZone from './card-options-deck-full-zone.svelte';
 
 	const props: {
 		card: CardObj;
